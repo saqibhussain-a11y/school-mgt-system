@@ -5,7 +5,7 @@ export const createStudentSchema = z.object({
   password: z.string().min(8).optional(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  admissionNo: z.string().min(1),
+  admissionNo: z.string().min(1).optional(),
   classId: z.string().min(1),
   sectionId: z.string().min(1),
   dob: z.coerce.date(),

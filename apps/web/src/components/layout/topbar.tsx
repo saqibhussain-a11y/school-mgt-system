@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut, Settings } from "lucide-react";
+import { useState } from "react";
+import { KeyRound, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -14,11 +15,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { MobileSidebar } from "./mobile-sidebar";
+import { ChangePasswordDialog } from "./change-password-dialog";
 import { useAuth } from "@/lib/auth-context";
 import { formatRole, initials } from "@/lib/format";
 
 export function Topbar() {
   const { user, logout } = useAuth();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   if (!user) return null;
 
   return (
@@ -54,9 +57,9 @@ export function Topbar() {
             </DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>
-            <Settings className="size-4" />
-            Settings
+          <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+            <KeyRound className="size-4" />
+            Change password
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => logout()}>
             <LogOut className="size-4" />
@@ -64,6 +67,7 @@ export function Topbar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </header>
   );
 }

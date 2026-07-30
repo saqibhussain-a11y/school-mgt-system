@@ -141,7 +141,7 @@ interface BulkImportRow {
   email: string;
   firstName: string;
   lastName: string;
-  admissionNo: string;
+  admissionNo?: string;
   classId: string;
   sectionId: string;
   dob: string;
@@ -165,7 +165,11 @@ studentRouter.post(
 
       const errors: { row: number; message: string }[] = [];
       const parsed = rows.map((row, index) => {
-        const result = createStudentSchema.safeParse({ ...row, password: undefined });
+        const result = createStudentSchema.safeParse({
+          ...row,
+          admissionNo: row.admissionNo?.trim() || undefined,
+          password: undefined,
+        });
         if (!result.success) {
           errors.push({
             row: index + 2, // +1 for header, +1 for 1-based row numbers

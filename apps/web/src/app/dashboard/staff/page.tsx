@@ -5,6 +5,7 @@ import { UserMinus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ResetPasswordButton } from "@/components/shared/reset-password-button";
 import { CreateStaffDialog } from "@/components/staff/create-staff-dialog";
 import { EditStaffDialog } from "@/components/staff/edit-staff-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,7 @@ interface StaffSummary {
   id: string;
   designation: string;
   status: "ACTIVE" | "DEACTIVATED";
-  user: { firstName: string; lastName: string; email: string; role: string };
+  user: { id: string; firstName: string; lastName: string; email: string; role: string };
 }
 
 export default function StaffPage() {
@@ -98,6 +99,7 @@ export default function StaffPage() {
                         currentDesignation={member.designation}
                         onSaved={refetch}
                       />
+                      <ResetPasswordButton userId={member.user.id} />
                       <ConfirmDialog
                         trigger={
                           <Button

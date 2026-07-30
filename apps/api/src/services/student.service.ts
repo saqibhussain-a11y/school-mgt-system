@@ -8,7 +8,11 @@ export interface CreateStudentInput {
   password: string;
   firstName: string;
   lastName: string;
-  admissionNo: string;
+  // Left undefined for normal admissions — the school shouldn't have to invent
+  // and remember a number by hand (risk of reusing one already assigned).
+  // Only bulk-import supplies it, to preserve numbers carried over from a
+  // school's existing records.
+  admissionNo?: string;
   classId: string;
   sectionId: string;
   dob: Date;
@@ -32,8 +36,17 @@ const studentInclude = {
   },
 };
 
+async function generateAdmissionNo(tx: TxClient, schoolId: string) {
+  const prefix = `ADM-${new Date().getFullYear()}-`;
+  const count = await tx.student.count({
+    where: { schoolId, admissionNo: { startsWith: prefix } },
+  });
+  return `${prefix}${String(count + 1).padStart(4, "0")}`;
+}
+
 async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInput) {
   const passwordHash = await hashPassword(input.password);
+  const admissionNo = input.admissionNo || (await generateAdmissionNo(tx, schoolId));
 
   const user = await tx.user.create({
     data: {
@@ -50,7 +63,7 @@ async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInp
     data: {
       schoolId,
       userId: user.id,
-      admissionNo: input.admissionNo,
+      admissionNo,
       classId: input.classId,
       sectionId: input.sectionId,
       dob: input.dob,

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ResetPasswordButton } from "@/components/shared/reset-password-button";
 import { EditStudentDialog } from "@/components/students/edit-student-dialog";
 import { LinkGuardianDialog } from "@/components/students/link-guardian-dialog";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ export default function StudentDetailPage() {
           canManage && (
             <div className="flex gap-2">
               <EditStudentDialog student={student} onSaved={refetch} />
+              <ResetPasswordButton userId={student.user.id} />
               <ConfirmDialog
                 trigger={
                   <Button size="sm" variant="destructive" disabled={student.status === "WITHDRAWN"}>

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Megaphone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +9,18 @@ export interface AnnouncementSummary {
   title: string;
   body: string;
   targetRole?: string | null;
-  targetClass?: { name: string } | null;
-  creator: { firstName: string; lastName: string };
+  targetClass?: { id: string; name: string } | null;
+  creator: { id: string; firstName: string; lastName: string };
   createdAt: string;
 }
 
-export function AnnouncementCard({ announcement }: { announcement: AnnouncementSummary }) {
+export function AnnouncementCard({
+  announcement,
+  actions,
+}: {
+  announcement: AnnouncementSummary;
+  actions?: ReactNode;
+}) {
   return (
     <Card>
       <CardContent className="flex gap-3">
@@ -21,14 +28,17 @@ export function AnnouncementCard({ announcement }: { announcement: AnnouncementS
           <Megaphone className="size-4" />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium">{announcement.title}</h3>
-            {announcement.targetRole && (
-              <Badge variant="secondary">{formatRole(announcement.targetRole)}</Badge>
-            )}
-            {announcement.targetClass && (
-              <Badge variant="secondary">{announcement.targetClass.name}</Badge>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-medium">{announcement.title}</h3>
+              {announcement.targetRole && (
+                <Badge variant="secondary">{formatRole(announcement.targetRole)}</Badge>
+              )}
+              {announcement.targetClass && (
+                <Badge variant="secondary">{announcement.targetClass.name}</Badge>
+              )}
+            </div>
+            {actions && <div className="flex shrink-0 gap-1">{actions}</div>}
           </div>
           <p className="text-sm text-muted-foreground">{announcement.body}</p>
           <p className="text-xs text-muted-foreground">

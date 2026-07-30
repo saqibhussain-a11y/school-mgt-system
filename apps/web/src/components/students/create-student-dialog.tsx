@@ -36,7 +36,6 @@ const EMPTY_FORM = {
   email: "",
   firstName: "",
   lastName: "",
-  admissionNo: "",
   classId: "",
   sectionId: "",
   dob: "",
@@ -48,9 +47,9 @@ export function CreateStudentDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(
-    null,
-  );
+  const [credentials, setCredentials] = useState<
+    { email: string; password: string; admissionNo: string } | null
+  >(null);
 
   const { data: sessions } = useApi<AcademicSession[]>(open ? "/api/academic-sessions" : null);
   const [sessionId, setSessionId] = useState("");
@@ -75,13 +74,18 @@ export function CreateStudentDialog({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const student = await apiFetch<{ user: { email: string }; temporaryPassword?: string }>(
-        "/api/students",
-        { method: "POST", body: JSON.stringify(form) },
-      );
+      const student = await apiFetch<{
+        admissionNo: string;
+        user: { email: string };
+        temporaryPassword?: string;
+      }>("/api/students", { method: "POST", body: JSON.stringify(form) });
       toast.success("Student created");
       if (student.temporaryPassword) {
-        setCredentials({ email: student.user.email, password: student.temporaryPassword });
+        setCredentials({
+          email: student.user.email,
+          password: student.temporaryPassword,
+          admissionNo: student.admissionNo,
+        });
       } else {
         setOpen(false);
         reset();
@@ -117,6 +121,10 @@ export function CreateStudentDialog({ onCreated }: { onCreated: () => void }) {
               Share these credentials with the student — this password won&apos;t be shown again.
             </p>
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Admission no.</span>
+                <span className="font-mono">{credentials.admissionNo}</span>
+              </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Email</span>
                 <span className="font-mono">{credentials.email}</span>
@@ -181,26 +189,18 @@ export function CreateStudentDialog({ onCreated }: { onCreated: () => void }) {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="s-admissionNo">Admission no.</Label>
-                <Input
-                  id="s-admissionNo"
-                  required
-                  value={form.admissionNo}
-                  onChange={(e) => setForm({ ...form, admissionNo: e.target.value })}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="s-dob">Date of birth</Label>
-                <Input
-                  id="s-dob"
-                  type="date"
-                  required
-                  value={form.dob}
-                  onChange={(e) => setForm({ ...form, dob: e.target.value })}
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="s-dob">Date of birth</Label>
+              <Input
+                id="s-dob"
+                type="date"
+                required
+                value={form.dob}
+                onChange={(e) => setForm({ ...form, dob: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Admission number is assigned automatically when the student is created.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               <Label>Academic session</Label>

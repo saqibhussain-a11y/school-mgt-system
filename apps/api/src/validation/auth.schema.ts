@@ -29,3 +29,8 @@ export const resetPasswordSchema = z.object({
   otp: z.string().length(6),
   newPassword: z.string().min(8),
 });
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
+});

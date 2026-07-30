@@ -3,6 +3,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { CreateGuardianDialog } from "@/components/guardians/create-guardian-dialog";
 import { EditGuardianDialog } from "@/components/guardians/edit-guardian-dialog";
+import { ResetPasswordButton } from "@/components/shared/reset-password-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -22,7 +23,7 @@ interface GuardianSummary {
   id: string;
   phone: string | null;
   address: string | null;
-  user: { firstName: string; lastName: string; email: string };
+  user: { id: string; firstName: string; lastName: string; email: string };
 }
 
 export default function GuardiansPage() {
@@ -68,13 +69,14 @@ export default function GuardiansPage() {
                   <TableCell>{guardian.phone ?? "—"}</TableCell>
                   <TableCell>{guardian.address ?? "—"}</TableCell>
                   {canManage && (
-                    <TableCell className="text-right">
+                    <TableCell className="flex justify-end gap-1">
                       <EditGuardianDialog
                         guardianId={guardian.id}
                         currentPhone={guardian.phone ?? ""}
                         currentAddress={guardian.address ?? ""}
                         onSaved={refetch}
                       />
+                      <ResetPasswordButton userId={guardian.user.id} />
                     </TableCell>
                   )}
                 </TableRow>

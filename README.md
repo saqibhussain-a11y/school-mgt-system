@@ -77,7 +77,19 @@ npm run docker:down    # stop Postgres + Redis
 
 ## Announcements module (V1)
 
-`GET/POST/PATCH/DELETE /api/announcements`. Creating is restricted to `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL`/`TEACHER`; editing/deleting requires being the original creator or an admin role (a teacher can't edit another teacher's post). An announcement can be school-wide (no target), role-specific (`targetRole`), class-wide (`targetClassId`), or both — staff roles always see everything, while a `STUDENT`/`PARENT` only sees announcements matching their own role and their (or their linked child's) class.
+`GET/POST/PATCH/DELETE /api/announcements`. Creating is restricted to `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL`/`TEACHER`; editing/deleting requires being the original creator or an admin role (a teacher can't edit another teacher's post). An announcement can be school-wide (no target), role-specific (`targetRole`), class-wide (`targetClassId`), or both — staff roles always see everything, while a `STUDENT`/`PARENT` only sees announcements matching their own role and their (or their linked child's) class. Full create/edit/delete UI lives at `/dashboard/announcements`.
+
+## Passwords (V1)
+
+Three ways a password can change, each for a different situation:
+
+- **Self-service** — `POST /api/auth/change-password` (authenticated, `{currentPassword, newPassword}`). Any logged-in user reaches this from the topbar profile menu → **Change password**. Verifies the current password, then revokes all of that user's refresh tokens (forces re-login everywhere, including the tab that just changed it).
+- **Admin-initiated reset** — `POST /api/users/:id/reset-password` (`SUPER_ADMIN`/`SCHOOL_ADMIN` only, scoped to their own school). Generates a new temporary password without needing the old one — this is the answer to "how does a staff member get back in if they forget their password," since no email provider is wired up yet so the OTP flow below isn't practically usable. Surfaced as a key icon button next to Staff/Guardians rows and on a student's detail page. The generated password is shown once, never stored in plaintext, and the old one stops working immediately.
+- **Forgot password (OTP)** — `POST /api/auth/forgot-password` → `POST /api/auth/reset-password`, unauthenticated. Still there for completeness, but the OTP is only logged to the API console (no email provider yet), so it's not yet usable outside of dev.
+
+## Admission numbers
+
+`admissionNo` is auto-generated server-side (`ADM-<year>-<sequence>`, e.g. `ADM-2026-0001`) whenever a student is created through the **New student** form — there's no field to type one in, so there's no way for staff to accidentally reuse a number already assigned to someone else. The one exception is CSV bulk import, where the column is optional: leave it blank to auto-assign, or fill it in per-row when migrating admission numbers a school already had in an existing system.
 
 ## Frontend dashboard (V1)
 
@@ -90,10 +102,11 @@ npm run dev:web    # terminal 2 — :3000
 
 Open `http://localhost:3000` (redirects to `/login` if you're not signed in). Sign in with the seeded admin (`admin@school.test` / `ChangeMe123!`, or any user created via the API). The login page doesn't ask for a school — single-tenant mode auto-resolves the one school via `GET /api/schools`.
 
-- **Layout:** `components/layout/` — `Sidebar` (desktop rail) + `MobileSidebar` (Sheet-based drawer) + `Topbar` (user menu with theme toggle and profile dropdown — Settings is a disabled placeholder, Log out is wired) composed in `DashboardShell`, which guards every `/dashboard/*` route. Nav items are filtered per role in `lib/nav-config.ts`.
+- **Layout:** `components/layout/` — `Sidebar` (desktop rail) + `MobileSidebar` (Sheet-based drawer) + `Topbar` (user menu with theme toggle and profile dropdown — Change password and Log out) composed in `DashboardShell`, which guards every `/dashboard/*` route. Nav items are filtered per role in `lib/nav-config.ts`.
 - **Theme:** light/dark via `next-themes`. Colors are the dataviz skill's validated palette (blue primary, reserved status colors for attendance %) — see `app/globals.css`.
 - **Dashboard** (`/dashboard`, backed by `GET /api/dashboard`): role-aware stat cards/widgets + recent announcements.
 - **Academics** (`/dashboard/academics`): tabbed CRUD for Sessions, Classes, Sections, Subjects.
+- **Announcements** (`/dashboard/announcements`): create/edit/delete for roles allowed to post, targeting by role and/or class; everyone sees the feed filtered to what applies to them.
 - **Students** (`/dashboard/students`): filterable list, create form, CSV bulk import, and a detail page (edit, link/unlink guardians with relationship type, withdraw).
 - **Staff** (`/dashboard/staff`) and **Guardians** (`/dashboard/guardians`): list + create + edit (staff also deactivate).
 - **Attendance** (`/dashboard/attendance`): a mark-attendance grid (class/section/date → per-student status + remarks, pre-filled from existing marks) and holiday management for staff; a personal history + % view for students/parents.

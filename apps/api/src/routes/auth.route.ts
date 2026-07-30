@@ -9,6 +9,7 @@ import {
   registerSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from "../validation/auth.schema";
 
 export const authRouter = Router();
@@ -80,3 +81,18 @@ authRouter.post("/reset-password", validateBody(resetPasswordSchema), async (req
     next(err);
   }
 });
+
+authRouter.post(
+  "/change-password",
+  authenticate,
+  validateBody(changePasswordSchema),
+  async (req, res, next) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      await authService.changePassword(req.user!.sub, currentPassword, newPassword);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+);

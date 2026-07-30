@@ -114,8 +114,10 @@ export function BulkImportDialog({ onImported }: { onImported: () => void }) {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">
               CSV columns: <code className="font-mono text-xs">email, firstName, lastName,
-              admissionNo, classId, sectionId, dob</code>. The whole file is imported as one
-              batch — a single bad row cancels the entire import.
+              admissionNo, classId, sectionId, dob</code>. Leave <code className="font-mono text-xs">admissionNo</code>{" "}
+              blank to auto-assign one — only fill it in if you&apos;re migrating numbers from an
+              existing system. The whole file is imported as one batch — a single bad row cancels
+              the entire import.
             </p>
             <div className="flex flex-col gap-2">
               <Label htmlFor="csv-file">CSV file</Label>

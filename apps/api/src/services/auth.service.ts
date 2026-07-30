@@ -93,4 +93,14 @@ export const authService = {
     await userService.updatePassword(user.id, passwordHash);
     await authTokenService.revokeAllForUser(user.id);
   },
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await userService.findById(userId);
+    if (!user || !(await verifyPassword(currentPassword, user.passwordHash))) {
+      throw new HttpError(401, "Current password is incorrect");
+    }
+    const passwordHash = await hashPassword(newPassword);
+    await userService.updatePassword(user.id, passwordHash);
+    await authTokenService.revokeAllForUser(user.id);
+  },
 };
