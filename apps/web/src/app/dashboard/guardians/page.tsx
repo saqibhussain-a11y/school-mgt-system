@@ -17,7 +17,7 @@ import {
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN"];
 
 interface GuardianSummary {
   id: string;

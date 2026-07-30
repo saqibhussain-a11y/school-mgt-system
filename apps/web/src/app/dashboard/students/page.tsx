@@ -28,7 +28,7 @@ import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import type { SchoolClass } from "@/components/academics/classes-tab";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN"];
 
 interface Section {
   id: string;

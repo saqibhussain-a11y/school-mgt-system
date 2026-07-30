@@ -11,11 +11,16 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 
+// Only ever creates a SCHOOL_ADMIN — SUPER_ADMIN's one remaining creation
+// right. Every other role has its own dedicated endpoint (/api/staff,
+// /api/students, /api/guardians) that also creates the matching profile row,
+// so this schema deliberately doesn't accept an arbitrary role.
 export const registerSchema = z.object({
-  schoolId: z.string().min(1),
   email: z.string().email(),
-  password: z.string().min(8),
-  role: z.nativeEnum(Role),
+  password: z.string().min(8).optional(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: z.literal(Role.SCHOOL_ADMIN),
 });
 
 export const forgotPasswordSchema = z.object({

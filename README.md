@@ -55,7 +55,15 @@ npm run docker:down    # stop Postgres + Redis
 
 ## Auth module (V1)
 
-`POST /api/auth/login`, `/refresh`, `/logout`, `/register` (admin-only), `/forgot-password`, `/reset-password`. Access tokens are short-lived JWTs (15m); refresh tokens are rotated on every use and revoked on reuse. Password reset OTPs are logged to the API console instead of emailed — no email provider is wired up yet (that's the Communication module, later on the roadmap).
+`POST /api/auth/login`, `/refresh`, `/logout`, `/forgot-password`, `/reset-password`, `/change-password`. Access tokens are short-lived JWTs (15m); refresh tokens are rotated on every use and revoked on reuse. Password reset OTPs are logged to the API console instead of emailed — no email provider is wired up yet (that's the Communication module, later on the roadmap).
+
+`POST /api/auth/register` is `SUPER_ADMIN`-only and can **only** create a `SCHOOL_ADMIN` (`registerSchema` enforces `role: z.literal("SCHOOL_ADMIN")` — it's not a general-purpose "create any role" endpoint). Every other role has its own dedicated creation endpoint that also provisions the matching profile row (`/api/staff` for `PRINCIPAL`/`TEACHER`/etc., `/api/students`, `/api/guardians`) — those no longer accept `SUPER_ADMIN` as a caller.
+
+## Account-creation hierarchy (V1)
+
+- **`SUPER_ADMIN`** creates and manages **`SCHOOL_ADMIN`** accounts only (`/dashboard/school-admins`, `SUPER_ADMIN`-only nav item). They keep read-only visibility into staff/students/guardians for oversight, but the create/edit/deactivate actions and APIs are no longer available to them.
+- **`SCHOOL_ADMIN`** is the one who actually runs the school day to day: creates/edits staff (including `PRINCIPAL`), students, and guardians.
+- This is a straightforward least-privilege split, not multi-tenancy — there's still exactly one `School` row. A `SUPER_ADMIN` overseeing multiple *actual* schools (with a "which organization is this teacher in" view) is the SaaS conversion already earmarked for later, not something this change touches.
 
 ## Academic structure module (V1)
 
@@ -63,7 +71,7 @@ npm run docker:down    # stop Postgres + Redis
 
 ## User/profile management module (V1)
 
-`GET/POST/PATCH/DELETE /api/students`, `/api/staff`, `/api/guardians` — each create is transactional (a linked `User` login + profile row in one go, atomic rollback on failure). Writes require `SUPER_ADMIN`/`SCHOOL_ADMIN` (matches the "admin-created accounts, no public signup" rule); reads are scoped to staff-facing roles. `DELETE` never hard-deletes — students go to `WITHDRAWN`, staff to `DEACTIVATED`, so historical records stay attributable.
+`GET/POST/PATCH/DELETE /api/students`, `/api/staff`, `/api/guardians` — each create is transactional (a linked `User` login + profile row in one go, atomic rollback on failure). Writes require `SCHOOL_ADMIN` (see "Account-creation hierarchy" above); `SUPER_ADMIN` and other staff-facing roles keep read access. `DELETE` never hard-deletes — students go to `WITHDRAWN`, staff to `DEACTIVATED`, so historical records stay attributable.
 
 - `POST /api/students/:id/guardians` links an existing guardian (by `guardianId` or `guardianEmail`) to a student with a `relationshipType` (FATHER/MOTHER/GRANDPARENT/LEGAL_GUARDIAN/OTHER) — supports siblings sharing one guardian and a student having multiple guardians.
 - `POST /api/students/bulk-import` accepts a CSV (`multipart/form-data`, field `file`; columns: `email,firstName,lastName,admissionNo,classId,sectionId,dob`). The whole batch is one transaction — one bad row rolls back the entire import, never a half-imported batch.
@@ -89,10 +97,10 @@ Three ways a password can change, each for a different situation:
 
 ## Teacher class assignments
 
-A `TEACHER` only sees students in, and can only mark attendance for, the specific class+section combos they've been assigned to teach (e.g. "Grade 5 - A" but not "Grade 5 - B") — enforced server-side in `student.route.ts` and `attendance.route.ts`, not just hidden in the UI. `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL` are unrestricted.
+A `TEACHER` only sees students in, and can only mark attendance for, the specific class+section combos they've been assigned to teach (e.g. "Grade 5 - A" but not "Grade 5 - B") — enforced server-side in `student.route.ts` and `attendance.route.ts`, not just hidden in the UI. `SCHOOL_ADMIN`/`PRINCIPAL` are unrestricted.
 
-- Admins manage this from the **Staff** page — a graduation-cap icon next to each teacher opens **Manage classes**, where you pick a class then a section and add it; each assignment can be removed independently.
-- `GET/POST/DELETE /api/staff/:id/assignments` (admin-only) manage the underlying `TeacherAssignment` rows; `GET /api/me/assignments` is the self-service version a teacher's own UI uses to restrict its class/section pickers (returns `[]` for non-teachers).
+- `SCHOOL_ADMIN` manages this from the **Staff** page — a graduation-cap icon next to each teacher opens **Manage classes**, where you pick a class then a section and add it; each assignment can be removed independently.
+- `GET/POST/DELETE /api/staff/:id/assignments` (`SCHOOL_ADMIN`-only) manage the underlying `TeacherAssignment` rows; `GET /api/me/assignments` is the self-service version a teacher's own UI uses to restrict its class/section pickers (returns `[]` for non-teachers).
 - A teacher with no assignments yet sees an empty student list and can't mark attendance anywhere — that's expected, not a bug; assign them a class/section first.
 
 ## Admission numbers
@@ -116,9 +124,10 @@ Open `http://localhost:3000` (redirects to `/login` if you're not signed in). Si
 - **Academics** (`/dashboard/academics`): tabbed CRUD for Sessions, Classes, Sections, Subjects.
 - **Announcements** (`/dashboard/announcements`): create/edit/delete for roles allowed to post, targeting by role and/or class; everyone sees the feed filtered to what applies to them.
 - **Students** (`/dashboard/students`): filterable list, create form, CSV bulk import, and a detail page (edit, link/unlink guardians with relationship type, withdraw).
-- **Staff** (`/dashboard/staff`) and **Guardians** (`/dashboard/guardians`): list + create + edit (staff also deactivate). Teachers additionally get a **Manage classes** action — see "Teacher class assignments" below.
+- **Staff** (`/dashboard/staff`) and **Guardians** (`/dashboard/guardians`): list + create + edit (staff also deactivate) — `SCHOOL_ADMIN` only for the write actions; `SUPER_ADMIN` sees the same lists read-only. Teachers additionally get a **Manage classes** action — see "Teacher class assignments" below.
+- **School Admins** (`/dashboard/school-admins`, `SUPER_ADMIN`-only nav item): list + create `SCHOOL_ADMIN` accounts, plus a password-reset action — see "Account-creation hierarchy" above.
 - **Attendance** (`/dashboard/attendance`): a mark-attendance grid (class/section/date → per-student status + remarks, pre-filled from existing marks) and holiday management for staff; a personal history + % view for students/parents.
-- All mutating dialogs are role-gated client-side to match the backend's RBAC (e.g. only `SUPER_ADMIN`/`SCHOOL_ADMIN` can create students/staff/guardians) — the backend still enforces it independently.
+- All mutating dialogs are role-gated client-side to match the backend's RBAC (e.g. only `SCHOOL_ADMIN` can create students/staff/guardians, only `SUPER_ADMIN` can create school admins) — the backend still enforces it independently.
 - **Reusable pieces:** `StatCard`, `AnnouncementCard`, `PageHeader`, `StatusBadge`, `ConfirmDialog`, `useApi` (fetch hook), `apiFetch`/`ApiError` (auth-aware fetch wrapper with token refresh-on-401).
 - **Base UI gotcha:** shadcn here is the Base UI flavor, not Radix — `Select` needs an explicit `items` prop (value→label map) to show the right label before the popup has ever opened, and `DropdownMenuLabel` must live inside a `DropdownMenuGroup`. Both are already handled everywhere in this codebase; keep the pattern for new components.
 - **Known simplification:** auth tokens live in `localStorage`, not httpOnly cookies — fine for local dev, revisit before any real deployment.

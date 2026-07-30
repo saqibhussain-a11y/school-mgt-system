@@ -26,7 +26,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatRole } from "@/lib/format";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN"];
 
 interface StaffSummary {
   id: string;

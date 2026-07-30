@@ -3,6 +3,7 @@ import { Role } from "@sms/db";
 import { authService } from "../services/auth.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
+import { generateTempPassword } from "../lib/tempPassword";
 import {
   loginSchema,
   refreshSchema,
@@ -45,13 +46,28 @@ authRouter.post("/logout", validateBody(refreshSchema), async (req, res, next) =
 authRouter.post(
   "/register",
   authenticate,
-  authorize(Role.SUPER_ADMIN, Role.SCHOOL_ADMIN),
+  authorize(Role.SUPER_ADMIN),
   validateBody(registerSchema),
   async (req, res, next) => {
     try {
-      const { schoolId, email, password, role } = req.body;
-      const user = await authService.register(schoolId, email, password, role);
-      res.status(201).json({ id: user.id, email: user.email, role: user.role });
+      const { email, role, firstName, lastName } = req.body;
+      const password = req.body.password ?? generateTempPassword();
+      const user = await authService.register(
+        req.user!.schoolId,
+        email,
+        password,
+        role,
+        firstName,
+        lastName,
+      );
+      res.status(201).json({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        temporaryPassword: req.body.password ? undefined : password,
+      });
     } catch (err) {
       next(err);
     }

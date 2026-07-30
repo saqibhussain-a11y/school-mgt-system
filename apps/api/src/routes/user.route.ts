@@ -13,6 +13,15 @@ export const userRouter = Router();
 
 userRouter.use(authenticate);
 
+// SUPER_ADMIN's own management list — the only account type they create now.
+userRouter.get("/school-admins", authorize(Role.SUPER_ADMIN), async (req, res, next) => {
+  try {
+    res.json(await userService.listByRole(req.user!.schoolId, Role.SCHOOL_ADMIN));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Lets an admin issue a fresh temporary password for any user in their school
 // without needing that user's old password — the OTP/email flow isn't usable
 // for this since no email provider is wired up yet.

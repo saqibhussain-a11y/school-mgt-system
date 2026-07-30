@@ -19,7 +19,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
 import type { StudentSummary } from "@/components/students/types";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN"];
 
 export default function StudentDetailPage() {
   const params = useParams<{ id: string }>();

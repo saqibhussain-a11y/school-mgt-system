@@ -16,7 +16,9 @@ import {
   linkGuardianSchema,
 } from "../validation/student.schema";
 
-const ADMIN_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN];
+// SCHOOL_ADMIN is the only one who creates/manages students now — SUPER_ADMIN
+// keeps read access for oversight (VIEW_ROLES below) but no longer writes.
+const ADMIN_ROLES = [Role.SCHOOL_ADMIN];
 const VIEW_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });

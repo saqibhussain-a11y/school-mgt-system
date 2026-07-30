@@ -9,7 +9,9 @@ import { HttpError } from "../middleware/errorHandler";
 import { generateTempPassword } from "../lib/tempPassword";
 import { createStaffSchema, updateStaffSchema, assignTeacherSchema } from "../validation/staff.schema";
 
-const ADMIN_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN];
+// SCHOOL_ADMIN is the only one who creates/manages staff now — SUPER_ADMIN
+// keeps read access for oversight (VIEW_ROLES below) but no longer writes.
+const ADMIN_ROLES = [Role.SCHOOL_ADMIN];
 const VIEW_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const staffRouter = Router();

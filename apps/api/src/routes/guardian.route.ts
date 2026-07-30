@@ -7,7 +7,10 @@ import { HttpError } from "../middleware/errorHandler";
 import { generateTempPassword } from "../lib/tempPassword";
 import { createGuardianSchema, updateGuardianSchema } from "../validation/guardian.schema";
 
-const ADMIN_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN];
+// SCHOOL_ADMIN is the only one who creates/manages guardians now —
+// SUPER_ADMIN keeps read access for oversight (VIEW_ROLES below) but no
+// longer writes.
+const ADMIN_ROLES = [Role.SCHOOL_ADMIN];
 const VIEW_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
 
 export const guardianRouter = Router();

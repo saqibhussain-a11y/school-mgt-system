@@ -6,6 +6,7 @@ import {
   UsersRound,
   BookOpen,
   CalendarCheck,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@sms/shared-types";
@@ -28,6 +29,12 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Guardians", href: "/dashboard/guardians", icon: UsersRound, roles: STAFF_ROLES },
   { label: "Academics", href: "/dashboard/academics", icon: BookOpen },
   { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
+  {
+    label: "School Admins",
+    href: "/dashboard/school-admins",
+    icon: ShieldCheck,
+    roles: ["SUPER_ADMIN"],
+  },
 ];
 
 export function visibleNavItems(role: UserRole): NavItem[] {

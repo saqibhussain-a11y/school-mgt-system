@@ -56,13 +56,20 @@ export const authService = {
     }
   },
 
-  async register(schoolId: string, email: string, password: string, role: Role) {
+  async register(
+    schoolId: string,
+    email: string,
+    password: string,
+    role: Role,
+    firstName: string,
+    lastName: string,
+  ) {
     const existing = await userService.findByEmail(schoolId, email);
     if (existing) {
       throw new HttpError(409, "A user with this email already exists");
     }
     const passwordHash = await hashPassword(password);
-    return userService.create({ schoolId, email, passwordHash, role });
+    return userService.create({ schoolId, email, passwordHash, role, firstName, lastName });
   },
 
   async requestPasswordReset(schoolId: string, email: string) {
