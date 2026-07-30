@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "@sms/db";
 import { guardianService } from "../services/guardian.service";
+import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
@@ -46,6 +47,13 @@ guardianRouter.post(
         ...req.body,
         password,
       });
+      if (!req.body.password) {
+        await notificationService.notifyNewAccount(
+          guardian.user.email,
+          guardian.user.firstName,
+          password,
+        );
+      }
       res.status(201).json({
         ...guardian,
         temporaryPassword: req.body.password ? undefined : password,

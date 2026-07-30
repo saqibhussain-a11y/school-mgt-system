@@ -3,6 +3,7 @@ import { Role } from "@sms/db";
 import { staffService } from "../services/staff.service";
 import { teacherAssignmentService } from "../services/teacherAssignment.service";
 import { sectionService } from "../services/section.service";
+import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
@@ -44,6 +45,9 @@ staffRouter.post(
     try {
       const password = req.body.password ?? generateTempPassword();
       const staff = await staffService.create(req.user!.schoolId, { ...req.body, password });
+      if (!req.body.password) {
+        await notificationService.notifyNewAccount(staff.user.email, staff.user.firstName, password);
+      }
       res.status(201).json({
         ...staff,
         temporaryPassword: req.body.password ? undefined : password,

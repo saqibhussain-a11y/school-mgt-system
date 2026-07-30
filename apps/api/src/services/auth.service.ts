@@ -10,6 +10,7 @@ import { generateOtp } from "../lib/otp";
 import { userService } from "./user.service";
 import { authTokenService } from "./authToken.service";
 import { passwordResetService } from "./passwordReset.service";
+import { notificationService } from "./notification.service";
 
 async function issueTokenPair(user: { id: string; schoolId: string; role: Role }) {
   const accessToken = signAccessToken({ sub: user.id, schoolId: user.schoolId, role: user.role });
@@ -80,10 +81,7 @@ export const authService = {
     }
     const otp = generateOtp();
     await passwordResetService.create(schoolId, user.id, otp);
-
-    // No email provider wired up yet (Communication module is a later roadmap item) —
-    // log to the console so the flow is testable end-to-end in dev.
-    console.log(`[password-reset] OTP for ${email}: ${otp}`);
+    await notificationService.notifyPasswordResetOtp(email, otp);
   },
 
   async resetPassword(schoolId: string, email: string, otp: string, newPassword: string) {
@@ -99,6 +97,7 @@ export const authService = {
     const passwordHash = await hashPassword(newPassword);
     await userService.updatePassword(user.id, passwordHash);
     await authTokenService.revokeAllForUser(user.id);
+    await notificationService.notifyPasswordChanged(email, "otp_reset");
   },
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {

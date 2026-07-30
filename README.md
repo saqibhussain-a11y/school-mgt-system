@@ -55,7 +55,17 @@ npm run docker:down    # stop Postgres + Redis
 
 ## Auth module (V1)
 
-`POST /api/auth/login`, `/refresh`, `/logout`, `/forgot-password`, `/reset-password`, `/change-password`. Access tokens are short-lived JWTs (15m); refresh tokens are rotated on every use and revoked on reuse. Password reset OTPs are logged to the API console instead of emailed — no email provider is wired up yet (that's the Communication module, later on the roadmap).
+`POST /api/auth/login`, `/refresh`, `/logout`, `/forgot-password`, `/reset-password`, `/change-password`. Access tokens are short-lived JWTs (15m); refresh tokens are rotated on every use and revoked on reuse.
+
+## Email notifications (V2)
+
+Real email, via Nodemailer (`apps/api/src/lib/mailer.ts`) — not console-logged codes anymore:
+
+- **Forgot-password OTP** — emailed instead of printed to the API console.
+- **Welcome email with credentials** — sent whenever an account gets an auto-generated temporary password (school admin, staff, student, guardian, including every row of a CSV bulk import). If an admin explicitly sets a password themselves instead of letting one be generated, no email goes out (matches the existing "temp password shown once" logic — nothing to email in that case).
+- **"Your password was changed"** — sent after an admin-triggered reset or a forgot-password/OTP reset, as a security signal to the account owner. Not sent for the self-service "change password while logged in" flow, since that's already an active, authenticated action with immediate in-app feedback.
+
+**No SMTP setup needed for local dev**: leave `SMTP_HOST` unset in `apps/api/.env` and the mailer auto-provisions a disposable [Ethereal](https://ethereal.email) inbox on first send — nothing leaves the building, and a preview link for every email is logged to the API console (`[mail] "..." to ... — preview: https://ethereal.email/message/...`). Open that link to see exactly what the recipient would have received. To send through a real mailbox, fill in `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`SMTP_FROM` in `.env` (see `.env.example`) — same code path, no code changes needed.
 
 `POST /api/auth/register` is `SUPER_ADMIN`-only and can **only** create a `SCHOOL_ADMIN` (`registerSchema` enforces `role: z.literal("SCHOOL_ADMIN")` — it's not a general-purpose "create any role" endpoint). Every other role has its own dedicated creation endpoint that also provisions the matching profile row (`/api/staff` for `PRINCIPAL`/`TEACHER`/etc., `/api/students`, `/api/guardians`) — those no longer accept `SUPER_ADMIN` as a caller.
 
@@ -93,7 +103,7 @@ Three ways a password can change, each for a different situation:
 
 - **Self-service** — `POST /api/auth/change-password` (authenticated, `{currentPassword, newPassword}`). Any logged-in user reaches this from the topbar profile menu → **Change password**. Verifies the current password, then revokes all of that user's refresh tokens (forces re-login everywhere, including the tab that just changed it).
 - **Admin-initiated reset** — `POST /api/users/:id/reset-password` (`SUPER_ADMIN`/`SCHOOL_ADMIN` only, scoped to their own school). Generates a new temporary password without needing the old one — this is the answer to "how does a staff member get back in if they forget their password," since no email provider is wired up yet so the OTP flow below isn't practically usable. Surfaced as a key icon button next to Staff/Guardians rows and on a student's detail page. The generated password is shown once, never stored in plaintext, and the old one stops working immediately.
-- **Forgot password (OTP)** — `POST /api/auth/forgot-password` → `POST /api/auth/reset-password`, unauthenticated. Still there for completeness, but the OTP is only logged to the API console (no email provider yet), so it's not yet usable outside of dev.
+- **Forgot password (OTP)** — `POST /api/auth/forgot-password` → `POST /api/auth/reset-password`, unauthenticated. Now actually emailed (see "Email notifications" below) instead of only logged to the console.
 
 ## Teacher class assignments
 

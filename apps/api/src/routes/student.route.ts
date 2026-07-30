@@ -6,6 +6,7 @@ import { studentService } from "../services/student.service";
 import { guardianService } from "../services/guardian.service";
 import { studentGuardianService } from "../services/studentGuardian.service";
 import { getAssignedSectionIdsForUser } from "../services/teacherAssignment.service";
+import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
@@ -81,6 +82,13 @@ studentRouter.post(
         ...req.body,
         password,
       });
+      if (!req.body.password) {
+        await notificationService.notifyNewAccount(
+          student.user.email,
+          student.user.firstName,
+          password,
+        );
+      }
       res.status(201).json({
         ...student,
         temporaryPassword: req.body.password ? undefined : password,
@@ -220,6 +228,16 @@ studentRouter.post(
       });
 
       const created = await studentService.bulkCreate(schoolId, inputs);
+
+      await Promise.all(
+        created.map((student, index) =>
+          notificationService.notifyNewAccount(
+            student.user.email,
+            student.user.firstName,
+            passwords.get(index)!,
+          ),
+        ),
+      );
 
       res.status(201).json({
         imported: created.length,

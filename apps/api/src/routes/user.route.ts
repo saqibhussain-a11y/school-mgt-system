@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Role } from "@sms/db";
 import { userService } from "../services/user.service";
 import { authTokenService } from "../services/authToken.service";
+import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { HttpError } from "../middleware/errorHandler";
 import { hashPassword } from "../lib/password";
@@ -35,6 +36,7 @@ userRouter.post("/:id/reset-password", authorize(...ADMIN_ROLES), async (req, re
     const temporaryPassword = generateTempPassword();
     await userService.updatePassword(target.id, await hashPassword(temporaryPassword));
     await authTokenService.revokeAllForUser(target.id);
+    await notificationService.notifyPasswordChanged(target.email, "admin_reset");
 
     res.json({ temporaryPassword });
   } catch (err) {

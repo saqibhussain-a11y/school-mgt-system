@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "@sms/db";
 import { authService } from "../services/auth.service";
+import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { generateTempPassword } from "../lib/tempPassword";
@@ -60,6 +61,9 @@ authRouter.post(
         firstName,
         lastName,
       );
+      if (!req.body.password) {
+        await notificationService.notifyNewAccount(email, firstName, password);
+      }
       res.status(201).json({
         id: user.id,
         email: user.email,
