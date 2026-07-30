@@ -6,6 +6,7 @@ import {
   UsersRound,
   BookOpen,
   CalendarCheck,
+  CalendarClock,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +21,18 @@ export interface NavItem {
 
 const STAFF_ROLES: UserRole[] = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
 const ADMIN_ROLES: UserRole[] = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+// Everyone who can either apply for or review leave — PARENT is excluded,
+// since parent-submitted leave-on-behalf-of-a-child isn't built yet.
+const LEAVE_ROLES: UserRole[] = [
+  "SUPER_ADMIN",
+  "SCHOOL_ADMIN",
+  "PRINCIPAL",
+  "TEACHER",
+  "ACCOUNTANT",
+  "LIBRARIAN",
+  "TRANSPORT_MANAGER",
+  "STUDENT",
+];
 
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -29,6 +42,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Guardians", href: "/dashboard/guardians", icon: UsersRound, roles: STAFF_ROLES },
   { label: "Academics", href: "/dashboard/academics", icon: BookOpen },
   { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
+  { label: "Leave", href: "/dashboard/leave", icon: CalendarClock, roles: LEAVE_ROLES },
   {
     label: "School Admins",
     href: "/dashboard/school-admins",

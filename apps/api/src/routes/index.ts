@@ -14,6 +14,7 @@ import { guardianRouter } from "./guardian.route";
 import { holidayRouter } from "./holiday.route";
 import { attendanceRouter } from "./attendance.route";
 import { announcementRouter } from "./announcement.route";
+import { leaveRequestRouter } from "./leaveRequest.route";
 import { dashboardRouter } from "./dashboard.route";
 
 export const apiRouter = Router();
@@ -33,4 +34,5 @@ apiRouter.use("/guardians", guardianRouter);
 apiRouter.use("/holidays", holidayRouter);
 apiRouter.use("/attendance", attendanceRouter);
 apiRouter.use("/announcements", announcementRouter);
+apiRouter.use("/leave-requests", leaveRequestRouter);
 apiRouter.use("/dashboard", dashboardRouter);

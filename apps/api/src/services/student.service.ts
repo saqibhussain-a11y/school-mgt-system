@@ -144,4 +144,8 @@ export const studentService = {
     });
     return student?.classId ?? null;
   },
+
+  getByUserId(schoolId: string, userId: string) {
+    return prisma.student.findFirst({ where: { schoolId, userId } });
+  },
 };
