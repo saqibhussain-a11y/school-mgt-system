@@ -8,3 +8,15 @@ export function formatRole(role: string) {
 export function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
+
+export function formatDate(value: string | Date) {
+  return new Date(value).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function toDateInputValue(value: string | Date) {
+  return new Date(value).toISOString().slice(0, 10);
+}

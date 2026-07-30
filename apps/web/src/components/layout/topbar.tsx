@@ -1,11 +1,12 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -41,16 +42,22 @@ export function Topbar() {
           </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="flex flex-col">
-            <span className="font-medium">
-              {user.firstName} {user.lastName}
-            </span>
-            <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
-            <span className="mt-1 inline-flex w-fit items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
-              {formatRole(user.role)}
-            </span>
-          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="flex flex-col">
+              <span className="font-medium">
+                {user.firstName} {user.lastName}
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+              <span className="mt-1 inline-flex w-fit items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                {formatRole(user.role)}
+              </span>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
+          <DropdownMenuItem disabled>
+            <Settings className="size-4" />
+            Settings
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => logout()}>
             <LogOut className="size-4" />
             Log out

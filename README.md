@@ -81,7 +81,7 @@ npm run docker:down    # stop Postgres + Redis
 
 ## Frontend dashboard (V1)
 
-The first real screens: a login page and a role-aware dashboard, at `apps/web`.
+A full UI for every backend module built so far, at `apps/web`.
 
 ```bash
 npm run dev:api    # terminal 1 — :4000
@@ -90,11 +90,19 @@ npm run dev:web    # terminal 2 — :3000
 
 Open `http://localhost:3000` (redirects to `/login` if you're not signed in). Sign in with the seeded admin (`admin@school.test` / `ChangeMe123!`, or any user created via the API). The login page doesn't ask for a school — single-tenant mode auto-resolves the one school via `GET /api/schools`.
 
-- **Layout:** `components/layout/` — `Sidebar` (desktop rail) + `MobileSidebar` (Sheet-based drawer) + `Topbar` (user menu, theme toggle) composed in `DashboardShell`, which also guards every `/dashboard/*` route (redirects to `/login` if not authenticated). Nav items are filtered per role in `lib/nav-config.ts`.
-- **Theme:** light/dark via `next-themes`, toggle in the topbar. Colors are the dataviz skill's validated palette (blue primary, reserved status colors for attendance %, chrome/ink tokens) — see `app/globals.css`.
-- **Dashboard content by role** (`app/dashboard/page.tsx`, backed by `GET /api/dashboard`): staff roles see school-wide stat cards (students/staff/classes/today's attendance %); a `STUDENT` sees their own class and 30-day attendance %; a `PARENT` sees each linked child's attendance %. Everyone sees their 5 most recent visible announcements.
-- **Reusable pieces:** `StatCard`, `AnnouncementCard`, `PageHeader`, `ComingSoon` (placeholder for the Students/Staff/Guardians/Academics/Attendance screens, which aren't built yet — only Dashboard and Announcements have real pages so far), `useApi` (fetch hook), `ApiError`/`apiFetch` (auth-aware fetch wrapper with token refresh-on-401).
+- **Layout:** `components/layout/` — `Sidebar` (desktop rail) + `MobileSidebar` (Sheet-based drawer) + `Topbar` (user menu with theme toggle and profile dropdown — Settings is a disabled placeholder, Log out is wired) composed in `DashboardShell`, which guards every `/dashboard/*` route. Nav items are filtered per role in `lib/nav-config.ts`.
+- **Theme:** light/dark via `next-themes`. Colors are the dataviz skill's validated palette (blue primary, reserved status colors for attendance %) — see `app/globals.css`.
+- **Dashboard** (`/dashboard`, backed by `GET /api/dashboard`): role-aware stat cards/widgets + recent announcements.
+- **Academics** (`/dashboard/academics`): tabbed CRUD for Sessions, Classes, Sections, Subjects.
+- **Students** (`/dashboard/students`): filterable list, create form, CSV bulk import, and a detail page (edit, link/unlink guardians with relationship type, withdraw).
+- **Staff** (`/dashboard/staff`) and **Guardians** (`/dashboard/guardians`): list + create + edit (staff also deactivate).
+- **Attendance** (`/dashboard/attendance`): a mark-attendance grid (class/section/date → per-student status + remarks, pre-filled from existing marks) and holiday management for staff; a personal history + % view for students/parents.
+- All mutating dialogs are role-gated client-side to match the backend's RBAC (e.g. only `SUPER_ADMIN`/`SCHOOL_ADMIN` can create students/staff/guardians) — the backend still enforces it independently.
+- **Reusable pieces:** `StatCard`, `AnnouncementCard`, `PageHeader`, `StatusBadge`, `ConfirmDialog`, `useApi` (fetch hook), `apiFetch`/`ApiError` (auth-aware fetch wrapper with token refresh-on-401).
+- **Base UI gotcha:** shadcn here is the Base UI flavor, not Radix — `Select` needs an explicit `items` prop (value→label map) to show the right label before the popup has ever opened, and `DropdownMenuLabel` must live inside a `DropdownMenuGroup`. Both are already handled everywhere in this codebase; keep the pattern for new components.
 - **Known simplification:** auth tokens live in `localStorage`, not httpOnly cookies — fine for local dev, revisit before any real deployment.
+
+Verified with a real headless-browser pass (login → every page → dark mode → mobile drawer → profile dropdown → submitting attendance → creating a student), zero console errors.
 
 ## Moving to a new device (Mac ↔ Windows)
 

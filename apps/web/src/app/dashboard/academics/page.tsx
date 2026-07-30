@@ -1,12 +1,42 @@
-import { BookOpen } from "lucide-react";
+"use client";
+
 import { PageHeader } from "@/components/layout/page-header";
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SessionsTab } from "@/components/academics/sessions-tab";
+import { ClassesTab } from "@/components/academics/classes-tab";
+import { SectionsTab } from "@/components/academics/sections-tab";
+import { SubjectsTab } from "@/components/academics/subjects-tab";
+import { useAuth } from "@/lib/auth-context";
+
+const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function AcademicsPage() {
+  const { user } = useAuth();
+  const canManage = !!user && MANAGE_ROLES.includes(user.role);
+
   return (
     <div>
       <PageHeader title="Academics" description="Sessions, classes, sections, and subjects" />
-      <ComingSoon title="Academic structure" icon={BookOpen} />
+      <Tabs defaultValue="sessions">
+        <TabsList>
+          <TabsTrigger value="sessions">Sessions</TabsTrigger>
+          <TabsTrigger value="classes">Classes</TabsTrigger>
+          <TabsTrigger value="sections">Sections</TabsTrigger>
+          <TabsTrigger value="subjects">Subjects</TabsTrigger>
+        </TabsList>
+        <TabsContent value="sessions" className="mt-4">
+          <SessionsTab canManage={canManage} />
+        </TabsContent>
+        <TabsContent value="classes" className="mt-4">
+          <ClassesTab canManage={canManage} />
+        </TabsContent>
+        <TabsContent value="sections" className="mt-4">
+          <SectionsTab canManage={canManage} />
+        </TabsContent>
+        <TabsContent value="subjects" className="mt-4">
+          <SubjectsTab canManage={canManage} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
