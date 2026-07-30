@@ -1,0 +1,25 @@
+{
+  "name": "sms-project",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w apps/web",
+    "dev:api": "npm run dev -w apps/api",
+    "build:web": "npm run build -w apps/web",
+    "build:api": "npm run build -w apps/api",
+    "build": "npm run build -ws --if-present",
+    "lint": "npm run lint -ws --if-present",
+    "db:generate": "npm run generate -w packages/db",
+    "db:migrate": "npm run migrate:dev -w packages/db",
+    "db:studio": "npm run studio -w packages/db",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  }
+}

@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// One row today ("School #1"), but every tenant-scoped table below already
+// carries schoolId — see the SaaS conversion plan in the master doc (Section 5/8.7).
+model School {
+  id                 String   @id @default(cuid())
+  name               String
+  subdomain          String   @unique
+  subscriptionPlan   String   @default("single_tenant")
+  subscriptionStatus String   @default("active")
+  trialEndsAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  users User[]
+}
+
+enum Role {
+  SUPER_ADMIN
+  SCHOOL_ADMIN
+  PRINCIPAL
+  TEACHER
+  STUDENT
+  PARENT
+  ACCOUNTANT
+  LIBRARIAN
+  TRANSPORT_MANAGER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  schoolId     String
+  email        String
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, email])
+  @@index([schoolId])
+}
