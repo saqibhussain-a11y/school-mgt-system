@@ -38,7 +38,10 @@ cp packages/db/.env.example packages/db/.env
 npm install
 npm run docker:up
 npm run db:migrate
+npm run db:seed
 ```
+
+`db:seed` creates a default school and one `SUPER_ADMIN` login: `admin@school.test` / `ChangeMe123!` (override via `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` env vars). All further users are created through `POST /api/auth/register`, which only an authenticated `SUPER_ADMIN`/`SCHOOL_ADMIN` can call — matching the "no public signup" rule.
 
 ## Day-to-day
 
@@ -49,6 +52,10 @@ npm run dev:api        # Express on :4000
 npm run db:studio      # Prisma Studio (browse the DB)
 npm run docker:down    # stop Postgres + Redis
 ```
+
+## Auth module (V1)
+
+`POST /api/auth/login`, `/refresh`, `/logout`, `/register` (admin-only), `/forgot-password`, `/reset-password`. Access tokens are short-lived JWTs (15m); refresh tokens are rotated on every use and revoked on reuse. Password reset OTPs are logged to the API console instead of emailed — no email provider is wired up yet (that's the Communication module, later on the roadmap).
 
 ## Moving to a new device (Mac ↔ Windows)
 

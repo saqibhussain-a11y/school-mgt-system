@@ -42,8 +42,41 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  school School @relation(fields: [schoolId], references: [id])
+  school            School             @relation(fields: [schoolId], references: [id])
+  refreshTokens      RefreshToken[]
+  passwordResetOtps  PasswordResetOtp[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
+}
+
+// Rotated on every refresh; tokenHash lets a stolen DB dump not be a stolen session.
+model RefreshToken {
+  id         String    @id @default(cuid())
+  schoolId   String
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+}
+
+model PasswordResetOtp {
+  id          String    @id @default(cuid())
+  schoolId    String
+  userId      String
+  otpHash     String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
 }
