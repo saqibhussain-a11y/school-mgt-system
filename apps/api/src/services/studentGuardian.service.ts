@@ -44,4 +44,20 @@ export const studentGuardianService = {
     });
     return [...new Set(links.map((l) => l.student.classId))];
   },
+
+  async getChildrenForGuardianUser(schoolId: string, guardianUserId: string) {
+    const links = await prisma.studentGuardian.findMany({
+      where: { schoolId, guardian: { userId: guardianUserId } },
+      include: {
+        student: {
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+            class: { select: { name: true } },
+            section: { select: { name: true } },
+          },
+        },
+      },
+    });
+    return links.map((l) => l.student);
+  },
 };

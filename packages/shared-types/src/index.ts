@@ -16,3 +16,12 @@ export interface SchoolDto {
   subscriptionPlan: string;
   subscriptionStatus: string;
 }
+
+export interface MeDto {
+  id: string;
+  email: string;
+  role: UserRole;
+  schoolId: string;
+  firstName: string;
+  lastName: string;
+}

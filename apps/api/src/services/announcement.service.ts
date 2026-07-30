@@ -1,9 +1,40 @@
 import { prisma, Role } from "@sms/db";
+import { studentService } from "./student.service";
+import { studentGuardianService } from "./studentGuardian.service";
 
 export interface AnnouncementViewer {
   isStaff: boolean;
   role: Role;
   classIds: string[];
+}
+
+const STAFF_ROLES: Role[] = [
+  Role.SUPER_ADMIN,
+  Role.SCHOOL_ADMIN,
+  Role.PRINCIPAL,
+  Role.TEACHER,
+  Role.ACCOUNTANT,
+  Role.LIBRARIAN,
+  Role.TRANSPORT_MANAGER,
+];
+
+export async function buildAnnouncementViewer(
+  schoolId: string,
+  user: { sub: string; role: string },
+): Promise<AnnouncementViewer> {
+  const role = user.role as Role;
+  if (STAFF_ROLES.includes(role)) {
+    return { isStaff: true, role, classIds: [] };
+  }
+  if (role === Role.STUDENT) {
+    const classId = await studentService.getOwnClassId(schoolId, user.sub);
+    return { isStaff: false, role, classIds: classId ? [classId] : [] };
+  }
+  if (role === Role.PARENT) {
+    const classIds = await studentGuardianService.getLinkedClassIds(schoolId, user.sub);
+    return { isStaff: false, role, classIds };
+  }
+  return { isStaff: false, role, classIds: [] };
 }
 
 const announcementInclude = {
@@ -22,11 +53,12 @@ function visibilityWhere(viewer: AnnouncementViewer) {
 }
 
 export const announcementService = {
-  list(schoolId: string, viewer: AnnouncementViewer) {
+  list(schoolId: string, viewer: AnnouncementViewer, limit?: number) {
     return prisma.announcement.findMany({
       where: { schoolId, ...visibilityWhere(viewer) },
       include: announcementInclude,
       orderBy: { createdAt: "desc" },
+      ...(limit ? { take: limit } : {}),
     });
   },
 

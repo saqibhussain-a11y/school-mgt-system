@@ -79,6 +79,23 @@ npm run docker:down    # stop Postgres + Redis
 
 `GET/POST/PATCH/DELETE /api/announcements`. Creating is restricted to `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL`/`TEACHER`; editing/deleting requires being the original creator or an admin role (a teacher can't edit another teacher's post). An announcement can be school-wide (no target), role-specific (`targetRole`), class-wide (`targetClassId`), or both — staff roles always see everything, while a `STUDENT`/`PARENT` only sees announcements matching their own role and their (or their linked child's) class.
 
+## Frontend dashboard (V1)
+
+The first real screens: a login page and a role-aware dashboard, at `apps/web`.
+
+```bash
+npm run dev:api    # terminal 1 — :4000
+npm run dev:web    # terminal 2 — :3000
+```
+
+Open `http://localhost:3000` (redirects to `/login` if you're not signed in). Sign in with the seeded admin (`admin@school.test` / `ChangeMe123!`, or any user created via the API). The login page doesn't ask for a school — single-tenant mode auto-resolves the one school via `GET /api/schools`.
+
+- **Layout:** `components/layout/` — `Sidebar` (desktop rail) + `MobileSidebar` (Sheet-based drawer) + `Topbar` (user menu, theme toggle) composed in `DashboardShell`, which also guards every `/dashboard/*` route (redirects to `/login` if not authenticated). Nav items are filtered per role in `lib/nav-config.ts`.
+- **Theme:** light/dark via `next-themes`, toggle in the topbar. Colors are the dataviz skill's validated palette (blue primary, reserved status colors for attendance %, chrome/ink tokens) — see `app/globals.css`.
+- **Dashboard content by role** (`app/dashboard/page.tsx`, backed by `GET /api/dashboard`): staff roles see school-wide stat cards (students/staff/classes/today's attendance %); a `STUDENT` sees their own class and 30-day attendance %; a `PARENT` sees each linked child's attendance %. Everyone sees their 5 most recent visible announcements.
+- **Reusable pieces:** `StatCard`, `AnnouncementCard`, `PageHeader`, `ComingSoon` (placeholder for the Students/Staff/Guardians/Academics/Attendance screens, which aren't built yet — only Dashboard and Announcements have real pages so far), `useApi` (fetch hook), `ApiError`/`apiFetch` (auth-aware fetch wrapper with token refresh-on-401).
+- **Known simplification:** auth tokens live in `localStorage`, not httpOnly cookies — fine for local dev, revisit before any real deployment.
+
 ## Moving to a new device (Mac ↔ Windows)
 
 1. Push/pull this repo via git — never copy the folder manually (it would drag along `node_modules`, `.next`, and local `.env` files).

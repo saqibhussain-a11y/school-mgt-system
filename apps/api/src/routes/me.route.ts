@@ -11,7 +11,14 @@ meRouter.get("/", authenticate, async (req, res, next) => {
     if (!user) {
       throw new HttpError(404, "User not found");
     }
-    res.json({ id: user.id, email: user.email, role: user.role, schoolId: user.schoolId });
+    res.json({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      schoolId: user.schoolId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    });
   } catch (err) {
     next(err);
   }

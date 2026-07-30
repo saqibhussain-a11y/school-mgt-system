@@ -1,3 +1,4 @@
+import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { prisma, Role } from "../src";
 
@@ -19,7 +20,7 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { schoolId_email: { schoolId: school.id, email: ADMIN_EMAIL } },
-    update: {},
+    update: { firstName: "Super", lastName: "Admin" },
     create: {
       schoolId: school.id,
       email: ADMIN_EMAIL,

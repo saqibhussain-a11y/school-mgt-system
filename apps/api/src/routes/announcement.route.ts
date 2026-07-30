@@ -1,23 +1,12 @@
 import { Router } from "express";
 import { Role } from "@sms/db";
-import { announcementService, AnnouncementViewer } from "../services/announcement.service";
+import { announcementService, buildAnnouncementViewer } from "../services/announcement.service";
 import { classService } from "../services/class.service";
-import { studentService } from "../services/student.service";
-import { studentGuardianService } from "../services/studentGuardian.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createAnnouncementSchema, updateAnnouncementSchema } from "../validation/announcement.schema";
 
-const STAFF_ROLES: Role[] = [
-  Role.SUPER_ADMIN,
-  Role.SCHOOL_ADMIN,
-  Role.PRINCIPAL,
-  Role.TEACHER,
-  Role.ACCOUNTANT,
-  Role.LIBRARIAN,
-  Role.TRANSPORT_MANAGER,
-];
 const CREATE_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
 const EDIT_ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
@@ -25,28 +14,9 @@ export const announcementRouter = Router();
 
 announcementRouter.use(authenticate);
 
-async function buildViewer(
-  schoolId: string,
-  user: { sub: string; role: string },
-): Promise<AnnouncementViewer> {
-  const role = user.role as Role;
-  if (STAFF_ROLES.includes(role)) {
-    return { isStaff: true, role, classIds: [] };
-  }
-  if (role === Role.STUDENT) {
-    const classId = await studentService.getOwnClassId(schoolId, user.sub);
-    return { isStaff: false, role, classIds: classId ? [classId] : [] };
-  }
-  if (role === Role.PARENT) {
-    const classIds = await studentGuardianService.getLinkedClassIds(schoolId, user.sub);
-    return { isStaff: false, role, classIds };
-  }
-  return { isStaff: false, role, classIds: [] };
-}
-
 announcementRouter.get("/", async (req, res, next) => {
   try {
-    const viewer = await buildViewer(req.user!.schoolId, req.user!);
+    const viewer = await buildAnnouncementViewer(req.user!.schoolId, req.user!);
     res.json(await announcementService.list(req.user!.schoolId, viewer));
   } catch (err) {
     next(err);
@@ -55,7 +25,7 @@ announcementRouter.get("/", async (req, res, next) => {
 
 announcementRouter.get("/:id", async (req, res, next) => {
   try {
-    const viewer = await buildViewer(req.user!.schoolId, req.user!);
+    const viewer = await buildAnnouncementViewer(req.user!.schoolId, req.user!);
     const announcement = await announcementService.getVisibleById(
       req.user!.schoolId,
       req.params.id,

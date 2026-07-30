@@ -120,4 +120,18 @@ export const attendanceService = {
 
     return { totalDays, percentage, breakdown };
   },
+
+  async getSchoolSummary(schoolId: string, from?: Date, to?: Date) {
+    const records = await prisma.attendance.findMany({
+      where: { schoolId, ...(from || to ? { date: { gte: from, lte: to } } : {}) },
+      select: { status: true },
+    });
+
+    const totalMarked = records.length;
+    const presentEquivalent = records.reduce((sum, r) => sum + STATUS_WEIGHT[r.status], 0);
+    const percentage =
+      totalMarked > 0 ? Math.round((presentEquivalent / totalMarked) * 10000) / 100 : 0;
+
+    return { totalMarked, percentage };
+  },
 };
