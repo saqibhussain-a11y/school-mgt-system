@@ -5,6 +5,7 @@ import { Role } from "@sms/db";
 import { studentService } from "../services/student.service";
 import { guardianService } from "../services/guardian.service";
 import { studentGuardianService } from "../services/studentGuardian.service";
+import { getAssignedSectionIdsForUser } from "../services/teacherAssignment.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
@@ -26,8 +27,23 @@ studentRouter.use(authenticate);
 
 studentRouter.get("/", authorize(...VIEW_ROLES), async (req, res, next) => {
   try {
+    const schoolId = req.user!.schoolId;
     const { classId, sectionId } = req.query as { classId?: string; sectionId?: string };
-    res.json(await studentService.list(req.user!.schoolId, { classId, sectionId }));
+
+    if (req.user!.role === Role.TEACHER) {
+      const assignedSectionIds = await getAssignedSectionIdsForUser(schoolId, req.user!.sub);
+      if (sectionId) {
+        // Asking for a section they're not assigned to should read as "no results,"
+        // not a 403 — the same as any other filter that happens to match nothing.
+        const inScope = assignedSectionIds.includes(sectionId);
+        res.json(inScope ? await studentService.list(schoolId, { classId, sectionId }) : []);
+        return;
+      }
+      res.json(await studentService.list(schoolId, { classId, sectionIdIn: assignedSectionIds }));
+      return;
+    }
+
+    res.json(await studentService.list(schoolId, { classId, sectionId }));
   } catch (err) {
     next(err);
   }
@@ -35,8 +51,17 @@ studentRouter.get("/", authorize(...VIEW_ROLES), async (req, res, next) => {
 
 studentRouter.get("/:id", authorize(...VIEW_ROLES), async (req, res, next) => {
   try {
-    const student = await studentService.getById(req.user!.schoolId, req.params.id);
+    const schoolId = req.user!.schoolId;
+    const student = await studentService.getById(schoolId, req.params.id);
     if (!student) throw new HttpError(404, "Student not found");
+
+    if (req.user!.role === Role.TEACHER) {
+      const assignedSectionIds = await getAssignedSectionIdsForUser(schoolId, req.user!.sub);
+      if (!assignedSectionIds.includes(student.sectionId)) {
+        throw new HttpError(403, "You do not have permission to perform this action");
+      }
+    }
+
     res.json(student);
   } catch (err) {
     next(err);

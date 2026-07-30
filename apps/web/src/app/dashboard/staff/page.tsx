@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ResetPasswordButton } from "@/components/shared/reset-password-button";
+import { ManageTeacherAssignmentsDialog } from "@/components/staff/manage-teacher-assignments-dialog";
 import { CreateStaffDialog } from "@/components/staff/create-staff-dialog";
 import { EditStaffDialog } from "@/components/staff/edit-staff-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +100,9 @@ export default function StaffPage() {
                         currentDesignation={member.designation}
                         onSaved={refetch}
                       />
+                      {member.user.role === "TEACHER" && (
+                        <ManageTeacherAssignmentsDialog staffId={member.id} />
+                      )}
                       <ResetPasswordButton userId={member.user.id} />
                       <ConfirmDialog
                         trigger={

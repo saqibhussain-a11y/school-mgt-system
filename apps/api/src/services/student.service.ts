@@ -76,9 +76,13 @@ async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInp
 }
 
 export const studentService = {
-  list(schoolId: string, filters: { classId?: string; sectionId?: string } = {}) {
+  list(
+    schoolId: string,
+    filters: { classId?: string; sectionId?: string; sectionIdIn?: string[] } = {},
+  ) {
+    const { sectionIdIn, ...rest } = filters;
     return prisma.student.findMany({
-      where: { schoolId, ...filters },
+      where: { schoolId, ...rest, ...(sectionIdIn ? { sectionId: { in: sectionIdIn } } : {}) },
       include: studentInclude,
       orderBy: { admissionNo: "asc" },
     });

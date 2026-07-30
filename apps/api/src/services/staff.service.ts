@@ -28,6 +28,10 @@ export const staffService = {
     return prisma.staff.findFirst({ where: { id, schoolId }, include: staffInclude });
   },
 
+  getByUserId(schoolId: string, userId: string) {
+    return prisma.staff.findFirst({ where: { schoolId, userId } });
+  },
+
   async create(schoolId: string, input: CreateStaffInput) {
     const passwordHash = await hashPassword(input.password);
 

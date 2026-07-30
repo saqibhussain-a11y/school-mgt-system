@@ -3,6 +3,7 @@ import { Role } from "@sms/db";
 import { attendanceService } from "../services/attendance.service";
 import { studentService } from "../services/student.service";
 import { studentGuardianService } from "../services/studentGuardian.service";
+import { getAssignedSectionIdsForUser } from "../services/teacherAssignment.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
@@ -14,13 +15,29 @@ export const attendanceRouter = Router();
 
 attendanceRouter.use(authenticate);
 
+// A teacher can only mark/view attendance for a section they're assigned to
+// teach — admins/principal are unrestricted.
+async function assertCanAccessSection(
+  schoolId: string,
+  user: { sub: string; role: string },
+  sectionId: string,
+) {
+  if (user.role !== Role.TEACHER) return;
+  const assignedSectionIds = await getAssignedSectionIdsForUser(schoolId, user.sub);
+  if (!assignedSectionIds.includes(sectionId)) {
+    throw new HttpError(403, "You are not assigned to teach this class/section");
+  }
+}
+
 attendanceRouter.post(
   "/",
   authorize(...MARK_ROLES),
   validateBody(markAttendanceSchema),
   async (req, res, next) => {
     try {
-      const result = await attendanceService.markBulk(req.user!.schoolId, {
+      const schoolId = req.user!.schoolId;
+      await assertCanAccessSection(schoolId, req.user!, req.body.sectionId);
+      const result = await attendanceService.markBulk(schoolId, {
         ...req.body,
         markedByUserId: req.user!.sub,
       });
@@ -45,9 +62,9 @@ attendanceRouter.get("/", authorize(...MARK_ROLES), async (req, res, next) => {
     if (Number.isNaN(parsedDate.getTime())) {
       throw new HttpError(400, "Invalid date");
     }
-    res.json(
-      await attendanceService.getByClassSectionDate(req.user!.schoolId, classId, sectionId, parsedDate),
-    );
+    const schoolId = req.user!.schoolId;
+    await assertCanAccessSection(schoolId, req.user!, sectionId);
+    res.json(await attendanceService.getByClassSectionDate(schoolId, classId, sectionId, parsedDate));
   } catch (err) {
     next(err);
   }

@@ -24,3 +24,8 @@ export const createStaffSchema = z.object({
 export const updateStaffSchema = z.object({
   designation: z.string().min(1),
 });
+
+export const assignTeacherSchema = z.object({
+  classId: z.string().min(1),
+  sectionId: z.string().min(1),
+});

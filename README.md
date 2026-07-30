@@ -87,6 +87,14 @@ Three ways a password can change, each for a different situation:
 - **Admin-initiated reset** — `POST /api/users/:id/reset-password` (`SUPER_ADMIN`/`SCHOOL_ADMIN` only, scoped to their own school). Generates a new temporary password without needing the old one — this is the answer to "how does a staff member get back in if they forget their password," since no email provider is wired up yet so the OTP flow below isn't practically usable. Surfaced as a key icon button next to Staff/Guardians rows and on a student's detail page. The generated password is shown once, never stored in plaintext, and the old one stops working immediately.
 - **Forgot password (OTP)** — `POST /api/auth/forgot-password` → `POST /api/auth/reset-password`, unauthenticated. Still there for completeness, but the OTP is only logged to the API console (no email provider yet), so it's not yet usable outside of dev.
 
+## Teacher class assignments
+
+A `TEACHER` only sees students in, and can only mark attendance for, the specific class+section combos they've been assigned to teach (e.g. "Grade 5 - A" but not "Grade 5 - B") — enforced server-side in `student.route.ts` and `attendance.route.ts`, not just hidden in the UI. `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL` are unrestricted.
+
+- Admins manage this from the **Staff** page — a graduation-cap icon next to each teacher opens **Manage classes**, where you pick a class then a section and add it; each assignment can be removed independently.
+- `GET/POST/DELETE /api/staff/:id/assignments` (admin-only) manage the underlying `TeacherAssignment` rows; `GET /api/me/assignments` is the self-service version a teacher's own UI uses to restrict its class/section pickers (returns `[]` for non-teachers).
+- A teacher with no assignments yet sees an empty student list and can't mark attendance anywhere — that's expected, not a bug; assign them a class/section first.
+
 ## Admission numbers
 
 `admissionNo` is auto-generated server-side (`ADM-<year>-<sequence>`, e.g. `ADM-2026-0001`) whenever a student is created through the **New student** form — there's no field to type one in, so there's no way for staff to accidentally reuse a number already assigned to someone else. The one exception is CSV bulk import, where the column is optional: leave it blank to auto-assign, or fill it in per-row when migrating admission numbers a school already had in an existing system.
@@ -108,7 +116,7 @@ Open `http://localhost:3000` (redirects to `/login` if you're not signed in). Si
 - **Academics** (`/dashboard/academics`): tabbed CRUD for Sessions, Classes, Sections, Subjects.
 - **Announcements** (`/dashboard/announcements`): create/edit/delete for roles allowed to post, targeting by role and/or class; everyone sees the feed filtered to what applies to them.
 - **Students** (`/dashboard/students`): filterable list, create form, CSV bulk import, and a detail page (edit, link/unlink guardians with relationship type, withdraw).
-- **Staff** (`/dashboard/staff`) and **Guardians** (`/dashboard/guardians`): list + create + edit (staff also deactivate).
+- **Staff** (`/dashboard/staff`) and **Guardians** (`/dashboard/guardians`): list + create + edit (staff also deactivate). Teachers additionally get a **Manage classes** action — see "Teacher class assignments" below.
 - **Attendance** (`/dashboard/attendance`): a mark-attendance grid (class/section/date → per-student status + remarks, pre-filled from existing marks) and holiday management for staff; a personal history + % view for students/parents.
 - All mutating dialogs are role-gated client-side to match the backend's RBAC (e.g. only `SUPER_ADMIN`/`SCHOOL_ADMIN` can create students/staff/guardians) — the backend still enforces it independently.
 - **Reusable pieces:** `StatCard`, `AnnouncementCard`, `PageHeader`, `StatusBadge`, `ConfirmDialog`, `useApi` (fetch hook), `apiFetch`/`ApiError` (auth-aware fetch wrapper with token refresh-on-401).

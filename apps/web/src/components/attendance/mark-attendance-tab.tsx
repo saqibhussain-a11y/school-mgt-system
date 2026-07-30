@@ -24,12 +24,20 @@ import {
 } from "@/components/ui/table";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import type { SchoolClass } from "@/components/academics/classes-tab";
 import type { StudentSummary } from "@/components/students/types";
 
 interface Section {
   id: string;
   name: string;
+}
+
+interface Assignment {
+  classId: string;
+  sectionId: string;
+  class: { id: string; name: string };
+  section: { id: string; name: string };
 }
 
 interface AttendanceRecord {
@@ -46,21 +54,38 @@ function todayInputValue() {
 }
 
 export function MarkAttendanceTab() {
-  const { data: classes } = useApi<SchoolClass[]>("/api/classes");
+  const { user } = useAuth();
+  const isTeacher = user?.role === "TEACHER";
+
+  const { data: allClasses } = useApi<SchoolClass[]>(!isTeacher ? "/api/classes" : null);
+  const { data: myAssignments } = useApi<Assignment[]>(isTeacher ? "/api/me/assignments" : null);
+
+  const classes = isTeacher
+    ? Array.from(
+        new Map((myAssignments ?? []).map((a) => [a.classId, a.class])).values(),
+      )
+    : allClasses ?? [];
+
   const [classId, setClassId] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [date, setDate] = useState(todayInputValue());
 
   useEffect(() => {
-    if (!classId && classes && classes.length > 0) setClassId(classes[0].id);
+    if (!classId && classes.length > 0) setClassId(classes[0].id);
   }, [classes, classId]);
 
-  const { data: sections } = useApi<Section[]>(classId ? `/api/sections?classId=${classId}` : null);
+  const { data: fetchedSections } = useApi<Section[]>(
+    !isTeacher && classId ? `/api/sections?classId=${classId}` : null,
+  );
+  const sections = isTeacher
+    ? (myAssignments ?? []).filter((a) => a.classId === classId).map((a) => a.section)
+    : fetchedSections ?? [];
+
   useEffect(() => {
     setSectionId("");
   }, [classId]);
   useEffect(() => {
-    if (!sectionId && sections && sections.length > 0) setSectionId(sections[0].id);
+    if (!sectionId && sections.length > 0) setSectionId(sections[0].id);
   }, [sections, sectionId]);
 
   const { data: roster, loading: rosterLoading } = useApi<StudentSummary[]>(

@@ -35,18 +35,34 @@ interface Section {
   name: string;
 }
 
+interface Assignment {
+  classId: string;
+  sectionId: string;
+  class: { id: string; name: string };
+  section: { id: string; name: string };
+}
+
 export default function StudentsPage() {
   const { user } = useAuth();
   const router = useRouter();
   const canManage = !!user && ADMIN_ROLES.includes(user.role);
+  const isTeacher = user?.role === "TEACHER";
 
-  const { data: classes } = useApi<SchoolClass[]>("/api/classes");
+  const { data: allClasses } = useApi<SchoolClass[]>(!isTeacher ? "/api/classes" : null);
+  const { data: myAssignments } = useApi<Assignment[]>(isTeacher ? "/api/me/assignments" : null);
+  const classes = isTeacher
+    ? Array.from(new Map((myAssignments ?? []).map((a) => [a.classId, a.class])).values())
+    : allClasses ?? [];
+
   const [classId, setClassId] = useState<string>("all");
   const [sectionId, setSectionId] = useState<string>("all");
 
-  const { data: sections } = useApi<Section[]>(
-    classId !== "all" ? `/api/sections?classId=${classId}` : null,
+  const { data: fetchedSections } = useApi<Section[]>(
+    !isTeacher && classId !== "all" ? `/api/sections?classId=${classId}` : null,
   );
+  const sections = isTeacher
+    ? (myAssignments ?? []).filter((a) => a.classId === classId).map((a) => a.section)
+    : fetchedSections ?? [];
 
   useEffect(() => {
     setSectionId("all");
