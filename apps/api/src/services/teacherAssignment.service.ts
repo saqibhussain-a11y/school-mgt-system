@@ -22,6 +22,21 @@ export async function getAssignedSectionIdsForUser(schoolId: string, userId: str
   return getAssignedSectionIds(schoolId, staff.id);
 }
 
+// Exams/marks are scoped by class, not section — Subject (and therefore
+// ExamSubject) has no section concept, so a teacher assigned to *any*
+// section of a class can enter marks for the whole class. There's no
+// subject-teacher mapping in this schema to scope it any tighter than that.
+export async function getAssignedClassIdsForUser(schoolId: string, userId: string) {
+  const staff = await staffService.getByUserId(schoolId, userId);
+  if (!staff) return [];
+  const rows = await prisma.teacherAssignment.findMany({
+    where: { schoolId, staffId: staff.id },
+    select: { classId: true },
+    distinct: ["classId"],
+  });
+  return rows.map((r) => r.classId);
+}
+
 export const teacherAssignmentService = {
   listForStaff(schoolId: string, staffId: string) {
     return prisma.teacherAssignment.findMany({

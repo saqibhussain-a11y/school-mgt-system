@@ -65,6 +65,7 @@ export const dashboardService = {
         role,
         widgets: {
           studentId: student?.id ?? null,
+          classId: student?.classId ?? null,
           className: student?.class.name ?? null,
           sectionName: student?.section.name ?? null,
           attendancePercent30d: summary.percentage,
@@ -86,6 +87,7 @@ export const dashboardService = {
           );
           return {
             studentId: child.id,
+            classId: child.classId,
             name: `${child.user.firstName} ${child.user.lastName}`,
             className: child.class.name,
             sectionName: child.section.name,
