@@ -29,4 +29,11 @@ export const studentGuardianService = {
     await prisma.studentGuardian.delete({ where: { id: link.id } });
     return link;
   },
+
+  async isGuardianOfStudent(schoolId: string, guardianUserId: string, studentId: string) {
+    const link = await prisma.studentGuardian.findFirst({
+      where: { schoolId, studentId, guardian: { userId: guardianUserId } },
+    });
+    return link !== null;
+  },
 };

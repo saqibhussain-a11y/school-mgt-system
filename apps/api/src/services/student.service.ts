@@ -114,4 +114,9 @@ export const studentService = {
       data: { status: StudentStatus.WITHDRAWN },
     });
   },
+
+  async isOwnStudent(schoolId: string, userId: string, studentId: string) {
+    const student = await prisma.student.findFirst({ where: { id: studentId, schoolId, userId } });
+    return student !== null;
+  },
 };

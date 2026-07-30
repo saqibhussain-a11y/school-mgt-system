@@ -50,6 +50,7 @@ model User {
   student            Student?
   staff              Staff?
   guardian           Guardian?
+  attendanceMarked   Attendance[]       @relation("AttendanceMarkedBy")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -116,6 +117,7 @@ model Class {
   sections        Section[]
   subjects        Subject[]
   students        Student[]
+  attendances     Attendance[]
 
   @@unique([academicSessionId, name])
   @@index([schoolId])
@@ -129,8 +131,9 @@ model Section {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  class    Class     @relation(fields: [classId], references: [id])
-  students Student[]
+  class       Class        @relation(fields: [classId], references: [id])
+  students    Student[]
+  attendances Attendance[]
 
   @@unique([classId, name])
   @@index([schoolId])
@@ -185,10 +188,11 @@ model Student {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  user      User              @relation(fields: [userId], references: [id])
-  class     Class             @relation(fields: [classId], references: [id])
-  section   Section           @relation(fields: [sectionId], references: [id])
-  guardians StudentGuardian[]
+  user        User              @relation(fields: [userId], references: [id])
+  class       Class             @relation(fields: [classId], references: [id])
+  section     Section           @relation(fields: [sectionId], references: [id])
+  guardians   StudentGuardian[]
+  attendances Attendance[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -245,4 +249,51 @@ model StudentGuardian {
   @@unique([studentId, guardianId])
   @@index([schoolId])
   @@index([guardianId])
+}
+
+// Excluded from attendance % — a holiday date is never counted as an absence
+// (master doc Section 8.3).
+model Holiday {
+  id        String   @id @default(cuid())
+  schoolId  String
+  date      DateTime @db.Date
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, date])
+  @@index([schoolId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+}
+
+// classId/sectionId are captured at the time of marking (not looked up live)
+// so a student transferred mid-week keeps correct historical records instead
+// of retroactively appearing to have always been in their new section —
+// master doc Section 8.3.
+model Attendance {
+  id             String           @id @default(cuid())
+  schoolId       String
+  studentId      String
+  classId        String
+  sectionId      String
+  date           DateTime         @db.Date
+  status         AttendanceStatus
+  remarks        String?
+  markedByUserId String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  student  Student @relation(fields: [studentId], references: [id])
+  class    Class   @relation(fields: [classId], references: [id])
+  section  Section @relation(fields: [sectionId], references: [id])
+  markedBy User    @relation("AttendanceMarkedBy", fields: [markedByUserId], references: [id])
+
+  @@unique([studentId, date])
+  @@index([schoolId])
+  @@index([classId, sectionId, date])
 }

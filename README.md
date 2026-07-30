@@ -69,6 +69,12 @@ npm run docker:down    # stop Postgres + Redis
 - `POST /api/students/bulk-import` accepts a CSV (`multipart/form-data`, field `file`; columns: `email,firstName,lastName,admissionNo,classId,sectionId,dob`). The whole batch is one transaction — one bad row rolls back the entire import, never a half-imported batch.
 - Passwords are optional on create; when omitted, a random temporary password is generated and returned once in the response (no email provider is wired up yet, so it isn't emailed automatically).
 
+## Attendance module (V1)
+
+`POST /api/attendance` marks a whole class/section's roster for a date in one atomic call (`{classId, sectionId, date, records: [{studentId, status, remarks?}]}`, status one of `PRESENT`/`ABSENT`/`HALF_DAY`/`LEAVE`); re-marking the same student/date corrects the existing record instead of duplicating it. Marking is blocked on a date listed in `/api/holidays` (admin-managed), so closures are never counted as absences. Restricted to `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL`/`TEACHER`.
+
+`GET /api/attendance/students/:studentId` (history) and `/summary` (`{totalDays, percentage, breakdown}`, `HALF_DAY` counts as 0.5) are self-scoped: staff roles can view any student, a `STUDENT` can only view their own record, and a `PARENT` can only view a student they're linked to via `StudentGuardian` — everyone else gets `403`.
+
 ## Moving to a new device (Mac ↔ Windows)
 
 1. Push/pull this repo via git — never copy the folder manually (it would drag along `node_modules`, `.next`, and local `.env` files).
