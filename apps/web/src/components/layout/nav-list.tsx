@@ -11,7 +11,10 @@ export function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate?: 
   return (
     <nav className="flex flex-col gap-1">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active =
+          item.href === "/dashboard"
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
         return (
           <Link
