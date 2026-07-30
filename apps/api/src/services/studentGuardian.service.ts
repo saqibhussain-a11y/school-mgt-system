@@ -36,4 +36,12 @@ export const studentGuardianService = {
     });
     return link !== null;
   },
+
+  async getLinkedClassIds(schoolId: string, guardianUserId: string) {
+    const links = await prisma.studentGuardian.findMany({
+      where: { schoolId, guardian: { userId: guardianUserId } },
+      select: { student: { select: { classId: true } } },
+    });
+    return [...new Set(links.map((l) => l.student.classId))];
+  },
 };

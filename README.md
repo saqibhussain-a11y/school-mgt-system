@@ -75,6 +75,10 @@ npm run docker:down    # stop Postgres + Redis
 
 `GET /api/attendance/students/:studentId` (history) and `/summary` (`{totalDays, percentage, breakdown}`, `HALF_DAY` counts as 0.5) are self-scoped: staff roles can view any student, a `STUDENT` can only view their own record, and a `PARENT` can only view a student they're linked to via `StudentGuardian` — everyone else gets `403`.
 
+## Announcements module (V1)
+
+`GET/POST/PATCH/DELETE /api/announcements`. Creating is restricted to `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL`/`TEACHER`; editing/deleting requires being the original creator or an admin role (a teacher can't edit another teacher's post). An announcement can be school-wide (no target), role-specific (`targetRole`), class-wide (`targetClassId`), or both — staff roles always see everything, while a `STUDENT`/`PARENT` only sees announcements matching their own role and their (or their linked child's) class.
+
 ## Moving to a new device (Mac ↔ Windows)
 
 1. Push/pull this repo via git — never copy the folder manually (it would drag along `node_modules`, `.next`, and local `.env` files).

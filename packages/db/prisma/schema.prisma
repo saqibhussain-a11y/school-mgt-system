@@ -51,6 +51,7 @@ model User {
   staff              Staff?
   guardian           Guardian?
   attendanceMarked   Attendance[]       @relation("AttendanceMarkedBy")
+  announcements      Announcement[]     @relation("AnnouncementCreatedBy")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -118,6 +119,7 @@ model Class {
   subjects        Subject[]
   students        Student[]
   attendances     Attendance[]
+  announcements   Announcement[]
 
   @@unique([academicSessionId, name])
   @@index([schoolId])
@@ -296,4 +298,24 @@ model Attendance {
   @@unique([studentId, date])
   @@index([schoolId])
   @@index([classId, sectionId, date])
+}
+
+// Null targetRole/targetClassId means school-wide; either or both narrow it —
+// master doc Section G.
+model Announcement {
+  id            String   @id @default(cuid())
+  schoolId      String
+  title         String
+  body          String
+  targetRole    Role?
+  targetClassId String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  targetClass Class? @relation(fields: [targetClassId], references: [id])
+  creator     User   @relation("AnnouncementCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([schoolId])
+  @@index([targetClassId])
 }

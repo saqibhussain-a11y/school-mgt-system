@@ -12,6 +12,7 @@ import { staffRouter } from "./staff.route";
 import { guardianRouter } from "./guardian.route";
 import { holidayRouter } from "./holiday.route";
 import { attendanceRouter } from "./attendance.route";
+import { announcementRouter } from "./announcement.route";
 
 export const apiRouter = Router();
 
@@ -28,3 +29,4 @@ apiRouter.use("/staff", staffRouter);
 apiRouter.use("/guardians", guardianRouter);
 apiRouter.use("/holidays", holidayRouter);
 apiRouter.use("/attendance", attendanceRouter);
+apiRouter.use("/announcements", announcementRouter);

@@ -119,4 +119,12 @@ export const studentService = {
     const student = await prisma.student.findFirst({ where: { id: studentId, schoolId, userId } });
     return student !== null;
   },
+
+  async getOwnClassId(schoolId: string, userId: string) {
+    const student = await prisma.student.findFirst({
+      where: { schoolId, userId },
+      select: { classId: true },
+    });
+    return student?.classId ?? null;
+  },
 };
