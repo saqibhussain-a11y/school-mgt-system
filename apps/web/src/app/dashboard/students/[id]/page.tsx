@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ResetPasswordButton } from "@/components/shared/reset-password-button";
 import { EditStudentDialog } from "@/components/students/edit-student-dialog";
 import { LinkGuardianDialog } from "@/components/students/link-guardian-dialog";
+import { AttendanceHistoryView } from "@/components/attendance/attendance-history-view";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -161,6 +162,15 @@ export default function StudentDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-base">Attendance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AttendanceHistoryView studentId={student.id} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

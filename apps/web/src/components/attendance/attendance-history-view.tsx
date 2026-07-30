@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { CalendarCheck } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -15,7 +17,23 @@ import {
 } from "@/components/ui/table";
 import { useApi } from "@/lib/use-api";
 import { attendanceTone } from "@/lib/attendance-tone";
-import { formatDate } from "@/lib/format";
+import { formatDate, toDateInputValue } from "@/lib/format";
+
+const PRESETS = [
+  { key: "week", label: "Last 7 days" },
+  { key: "month", label: "Last 30 days" },
+  { key: "all", label: "All time" },
+] as const;
+
+type PresetKey = (typeof PRESETS)[number]["key"];
+
+function rangeFor(preset: PresetKey) {
+  if (preset === "all") return {};
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - (preset === "week" ? 6 : 29));
+  return { from: toDateInputValue(from), to: toDateInputValue(to) };
+}
 
 interface AttendanceRecord {
   id: string;
@@ -30,15 +48,31 @@ interface AttendanceSummary {
 }
 
 export function AttendanceHistoryView({ studentId }: { studentId: string }) {
+  const [preset, setPreset] = useState<PresetKey>("month");
+  const range = rangeFor(preset);
+  const suffix = range.from ? `?from=${range.from}&to=${range.to}` : "";
+
   const { data: summary, loading: summaryLoading } = useApi<AttendanceSummary>(
-    `/api/attendance/students/${studentId}/summary`,
+    `/api/attendance/students/${studentId}/summary${suffix}`,
   );
   const { data: history, loading: historyLoading } = useApi<AttendanceRecord[]>(
-    `/api/attendance/students/${studentId}`,
+    `/api/attendance/students/${studentId}${suffix}`,
   );
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex gap-1">
+        {PRESETS.map((p) => (
+          <Button
+            key={p.key}
+            size="sm"
+            variant={preset === p.key ? "default" : "outline"}
+            onClick={() => setPreset(p.key)}
+          >
+            {p.label}
+          </Button>
+        ))}
+      </div>
       {summaryLoading ? (
         <Skeleton className="h-28 rounded-xl sm:w-64" />
       ) : (

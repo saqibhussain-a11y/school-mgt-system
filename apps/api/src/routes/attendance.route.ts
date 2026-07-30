@@ -70,12 +70,46 @@ attendanceRouter.get("/", authorize(...MARK_ROLES), async (req, res, next) => {
   }
 });
 
+attendanceRouter.get("/summary", authorize(...MARK_ROLES), async (req, res, next) => {
+  try {
+    const { classId, sectionId } = req.query as { classId?: string; sectionId?: string };
+    if (!classId || !sectionId) {
+      throw new HttpError(400, "classId and sectionId query params are required");
+    }
+    const query = dateRangeQuerySchema.safeParse(req.query);
+    if (!query.success) throw new HttpError(400, "Invalid from/to date");
+
+    const schoolId = req.user!.schoolId;
+    await assertCanAccessSection(schoolId, req.user!, sectionId);
+    res.json(
+      await attendanceService.getClassSectionRangeSummary(
+        schoolId,
+        classId,
+        sectionId,
+        query.data.from,
+        query.data.to,
+      ),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
 async function assertCanAccessStudent(
   schoolId: string,
   user: { sub: string; role: string },
   studentId: string,
 ) {
-  if (MARK_ROLES.includes(user.role as Role)) return;
+  if (user.role === Role.SUPER_ADMIN || user.role === Role.SCHOOL_ADMIN || user.role === Role.PRINCIPAL) {
+    return;
+  }
+  if (user.role === Role.TEACHER) {
+    const student = await studentService.getById(schoolId, studentId);
+    if (!student) throw new HttpError(404, "Student not found");
+    const assignedSectionIds = await getAssignedSectionIdsForUser(schoolId, user.sub);
+    if (assignedSectionIds.includes(student.sectionId)) return;
+    throw new HttpError(403, "You are not assigned to teach this student's section");
+  }
   if (user.role === Role.STUDENT && (await studentService.isOwnStudent(schoolId, user.sub, studentId))) {
     return;
   }

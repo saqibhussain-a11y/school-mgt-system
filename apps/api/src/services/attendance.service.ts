@@ -121,6 +121,64 @@ export const attendanceService = {
     return { totalDays, percentage, breakdown };
   },
 
+  // Per-student % + breakdown for a whole class/section over a date range —
+  // the "weekly/monthly for the class" view the day-by-day mark/view tab
+  // doesn't provide. One query for all attendance rows in range, grouped in
+  // JS, rather than one getSummaryForStudent query per student.
+  async getClassSectionRangeSummary(
+    schoolId: string,
+    classId: string,
+    sectionId: string,
+    from?: Date,
+    to?: Date,
+  ) {
+    const students = await prisma.student.findMany({
+      where: { schoolId, classId, sectionId, status: "ACTIVE" },
+      include: { user: { select: { firstName: true, lastName: true } } },
+      orderBy: { admissionNo: "asc" },
+    });
+
+    const records = await prisma.attendance.findMany({
+      where: {
+        schoolId,
+        classId,
+        sectionId,
+        ...(from || to ? { date: { gte: from, lte: to } } : {}),
+      },
+      select: { studentId: true, status: true },
+    });
+
+    const statusesByStudent = new Map<string, AttendanceStatus[]>();
+    for (const record of records) {
+      const list = statusesByStudent.get(record.studentId) ?? [];
+      list.push(record.status);
+      statusesByStudent.set(record.studentId, list);
+    }
+
+    return students.map((student) => {
+      const statuses = statusesByStudent.get(student.id) ?? [];
+      const totalDays = statuses.length;
+      const presentEquivalent = statuses.reduce((sum, s) => sum + STATUS_WEIGHT[s], 0);
+      const percentage = totalDays > 0 ? Math.round((presentEquivalent / totalDays) * 10000) / 100 : 0;
+      const breakdown = statuses.reduce(
+        (acc, s) => {
+          acc[s] = (acc[s] ?? 0) + 1;
+          return acc;
+        },
+        {} as Record<AttendanceStatus, number>,
+      );
+      return {
+        studentId: student.id,
+        admissionNo: student.admissionNo,
+        firstName: student.user.firstName,
+        lastName: student.user.lastName,
+        totalDays,
+        percentage,
+        breakdown,
+      };
+    });
+  },
+
   async getSchoolSummary(schoolId: string, from?: Date, to?: Date) {
     const records = await prisma.attendance.findMany({
       where: { schoolId, ...(from || to ? { date: { gte: from, lte: to } } : {}) },
