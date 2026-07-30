@@ -80,3 +80,65 @@ model PasswordResetOtp {
   @@index([schoolId])
   @@index([userId])
 }
+
+// Classes/Sections live inside a session so year-end promotion and repeated
+// classes keep separate, correctly-dated records — see master doc Section 8.2.
+model AcademicSession {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classes Class[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model Class {
+  id                String   @id @default(cuid())
+  schoolId          String
+  academicSessionId String
+  name              String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  sections        Section[]
+  subjects        Subject[]
+
+  @@unique([academicSessionId, name])
+  @@index([schoolId])
+}
+
+model Section {
+  id        String   @id @default(cuid())
+  schoolId  String
+  classId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class Class @relation(fields: [classId], references: [id])
+
+  @@unique([classId, name])
+  @@index([schoolId])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  schoolId  String
+  classId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class Class @relation(fields: [classId], references: [id])
+
+  @@unique([classId, name])
+  @@index([schoolId])
+}

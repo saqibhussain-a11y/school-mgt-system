@@ -3,6 +3,10 @@ import { healthRouter } from "./health.route";
 import { schoolRouter } from "./school.route";
 import { authRouter } from "./auth.route";
 import { meRouter } from "./me.route";
+import { academicSessionRouter } from "./academicSession.route";
+import { classRouter } from "./class.route";
+import { sectionRouter } from "./section.route";
+import { subjectRouter } from "./subject.route";
 
 export const apiRouter = Router();
 
@@ -10,3 +14,7 @@ apiRouter.use("/health", healthRouter);
 apiRouter.use("/schools", schoolRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/me", meRouter);
+apiRouter.use("/academic-sessions", academicSessionRouter);
+apiRouter.use("/classes", classRouter);
+apiRouter.use("/sections", sectionRouter);
+apiRouter.use("/subjects", subjectRouter);
