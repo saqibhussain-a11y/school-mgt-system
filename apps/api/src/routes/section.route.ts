@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "@sms/db";
 import { sectionService } from "../services/section.service";
+import { teacherAssignmentService } from "../services/teacherAssignment.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
@@ -26,6 +27,14 @@ sectionRouter.get("/:id", async (req, res, next) => {
     const section = await sectionService.getById(req.user!.schoolId, req.params.id);
     if (!section) throw new HttpError(404, "Section not found");
     res.json(section);
+  } catch (err) {
+    next(err);
+  }
+});
+
+sectionRouter.get("/:id/teachers", authorize(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    res.json(await teacherAssignmentService.listForSection(req.user!.schoolId, req.params.id));
   } catch (err) {
     next(err);
   }

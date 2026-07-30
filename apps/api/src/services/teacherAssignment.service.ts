@@ -31,6 +31,16 @@ export const teacherAssignmentService = {
     });
   },
 
+  // Reverse lookup for the timetable builder's teacher picker — only staff
+  // actually assigned to this section should be schedulable in it.
+  listForSection(schoolId: string, sectionId: string) {
+    return prisma.teacherAssignment.findMany({
+      where: { schoolId, sectionId },
+      include: { staff: { include: { user: { select: { id: true, firstName: true, lastName: true } } } } },
+      orderBy: { createdAt: "asc" },
+    });
+  },
+
   getAssignedSectionIds,
 
   create(schoolId: string, staffId: string, classId: string, sectionId: string) {

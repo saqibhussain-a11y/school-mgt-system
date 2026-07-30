@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarCheck,
   CalendarClock,
+  CalendarRange,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -41,6 +42,12 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Staff", href: "/dashboard/staff", icon: UserCog, roles: ADMIN_ROLES },
   { label: "Guardians", href: "/dashboard/guardians", icon: UsersRound, roles: STAFF_ROLES },
   { label: "Academics", href: "/dashboard/academics", icon: BookOpen },
+  {
+    label: "Timetable",
+    href: "/dashboard/timetable",
+    icon: CalendarRange,
+    roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "STUDENT"],
+  },
   { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
   { label: "Leave", href: "/dashboard/leave", icon: CalendarClock, roles: LEAVE_ROLES },
   {

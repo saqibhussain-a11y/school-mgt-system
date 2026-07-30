@@ -123,6 +123,7 @@ model Class {
   attendances        Attendance[]
   announcements      Announcement[]
   teacherAssignments TeacherAssignment[]
+  timetableSlots     TimetableSlot[]
 
   @@unique([academicSessionId, name])
   @@index([schoolId])
@@ -140,6 +141,7 @@ model Section {
   students           Student[]
   attendances        Attendance[]
   teacherAssignments TeacherAssignment[]
+  timetableSlots     TimetableSlot[]
 
   @@unique([classId, name])
   @@index([schoolId])
@@ -153,10 +155,48 @@ model Subject {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  class Class @relation(fields: [classId], references: [id])
+  class          Class           @relation(fields: [classId], references: [id])
+  timetableSlots TimetableSlot[]
 
   @@unique([classId, name])
   @@index([schoolId])
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+// Manual builder, not auto-generated (master doc V2 scope — AI-assisted
+// auto-generation is a V5 stretch goal). startTime/endTime are "HH:mm"
+// strings rather than a shared Period entity, since schools vary period
+// lengths (e.g. a shorter period after lunch) — conflict detection in
+// timetableSlot.service.ts does its own string-range overlap check.
+model TimetableSlot {
+  id        String    @id @default(cuid())
+  schoolId  String
+  classId   String
+  sectionId String
+  subjectId String
+  staffId   String
+  dayOfWeek DayOfWeek
+  startTime String
+  endTime   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  class   Class   @relation(fields: [classId], references: [id])
+  section Section @relation(fields: [sectionId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+  staff   Staff   @relation(fields: [staffId], references: [id])
+
+  @@index([schoolId])
+  @@index([sectionId, dayOfWeek])
+  @@index([staffId, dayOfWeek])
 }
 
 enum StudentStatus {
@@ -218,8 +258,9 @@ model Staff {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  user        User                @relation(fields: [userId], references: [id])
-  assignments TeacherAssignment[]
+  user           User                @relation(fields: [userId], references: [id])
+  assignments    TeacherAssignment[]
+  timetableSlots TimetableSlot[]
 
   @@index([schoolId])
 }
