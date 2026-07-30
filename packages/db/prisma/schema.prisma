@@ -39,12 +39,17 @@ model User {
   email        String
   passwordHash String
   role         Role
+  firstName    String   @default("")
+  lastName     String   @default("")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   school            School             @relation(fields: [schoolId], references: [id])
   refreshTokens      RefreshToken[]
   passwordResetOtps  PasswordResetOtp[]
+  student            Student?
+  staff              Staff?
+  guardian           Guardian?
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -110,6 +115,7 @@ model Class {
   academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
   sections        Section[]
   subjects        Subject[]
+  students        Student[]
 
   @@unique([academicSessionId, name])
   @@index([schoolId])
@@ -123,7 +129,8 @@ model Section {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  class Class @relation(fields: [classId], references: [id])
+  class    Class     @relation(fields: [classId], references: [id])
+  students Student[]
 
   @@unique([classId, name])
   @@index([schoolId])
@@ -141,4 +148,101 @@ model Subject {
 
   @@unique([classId, name])
   @@index([schoolId])
+}
+
+enum StudentStatus {
+  ACTIVE
+  WITHDRAWN
+}
+
+enum StaffStatus {
+  ACTIVE
+  DEACTIVATED
+}
+
+enum GuardianRelationship {
+  FATHER
+  MOTHER
+  GRANDPARENT
+  LEGAL_GUARDIAN
+  OTHER
+}
+
+// Withdrawal is a status change, never a row delete — historical attendance/
+// grades/payments must stay attributable (master doc Section 8.1).
+model Student {
+  id             String        @id @default(cuid())
+  schoolId       String
+  userId         String        @unique
+  admissionNo    String
+  classId        String
+  sectionId      String
+  dob            DateTime
+  admissionDate  DateTime      @default(now())
+  previousSchool String?
+  medicalInfo    String?
+  status         StudentStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user      User              @relation(fields: [userId], references: [id])
+  class     Class             @relation(fields: [classId], references: [id])
+  section   Section           @relation(fields: [sectionId], references: [id])
+  guardians StudentGuardian[]
+
+  @@unique([schoolId, admissionNo])
+  @@index([schoolId])
+  @@index([classId])
+  @@index([sectionId])
+}
+
+// Deactivate, never delete — historical grading/attendance entries must
+// remain attributable to a former staff member (master doc Section 8.6).
+model Staff {
+  id          String      @id @default(cuid())
+  schoolId    String
+  userId      String      @unique
+  designation String
+  joiningDate DateTime    @default(now())
+  status      StaffStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+}
+
+model Guardian {
+  id        String   @id @default(cuid())
+  schoolId  String
+  userId    String   @unique
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id])
+  students StudentGuardian[]
+
+  @@index([schoolId])
+}
+
+// Join table instead of a single parentId — supports siblings sharing a
+// guardian and a student having multiple guardians (master doc Section 8.6).
+model StudentGuardian {
+  id               String               @id @default(cuid())
+  schoolId         String
+  studentId        String
+  guardianId       String
+  relationshipType GuardianRelationship
+  isPrimaryContact Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+
+  student  Student  @relation(fields: [studentId], references: [id])
+  guardian Guardian @relation(fields: [guardianId], references: [id])
+
+  @@unique([studentId, guardianId])
+  @@index([schoolId])
+  @@index([guardianId])
 }

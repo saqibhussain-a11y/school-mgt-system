@@ -7,6 +7,9 @@ import { academicSessionRouter } from "./academicSession.route";
 import { classRouter } from "./class.route";
 import { sectionRouter } from "./section.route";
 import { subjectRouter } from "./subject.route";
+import { studentRouter } from "./student.route";
+import { staffRouter } from "./staff.route";
+import { guardianRouter } from "./guardian.route";
 
 export const apiRouter = Router();
 
@@ -18,3 +21,6 @@ apiRouter.use("/academic-sessions", academicSessionRouter);
 apiRouter.use("/classes", classRouter);
 apiRouter.use("/sections", sectionRouter);
 apiRouter.use("/subjects", subjectRouter);
+apiRouter.use("/students", studentRouter);
+apiRouter.use("/staff", staffRouter);
+apiRouter.use("/guardians", guardianRouter);

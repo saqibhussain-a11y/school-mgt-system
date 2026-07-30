@@ -57,6 +57,18 @@ npm run docker:down    # stop Postgres + Redis
 
 `POST /api/auth/login`, `/refresh`, `/logout`, `/register` (admin-only), `/forgot-password`, `/reset-password`. Access tokens are short-lived JWTs (15m); refresh tokens are rotated on every use and revoked on reuse. Password reset OTPs are logged to the API console instead of emailed — no email provider is wired up yet (that's the Communication module, later on the roadmap).
 
+## Academic structure module (V1)
+
+`GET/POST/PATCH/DELETE /api/academic-sessions`, `/classes`, `/subjects`, `/sections`. Reads are open to any authenticated role; writes require `SUPER_ADMIN`/`SCHOOL_ADMIN`/`PRINCIPAL`. Classes and sections live inside an academic session so promotion/repeated years keep separate records.
+
+## User/profile management module (V1)
+
+`GET/POST/PATCH/DELETE /api/students`, `/api/staff`, `/api/guardians` — each create is transactional (a linked `User` login + profile row in one go, atomic rollback on failure). Writes require `SUPER_ADMIN`/`SCHOOL_ADMIN` (matches the "admin-created accounts, no public signup" rule); reads are scoped to staff-facing roles. `DELETE` never hard-deletes — students go to `WITHDRAWN`, staff to `DEACTIVATED`, so historical records stay attributable.
+
+- `POST /api/students/:id/guardians` links an existing guardian (by `guardianId` or `guardianEmail`) to a student with a `relationshipType` (FATHER/MOTHER/GRANDPARENT/LEGAL_GUARDIAN/OTHER) — supports siblings sharing one guardian and a student having multiple guardians.
+- `POST /api/students/bulk-import` accepts a CSV (`multipart/form-data`, field `file`; columns: `email,firstName,lastName,admissionNo,classId,sectionId,dob`). The whole batch is one transaction — one bad row rolls back the entire import, never a half-imported batch.
+- Passwords are optional on create; when omitted, a random temporary password is generated and returned once in the response (no email provider is wired up yet, so it isn't emailed automatically).
+
 ## Moving to a new device (Mac ↔ Windows)
 
 1. Push/pull this repo via git — never copy the folder manually (it would drag along `node_modules`, `.next`, and local `.env` files).
