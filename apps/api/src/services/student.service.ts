@@ -148,4 +148,11 @@ export const studentService = {
   getByUserId(schoolId: string, userId: string) {
     return prisma.student.findFirst({ where: { schoolId, userId } });
   },
+
+  async listActiveByClass(schoolId: string, classId: string) {
+    return prisma.student.findMany({
+      where: { schoolId, classId, status: StudentStatus.ACTIVE },
+      select: { id: true, userId: true },
+    });
+  },
 };

@@ -2,6 +2,9 @@ import { prisma } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { gradeFor } from "../lib/grading";
 import { putObject, getDownloadUrl, deleteObject } from "../lib/storage";
+import { studentService } from "./student.service";
+import { studentGuardianService } from "./studentGuardian.service";
+import { inAppNotificationService } from "./inAppNotification.service";
 
 export interface CreateAssignmentInput {
   classId: string;
@@ -42,11 +45,24 @@ export const assignmentService = {
     return prisma.assignment.findFirst({ where: { id, schoolId }, include: assignmentInclude });
   },
 
-  create(schoolId: string, input: CreateAssignmentInput) {
-    return prisma.assignment.create({
+  async create(schoolId: string, input: CreateAssignmentInput) {
+    const assignment = await prisma.assignment.create({
       data: { schoolId, maxMarks: input.maxMarks ?? 100, ...input },
       include: assignmentInclude,
     });
+
+    const students = await studentService.listActiveByClass(schoolId, input.classId);
+    const parentUserIds = await studentGuardianService.getGuardianUserIdsForStudents(
+      schoolId,
+      students.map((s) => s.id),
+    );
+    await inAppNotificationService.notifyMany(
+      schoolId,
+      [...students.map((s) => s.userId), ...parentUserIds],
+      { type: "assignment", title: "New assignment", body: assignment.title, link: `/dashboard/assignments/${assignment.id}` },
+    );
+
+    return assignment;
   },
 
   async update(
@@ -199,7 +215,7 @@ export const assignmentService = {
     const submission = await prisma.submission.findFirst({ where: { schoolId, assignmentId, studentId } });
     if (!submission) throw new HttpError(404, "This student hasn't submitted this assignment yet");
 
-    return prisma.submission.update({
+    const updated = await prisma.submission.update({
       where: { id: submission.id },
       data: {
         marksObtained: data.marksObtained,
@@ -208,5 +224,25 @@ export const assignmentService = {
         gradedAt: new Date(),
       },
     });
+
+    const [assignment, student] = await Promise.all([
+      prisma.assignment.findFirst({ where: { id: assignmentId, schoolId } }),
+      prisma.student.findFirst({ where: { id: studentId, schoolId }, select: { userId: true } }),
+    ]);
+    if (assignment && student) {
+      const parentUserIds = await studentGuardianService.getGuardianUserIdsForStudents(schoolId, [studentId]);
+      const { percentage, grade } = scoreFor(data.marksObtained, assignment.maxMarks);
+      await inAppNotificationService.notifyMany(schoolId, [student.userId, ...parentUserIds], {
+        type: "grade",
+        title: "Assignment graded",
+        body:
+          percentage !== null
+            ? `${assignment.title}: ${percentage}% (${grade})`
+            : `${assignment.title} has been graded`,
+        link: `/dashboard/assignments/${assignmentId}`,
+      });
+    }
+
+    return updated;
   },
 };

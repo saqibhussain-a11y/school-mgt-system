@@ -20,6 +20,7 @@ import { examRouter, examSubjectRouter } from "./exam.route";
 import { assignmentRouter } from "./assignment.route";
 import { localUploadRouter } from "./localUpload.route";
 import { dashboardRouter } from "./dashboard.route";
+import { notificationRouter } from "./notification.route";
 
 export const apiRouter = Router();
 
@@ -45,3 +46,4 @@ apiRouter.use("/exam-subjects", examSubjectRouter);
 apiRouter.use("/assignments", assignmentRouter);
 apiRouter.use("/uploads/local", localUploadRouter);
 apiRouter.use("/dashboard", dashboardRouter);
+apiRouter.use("/notifications", notificationRouter);

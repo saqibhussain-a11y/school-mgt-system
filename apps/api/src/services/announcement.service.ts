@@ -1,6 +1,7 @@
 import { prisma, Role } from "@sms/db";
 import { studentService } from "./student.service";
 import { studentGuardianService } from "./studentGuardian.service";
+import { inAppNotificationService } from "./inAppNotification.service";
 
 export interface AnnouncementViewer {
   isStaff: boolean;
@@ -52,6 +53,41 @@ function visibilityWhere(viewer: AnnouncementViewer) {
   };
 }
 
+// Mirrors visibilityWhere's logic in reverse (which users would see this
+// announcement) so notification recipients exactly match who'd find it on
+// their announcements list. Staff always see every announcement regardless
+// of targetRole/targetClassId (see buildAnnouncementViewer), so they're
+// always notified; students/parents are notified only if the target
+// filters admit them.
+async function resolveRecipientUserIds(schoolId: string, targetRole?: Role | null, targetClassId?: string | null) {
+  const staffUsers = await prisma.user.findMany({
+    where: { schoolId, role: { in: STAFF_ROLES } },
+    select: { id: true },
+  });
+  const recipients = new Set(staffUsers.map((u) => u.id));
+
+  const wantsStudents = !targetRole || targetRole === Role.STUDENT;
+  const wantsParents = !targetRole || targetRole === Role.PARENT;
+
+  if (wantsStudents) {
+    const students = await prisma.student.findMany({
+      where: { schoolId, status: "ACTIVE", ...(targetClassId ? { classId: targetClassId } : {}) },
+      select: { userId: true },
+    });
+    students.forEach((s) => recipients.add(s.userId));
+  }
+
+  if (wantsParents) {
+    const links = await prisma.studentGuardian.findMany({
+      where: { schoolId, ...(targetClassId ? { student: { classId: targetClassId } } : {}) },
+      select: { guardian: { select: { userId: true } } },
+    });
+    links.forEach((l) => recipients.add(l.guardian.userId));
+  }
+
+  return [...recipients];
+}
+
 export const announcementService = {
   list(schoolId: string, viewer: AnnouncementViewer, limit?: number) {
     return prisma.announcement.findMany({
@@ -73,11 +109,23 @@ export const announcementService = {
     return prisma.announcement.findFirst({ where: { id, schoolId }, include: announcementInclude });
   },
 
-  create(
+  async create(
     schoolId: string,
     data: { title: string; body: string; targetRole?: Role; targetClassId?: string; createdBy: string },
   ) {
-    return prisma.announcement.create({ data: { ...data, schoolId }, include: announcementInclude });
+    const announcement = await prisma.announcement.create({
+      data: { ...data, schoolId },
+      include: announcementInclude,
+    });
+
+    const recipientUserIds = await resolveRecipientUserIds(schoolId, data.targetRole, data.targetClassId);
+    await inAppNotificationService.notifyMany(
+      schoolId,
+      recipientUserIds.filter((id) => id !== data.createdBy),
+      { type: "announcement", title: "New announcement", body: data.title, link: "/dashboard/announcements" },
+    );
+
+    return announcement;
   },
 
   async update(

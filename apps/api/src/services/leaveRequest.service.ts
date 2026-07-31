@@ -2,7 +2,12 @@ import { prisma, Role, LeaveStatus, AttendanceStatus } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { staffService } from "./staff.service";
 import { studentService } from "./student.service";
+import { inAppNotificationService } from "./inAppNotification.service";
 import { LEAVE_TYPES } from "../validation/leaveRequest.schema";
+
+// Same reviewer set as REVIEW_ROLES in leaveRequest.route.ts — duplicated
+// here (not imported) since routes shouldn't be a dependency of services.
+const REVIEWER_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 // No leave-policy admin UI yet — a fixed annual entitlement per type, same
 // for every staff member, is the simplest thing that satisfies the master
@@ -90,16 +95,29 @@ export const leaveRequestService = {
     });
   },
 
-  create(
+  async create(
     schoolId: string,
     userId: string,
     role: Role,
     data: { leaveType: string; startDate: Date; endDate: Date; reason: string },
   ) {
-    return prisma.leaveRequest.create({
+    const request = await prisma.leaveRequest.create({
       data: { schoolId, userId, role, ...data },
       include: leaveRequestInclude,
     });
+
+    const reviewers = await prisma.user.findMany({
+      where: { schoolId, role: { in: REVIEWER_ROLES } },
+      select: { id: true },
+    });
+    await inAppNotificationService.notifyMany(schoolId, reviewers.map((r) => r.id), {
+      type: "leave_request",
+      title: "New leave request",
+      body: `${request.user.firstName} ${request.user.lastName} requested ${data.leaveType} leave`,
+      link: "/dashboard/leave",
+    });
+
+    return request;
   },
 
   async cancel(schoolId: string, id: string, userId: string) {
@@ -137,6 +155,13 @@ export const leaveRequestService = {
     if (status === LeaveStatus.APPROVED && existing.role === Role.STUDENT) {
       await syncStudentAttendance(schoolId, existing, reviewerId);
     }
+
+    await inAppNotificationService.notify(schoolId, existing.userId, {
+      type: "leave_review",
+      title: status === LeaveStatus.APPROVED ? "Leave request approved" : "Leave request rejected",
+      body: `Your ${existing.leaveType} leave request has been ${status.toLowerCase()}`,
+      link: "/dashboard/leave",
+    });
 
     return updated;
   },

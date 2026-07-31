@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { NotificationBell } from "./notification-bell";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ChangePasswordDialog } from "./change-password-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -28,6 +29,7 @@ export function Topbar() {
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80 md:px-6">
       <MobileSidebar />
       <div className="flex-1" />
+      <NotificationBell />
       <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger
