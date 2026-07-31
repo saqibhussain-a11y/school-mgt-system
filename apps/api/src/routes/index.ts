@@ -25,6 +25,9 @@ import { feeStructureRouter } from "./feeStructure.route";
 import { feeInvoiceRouter, feePaymentRouter } from "./feeInvoice.route";
 import { documentRouter } from "./document.route";
 import { reportsRouter } from "./reports.route";
+import { libraryBookRouter } from "./libraryBook.route";
+import { bookLoanRouter } from "./bookLoan.route";
+import { bookReservationRouter } from "./bookReservation.route";
 
 export const apiRouter = Router();
 
@@ -56,3 +59,6 @@ apiRouter.use("/fee-invoices", feeInvoiceRouter);
 apiRouter.use("/fee-payments", feePaymentRouter);
 apiRouter.use("/documents", documentRouter);
 apiRouter.use("/reports", reportsRouter);
+apiRouter.use("/library-books", libraryBookRouter);
+apiRouter.use("/book-loans", bookLoanRouter);
+apiRouter.use("/book-reservations", bookReservationRouter);

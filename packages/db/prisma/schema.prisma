@@ -9,14 +9,14 @@ datasource db {
 // One row today ("School #1"), but every tenant-scoped table below already
 // carries schoolId — see the SaaS conversion plan in the master doc (Section 5/8.7).
 model School {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   name               String
-  subdomain          String   @unique
-  subscriptionPlan   String   @default("single_tenant")
-  subscriptionStatus String   @default("active")
+  subdomain          String    @unique
+  subscriptionPlan   String    @default("single_tenant")
+  subscriptionStatus String    @default("active")
   trialEndsAt        DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   users User[]
 }
@@ -44,24 +44,25 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  school            School             @relation(fields: [schoolId], references: [id])
-  refreshTokens      RefreshToken[]
-  passwordResetOtps  PasswordResetOtp[]
-  student            Student?
-  staff              Staff?
-  guardian           Guardian?
-  attendanceMarked   Attendance[]       @relation("AttendanceMarkedBy")
-  announcements      Announcement[]     @relation("AnnouncementCreatedBy")
-  leaveRequests      LeaveRequest[]     @relation("LeaveRequestApplicant")
-  leaveReviews       LeaveRequest[]     @relation("LeaveRequestReviewer")
-  marksEntered       Mark[]
-  assignmentsCreated Assignment[]       @relation("AssignmentCreatedBy")
-  submissionsGraded  Submission[]       @relation("SubmissionGradedBy")
-  notifications      Notification[]
-  feeInvoicesCreated FeeInvoice[]       @relation("FeeInvoiceCreatedBy")
-  feePaymentsRecorded FeePayment[]      @relation("FeePaymentRecordedBy")
-  feeRefundsRecorded FeeRefund[]        @relation("FeeRefundRecordedBy")
-  documentsIssued    IssuedDocument[]   @relation("DocumentIssuedBy")
+  school              School             @relation(fields: [schoolId], references: [id])
+  refreshTokens       RefreshToken[]
+  passwordResetOtps   PasswordResetOtp[]
+  student             Student?
+  staff               Staff?
+  guardian            Guardian?
+  attendanceMarked    Attendance[]       @relation("AttendanceMarkedBy")
+  announcements       Announcement[]     @relation("AnnouncementCreatedBy")
+  leaveRequests       LeaveRequest[]     @relation("LeaveRequestApplicant")
+  leaveReviews        LeaveRequest[]     @relation("LeaveRequestReviewer")
+  marksEntered        Mark[]
+  assignmentsCreated  Assignment[]       @relation("AssignmentCreatedBy")
+  submissionsGraded   Submission[]       @relation("SubmissionGradedBy")
+  notifications       Notification[]
+  feeInvoicesCreated  FeeInvoice[]       @relation("FeeInvoiceCreatedBy")
+  feePaymentsRecorded FeePayment[]       @relation("FeePaymentRecordedBy")
+  feeRefundsRecorded  FeeRefund[]        @relation("FeeRefundRecordedBy")
+  documentsIssued     IssuedDocument[]   @relation("DocumentIssuedBy")
+  bookLoansIssued     BookLoan[]         @relation("BookLoanIssuedBy")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -69,13 +70,13 @@ model User {
 
 // Rotated on every refresh; tokenHash lets a stolen DB dump not be a stolen session.
 model RefreshToken {
-  id         String    @id @default(cuid())
-  schoolId   String
-  userId     String
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  schoolId  String
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id])
 
@@ -84,13 +85,13 @@ model RefreshToken {
 }
 
 model PasswordResetOtp {
-  id          String    @id @default(cuid())
-  schoolId    String
-  userId      String
-  otpHash     String
-  expiresAt   DateTime
-  consumedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  id         String    @id @default(cuid())
+  schoolId   String
+  userId     String
+  otpHash    String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id])
 
@@ -370,15 +371,17 @@ model Student {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  user        User              @relation(fields: [userId], references: [id])
-  class       Class             @relation(fields: [classId], references: [id])
-  section     Section           @relation(fields: [sectionId], references: [id])
-  guardians   StudentGuardian[]
-  attendances Attendance[]
-  marks       Mark[]
-  submissions Submission[]
-  feeInvoices FeeInvoice[]
-  issuedDocuments IssuedDocument[]
+  user             User              @relation(fields: [userId], references: [id])
+  class            Class             @relation(fields: [classId], references: [id])
+  section          Section           @relation(fields: [sectionId], references: [id])
+  guardians        StudentGuardian[]
+  attendances      Attendance[]
+  marks            Mark[]
+  submissions      Submission[]
+  feeInvoices      FeeInvoice[]
+  issuedDocuments  IssuedDocument[]
+  bookLoans        BookLoan[]
+  bookReservations BookReservation[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -641,15 +644,15 @@ model FeeInvoice {
 }
 
 model FeePayment {
-  id               String    @id @default(cuid())
+  id               String   @id @default(cuid())
   schoolId         String
   invoiceId        String
   amountPaid       Float
-  paymentMethod    String    @default("manual")
+  paymentMethod    String   @default("manual")
   referenceNote    String?
-  paymentDate      DateTime  @default(now())
+  paymentDate      DateTime @default(now())
   recordedByUserId String
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime @default(now())
 
   invoice    FeeInvoice  @relation(fields: [invoiceId], references: [id])
   recordedBy User        @relation("FeePaymentRecordedBy", fields: [recordedByUserId], references: [id])
@@ -701,5 +704,90 @@ model IssuedDocument {
   issuedBy User    @relation("DocumentIssuedBy", fields: [issuedByUserId], references: [id])
 
   @@index([schoolId])
+  @@index([studentId])
+}
+
+// availableCopies is decremented/incremented directly on issue/return
+// (never derived at read-time) so catalog list queries stay cheap — same
+// persisted-counter pattern as FeeInvoice.status.
+model Book {
+  id              String   @id @default(cuid())
+  schoolId        String
+  isbn            String?
+  title           String
+  author          String
+  category        String?
+  totalCopies     Int
+  availableCopies Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  loans        BookLoan[]
+  reservations BookReservation[]
+
+  @@index([schoolId])
+}
+
+enum BookLoanStatus {
+  ACTIVE
+  RETURNED
+  LOST
+}
+
+// fine is computed once at return time (days late * a fixed per-day rate,
+// see library.constants.ts) and persisted — never recomputed on later
+// reads, so it doesn't silently grow just from viewing an already-returned
+// loan. dueDate defaults to issueDate + a fixed loan period (same file).
+model BookLoan {
+  id             String         @id @default(cuid())
+  schoolId       String
+  bookId         String
+  studentId      String
+  issueDate      DateTime       @default(now())
+  dueDate        DateTime       @db.Date
+  returnDate     DateTime?
+  fine           Float          @default(0)
+  finePaid       Boolean        @default(false)
+  status         BookLoanStatus @default(ACTIVE)
+  issuedByUserId String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  book     Book    @relation(fields: [bookId], references: [id])
+  student  Student @relation(fields: [studentId], references: [id])
+  issuedBy User    @relation("BookLoanIssuedBy", fields: [issuedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([bookId])
+  @@index([studentId])
+}
+
+enum BookReservationStatus {
+  PENDING
+  READY
+  FULFILLED
+  CANCELLED
+}
+
+// A simple first-in-line queue for books with zero available copies:
+// PENDING -> READY (a copy freed up and the student was notified; not a
+// hold — first to actually check it out gets it) -> FULFILLED (a BookLoan
+// was issued to this same student+book) or CANCELLED.
+model BookReservation {
+  id         String                @id @default(cuid())
+  schoolId   String
+  bookId     String
+  studentId  String
+  status     BookReservationStatus @default(PENDING)
+  reservedAt DateTime              @default(now())
+  notifiedAt DateTime?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  book    Book    @relation(fields: [bookId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([schoolId])
+  @@index([bookId])
   @@index([studentId])
 }
