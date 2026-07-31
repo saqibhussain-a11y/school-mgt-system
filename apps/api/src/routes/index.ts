@@ -21,6 +21,8 @@ import { assignmentRouter } from "./assignment.route";
 import { localUploadRouter } from "./localUpload.route";
 import { dashboardRouter } from "./dashboard.route";
 import { notificationRouter } from "./notification.route";
+import { feeStructureRouter } from "./feeStructure.route";
+import { feeInvoiceRouter, feePaymentRouter } from "./feeInvoice.route";
 
 export const apiRouter = Router();
 
@@ -47,3 +49,6 @@ apiRouter.use("/assignments", assignmentRouter);
 apiRouter.use("/uploads/local", localUploadRouter);
 apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/notifications", notificationRouter);
+apiRouter.use("/fee-structures", feeStructureRouter);
+apiRouter.use("/fee-invoices", feeInvoiceRouter);
+apiRouter.use("/fee-payments", feePaymentRouter);

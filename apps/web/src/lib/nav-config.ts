@@ -11,6 +11,7 @@ import {
   GraduationCap,
   NotebookPen,
   ShieldCheck,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@sms/shared-types";
@@ -63,6 +64,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/assignments",
     icon: NotebookPen,
     roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "STUDENT", "PARENT"],
+  },
+  {
+    label: "Fees",
+    href: "/dashboard/fees",
+    icon: Wallet,
+    roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT", "STUDENT", "PARENT"],
   },
   {
     label: "School Admins",

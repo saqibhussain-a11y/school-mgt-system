@@ -58,6 +58,9 @@ model User {
   assignmentsCreated Assignment[]       @relation("AssignmentCreatedBy")
   submissionsGraded  Submission[]       @relation("SubmissionGradedBy")
   notifications      Notification[]
+  feeInvoicesCreated FeeInvoice[]       @relation("FeeInvoiceCreatedBy")
+  feePaymentsRecorded FeePayment[]      @relation("FeePaymentRecordedBy")
+  feeRefundsRecorded FeeRefund[]        @relation("FeeRefundRecordedBy")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -131,6 +134,7 @@ model Class {
   timetableSlots     TimetableSlot[]
   exams              Exam[]
   assignments        Assignment[]
+  feeStructures      FeeStructure[]
 
   @@unique([academicSessionId, name])
   @@index([schoolId])
@@ -372,6 +376,7 @@ model Student {
   attendances Attendance[]
   marks       Mark[]
   submissions Submission[]
+  feeInvoices FeeInvoice[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -574,4 +579,100 @@ model Announcement {
 
   @@index([schoolId])
   @@index([targetClassId])
+}
+
+// A reusable per-class template (e.g. "Grade 5 / tuition = $500"), not a
+// one-time invoice — invoices snapshot `amount` at generation time (see
+// FeeInvoice), so editing a structure's amount later never retroactively
+// changes students already invoiced (master doc §8.5).
+model FeeStructure {
+  id        String   @id @default(cuid())
+  schoolId  String
+  classId   String
+  category  String
+  amount    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class    Class        @relation(fields: [classId], references: [id])
+  invoices FeeInvoice[]
+
+  @@unique([classId, category])
+  @@index([schoolId])
+}
+
+enum FeeInvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+// period is a free-form label ("September 2026", "Term 1") the accountant
+// supplies at generation time — invoicing is manual/on-demand (no
+// scheduler in this codebase), not an auto-recurring billing cycle.
+// amount is snapshotted from FeeStructure; netAmount = amount -
+// discountAmount. status is recomputed (not just derived at read time)
+// whenever a payment/refund is recorded, so list/report queries stay cheap.
+model FeeInvoice {
+  id              String           @id @default(cuid())
+  schoolId        String
+  studentId       String
+  feeStructureId  String
+  period          String
+  amount          Float
+  discountAmount  Float            @default(0)
+  netAmount       Float
+  dueDate         DateTime         @db.Date
+  status          FeeInvoiceStatus @default(UNPAID)
+  createdByUserId String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  student      Student      @relation(fields: [studentId], references: [id])
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id])
+  createdBy    User         @relation("FeeInvoiceCreatedBy", fields: [createdByUserId], references: [id])
+  payments     FeePayment[]
+
+  @@unique([studentId, feeStructureId, period])
+  @@index([schoolId])
+  @@index([studentId])
+}
+
+model FeePayment {
+  id               String    @id @default(cuid())
+  schoolId         String
+  invoiceId        String
+  amountPaid       Float
+  paymentMethod    String    @default("manual")
+  referenceNote    String?
+  paymentDate      DateTime  @default(now())
+  recordedByUserId String
+  createdAt        DateTime  @default(now())
+
+  invoice    FeeInvoice  @relation(fields: [invoiceId], references: [id])
+  recordedBy User        @relation("FeePaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  refunds    FeeRefund[]
+
+  @@index([schoolId])
+  @@index([invoiceId])
+}
+
+// A refund is its own row (never a mutation/deletion of the original
+// payment) so the ledger stays an honest, append-only history — master doc
+// §8.5's "refunds need a dedicated workflow, never just deleting the
+// payment record."
+model FeeRefund {
+  id               String   @id @default(cuid())
+  schoolId         String
+  paymentId        String
+  amount           Float
+  reason           String
+  recordedByUserId String
+  createdAt        DateTime @default(now())
+
+  payment    FeePayment @relation(fields: [paymentId], references: [id])
+  recordedBy User       @relation("FeeRefundRecordedBy", fields: [recordedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([paymentId])
 }
