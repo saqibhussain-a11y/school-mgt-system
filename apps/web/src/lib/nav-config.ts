@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CalendarRange,
   GraduationCap,
+  NotebookPen,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -55,6 +56,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Exams",
     href: "/dashboard/exams",
     icon: GraduationCap,
+    roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "STUDENT", "PARENT"],
+  },
+  {
+    label: "Assignments",
+    href: "/dashboard/assignments",
+    icon: NotebookPen,
     roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "STUDENT", "PARENT"],
   },
   {

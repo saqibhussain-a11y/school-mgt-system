@@ -17,6 +17,8 @@ import { announcementRouter } from "./announcement.route";
 import { leaveRequestRouter } from "./leaveRequest.route";
 import { timetableSlotRouter } from "./timetableSlot.route";
 import { examRouter, examSubjectRouter } from "./exam.route";
+import { assignmentRouter } from "./assignment.route";
+import { localUploadRouter } from "./localUpload.route";
 import { dashboardRouter } from "./dashboard.route";
 
 export const apiRouter = Router();
@@ -40,4 +42,6 @@ apiRouter.use("/leave-requests", leaveRequestRouter);
 apiRouter.use("/timetable-slots", timetableSlotRouter);
 apiRouter.use("/exams", examRouter);
 apiRouter.use("/exam-subjects", examSubjectRouter);
+apiRouter.use("/assignments", assignmentRouter);
+apiRouter.use("/uploads/local", localUploadRouter);
 apiRouter.use("/dashboard", dashboardRouter);
