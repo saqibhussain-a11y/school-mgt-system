@@ -61,6 +61,7 @@ model User {
   feeInvoicesCreated FeeInvoice[]       @relation("FeeInvoiceCreatedBy")
   feePaymentsRecorded FeePayment[]      @relation("FeePaymentRecordedBy")
   feeRefundsRecorded FeeRefund[]        @relation("FeeRefundRecordedBy")
+  documentsIssued    IssuedDocument[]   @relation("DocumentIssuedBy")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -377,6 +378,7 @@ model Student {
   marks       Mark[]
   submissions Submission[]
   feeInvoices FeeInvoice[]
+  issuedDocuments IssuedDocument[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -675,4 +677,29 @@ model FeeRefund {
 
   @@index([schoolId])
   @@index([paymentId])
+}
+
+// An audit record of an issued certificate, not just a generated file —
+// schools need to know a TC/character certificate WAS issued, to whom, by
+// whom, and when (master doc's document-issuance sensibility). The PDF
+// itself is stored via lib/storage.ts (same R2/local-disk pattern as
+// Assignments) so it can be re-downloaded without regenerating; `fields`
+// snapshots the type-specific inputs (reason/conduct/purpose) used at
+// generation time so a reprint always matches what was originally issued.
+model IssuedDocument {
+  id             String   @id @default(cuid())
+  schoolId       String
+  studentId      String
+  type           String
+  fileKey        String
+  fileFilename   String
+  fields         Json?
+  issuedByUserId String
+  issuedAt       DateTime @default(now())
+
+  student  Student @relation(fields: [studentId], references: [id])
+  issuedBy User    @relation("DocumentIssuedBy", fields: [issuedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([studentId])
 }

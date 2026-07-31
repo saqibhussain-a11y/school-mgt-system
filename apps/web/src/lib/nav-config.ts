@@ -12,6 +12,7 @@ import {
   NotebookPen,
   ShieldCheck,
   Wallet,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@sms/shared-types";
@@ -70,6 +71,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/fees",
     icon: Wallet,
     roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT", "STUDENT", "PARENT"],
+  },
+  {
+    label: "Documents",
+    href: "/dashboard/documents",
+    icon: FileText,
+    roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "STUDENT", "PARENT"],
   },
   {
     label: "School Admins",

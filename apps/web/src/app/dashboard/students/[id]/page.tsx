@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, UserX } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +11,8 @@ import { ResetPasswordButton } from "@/components/shared/reset-password-button";
 import { EditStudentDialog } from "@/components/students/edit-student-dialog";
 import { LinkGuardianDialog } from "@/components/students/link-guardian-dialog";
 import { AttendanceHistoryView } from "@/components/attendance/attendance-history-view";
+import { GenerateCertificateDialog } from "@/components/documents/generate-certificate-dialog";
+import { IssuedDocumentsList } from "@/components/documents/issued-documents-list";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +24,9 @@ import { formatDate } from "@/lib/format";
 import type { StudentSummary } from "@/components/students/types";
 
 const ADMIN_ROLES = ["SCHOOL_ADMIN"];
+// Broader than ADMIN_ROLES above (which only gates edit/withdraw) — matches
+// the backend's document-issuance permission (SUPER_ADMIN/SCHOOL_ADMIN/PRINCIPAL).
+const DOCUMENT_ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function StudentDetailPage() {
   const params = useParams<{ id: string }>();
@@ -31,6 +37,8 @@ export default function StudentDetailPage() {
   const { data: student, loading, refetch } = useApi<StudentSummary>(
     `/api/students/${params.id}`,
   );
+  const canManageDocuments = !!user && DOCUMENT_ADMIN_ROLES.includes(user.role);
+  const [documentsVersion, setDocumentsVersion] = useState(0);
 
   async function handleWithdraw() {
     try {
@@ -171,6 +179,22 @@ export default function StudentDetailPage() {
           <AttendanceHistoryView studentId={student.id} />
         </CardContent>
       </Card>
+
+      {canManageDocuments && (
+        <Card className="mt-4">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Documents</CardTitle>
+            <GenerateCertificateDialog
+              studentId={student.id}
+              onGenerated={() => setDocumentsVersion((v) => v + 1)}
+              trigger={<Button size="sm">Generate certificate</Button>}
+            />
+          </CardHeader>
+          <CardContent className="p-0">
+            <IssuedDocumentsList key={documentsVersion} studentId={student.id} canManage />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
