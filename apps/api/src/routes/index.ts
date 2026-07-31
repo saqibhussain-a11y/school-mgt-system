@@ -24,6 +24,7 @@ import { notificationRouter } from "./notification.route";
 import { feeStructureRouter } from "./feeStructure.route";
 import { feeInvoiceRouter, feePaymentRouter } from "./feeInvoice.route";
 import { documentRouter } from "./document.route";
+import { reportsRouter } from "./reports.route";
 
 export const apiRouter = Router();
 
@@ -54,3 +55,4 @@ apiRouter.use("/fee-structures", feeStructureRouter);
 apiRouter.use("/fee-invoices", feeInvoiceRouter);
 apiRouter.use("/fee-payments", feePaymentRouter);
 apiRouter.use("/documents", documentRouter);
+apiRouter.use("/reports", reportsRouter);

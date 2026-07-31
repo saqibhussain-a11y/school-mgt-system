@@ -91,4 +91,37 @@ export async function apiFetch<T = unknown>(
   return body as T;
 }
 
+// For endpoints that return a binary file (e.g. a generated PDF) rather than
+// JSON — window.open(url) doesn't work here since these routes require the
+// normal Authorization header (they're generated on the fly, not served via
+// object storage's signed-URL fallback), so this fetches with auth like
+// apiFetch and hands back a Blob for the caller to trigger a download from.
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const tokens = tokenStorage.get();
+  const doFetch = (accessToken?: string) =>
+    fetch(`${API_URL}${path}`, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} });
+
+  let res = await doFetch(tokens?.accessToken);
+  if (res.status === 401 && tokens) {
+    const newAccessToken = await refreshAccessToken();
+    if (newAccessToken) res = await doFetch(newAccessToken);
+    else tokenStorage.clear();
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body.error ?? "Download failed");
+  }
+  return res.blob();
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export { API_URL };

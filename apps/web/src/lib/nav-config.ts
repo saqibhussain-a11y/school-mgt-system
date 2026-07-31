@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Wallet,
   FileText,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@sms/shared-types";
@@ -77,6 +78,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/documents",
     icon: FileText,
     roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "STUDENT", "PARENT"],
+  },
+  {
+    label: "Reports",
+    href: "/dashboard/reports",
+    icon: BarChart3,
+    roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "ACCOUNTANT"],
   },
   {
     label: "School Admins",

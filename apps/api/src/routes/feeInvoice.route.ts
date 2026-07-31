@@ -80,6 +80,21 @@ feeInvoiceRouter.get("/:id", async (req, res, next) => {
   }
 });
 
+feeInvoiceRouter.get("/:id/pdf", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const invoice = await feeInvoiceService.getById(schoolId, req.params.id);
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    await assertCanViewStudentFees(schoolId, req.user!, invoice.studentId);
+    const pdf = await feeInvoiceService.getPdfBuffer(schoolId, req.params.id);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="invoice-${req.params.id.slice(-8)}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
 feeInvoiceRouter.post(
   "/generate",
   authorize(...FEE_MANAGE_ROLES),

@@ -1,4 +1,4 @@
-import PDFDocument from "pdfkit";
+import { newPdf, collectPdf, drawDocumentHeader, drawSignatureFooter, formatLongDate } from "./pdfShell";
 
 export const DOCUMENT_TYPES = ["bonafide", "transfer_certificate", "character_certificate"] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -25,36 +25,6 @@ interface CertificateFields {
   reason?: string;
   conduct?: string;
   leavingDate?: Date;
-}
-
-function formatLongDate(date: Date) {
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-}
-
-// Shared PDFKit shell — a bordered page, centered school name + title, and a
-// signature footer — so the three certificate bodies only need to differ in
-// their merged paragraph text, not in layout code.
-function drawShell(doc: PDFKit.PDFDocument, schoolName: string, title: string, certificateNo: string) {
-  doc.rect(24, 24, doc.page.width - 48, doc.page.height - 48).lineWidth(1.5).stroke("#333333");
-
-  doc.font("Helvetica-Bold").fontSize(20).fillColor("#111111").text(schoolName, { align: "center" });
-  doc.moveDown(0.3);
-  doc
-    .font("Helvetica")
-    .fontSize(10)
-    .fillColor("#555555")
-    .text(`Certificate No: ${certificateNo}`, { align: "center" });
-  doc.moveDown(1.2);
-  doc.font("Helvetica-Bold").fontSize(16).fillColor("#111111").text(title.toUpperCase(), { align: "center" });
-  doc.moveDown(1.5);
-  doc.font("Helvetica").fontSize(12).fillColor("#111111");
-}
-
-function drawSignatureFooter(doc: PDFKit.PDFDocument, issueDate: Date) {
-  const y = doc.page.height - 140;
-  doc.font("Helvetica").fontSize(11).text(`Date: ${formatLongDate(issueDate)}`, 60, y);
-  doc.text("_____________________________", doc.page.width - 260, y, { width: 200, align: "center" });
-  doc.text("Principal / Head of School", doc.page.width - 260, y + 18, { width: 200, align: "center" });
 }
 
 function bonafideBody(doc: PDFKit.PDFDocument, s: StudentInfo, fields: CertificateFields) {
@@ -115,17 +85,9 @@ export function generateCertificatePdf(
   certificateNo: string,
   issueDate: Date,
 ): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 60 });
-    const chunks: Buffer[] = [];
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-
-    drawShell(doc, schoolName, DOCUMENT_TITLES[type], certificateNo);
-    BODY_BUILDERS[type](doc, student, fields);
-    drawSignatureFooter(doc, issueDate);
-
-    doc.end();
-  });
+  const doc = newPdf();
+  drawDocumentHeader(doc, schoolName, DOCUMENT_TITLES[type], `Certificate No: ${certificateNo}`);
+  BODY_BUILDERS[type](doc, student, fields);
+  drawSignatureFooter(doc, issueDate);
+  return collectPdf(doc);
 }

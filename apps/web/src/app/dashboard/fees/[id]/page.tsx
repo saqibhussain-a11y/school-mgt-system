@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Bell, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { FeeStatusBadge } from "@/components/fees/fee-status-badge";
@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, apiFetchBlob, downloadBlob, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
 import type { FeeInvoice } from "@/components/fees/types";
 
@@ -28,6 +28,15 @@ export default function FeeInvoiceDetailPage() {
   const canManage = !!user && FEE_MANAGE_ROLES.includes(user.role);
 
   const { data: invoice, loading, refetch } = useApi<FeeInvoice>(`/api/fee-invoices/${params.id}`);
+
+  async function handleDownload() {
+    try {
+      const blob = await apiFetchBlob(`/api/fee-invoices/${params.id}/pdf`);
+      downloadBlob(blob, `invoice-${params.id.slice(-8)}.pdf`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to download invoice");
+    }
+  }
 
   async function handleRemind() {
     try {
@@ -70,31 +79,33 @@ export default function FeeInvoiceDetailPage() {
         title={`${invoice.student.user.firstName} ${invoice.student.user.lastName} — ${invoice.feeStructure.category}`}
         description={`${invoice.period} · Due ${formatDate(invoice.dueDate)}`}
         action={
-          canManage && (
-            <div className="flex gap-2">
-              {invoice.balance > 0 && (
-                <Button size="sm" variant="outline" onClick={handleRemind}>
-                  <Bell className="size-4" />
-                  Send reminder
-                </Button>
-              )}
-              {invoice.payments.length === 0 && (
-                <ConfirmDialog
-                  trigger={
-                    <Button size="sm" variant="destructive">
-                      <Trash2 className="size-4" />
-                      Delete
-                    </Button>
-                  }
-                  title="Delete this invoice?"
-                  description="Only possible because no payments have been recorded yet."
-                  confirmLabel="Delete"
-                  destructive
-                  onConfirm={handleDelete}
-                />
-              )}
-            </div>
-          )
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={handleDownload}>
+              <Download className="size-4" />
+              Download invoice
+            </Button>
+            {canManage && invoice.balance > 0 && (
+              <Button size="sm" variant="outline" onClick={handleRemind}>
+                <Bell className="size-4" />
+                Send reminder
+              </Button>
+            )}
+            {canManage && invoice.payments.length === 0 && (
+              <ConfirmDialog
+                trigger={
+                  <Button size="sm" variant="destructive">
+                    <Trash2 className="size-4" />
+                    Delete
+                  </Button>
+                }
+                title="Delete this invoice?"
+                description="Only possible because no payments have been recorded yet."
+                confirmLabel="Delete"
+                destructive
+                onConfirm={handleDelete}
+              />
+            )}
+          </div>
         }
       />
 

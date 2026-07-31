@@ -3,10 +3,18 @@ import { HttpError } from "../middleware/errorHandler";
 import { studentService } from "./student.service";
 import { studentGuardianService } from "./studentGuardian.service";
 import { inAppNotificationService } from "./inAppNotification.service";
+import { generateInvoicePdf } from "../lib/invoicePdf";
 
 const invoiceInclude = {
   student: {
-    select: { id: true, userId: true, admissionNo: true, user: { select: { firstName: true, lastName: true } } },
+    select: {
+      id: true,
+      userId: true,
+      admissionNo: true,
+      user: { select: { firstName: true, lastName: true } },
+      class: { select: { name: true } },
+      section: { select: { name: true } },
+    },
   },
   feeStructure: { select: { id: true, category: true, classId: true } },
   payments: { include: { refunds: true }, orderBy: { paymentDate: "desc" as const } },
@@ -115,6 +123,35 @@ export const feeInvoiceService = {
     const invoice = await prisma.feeInvoice.findFirst({ where: { id, schoolId }, include: invoiceInclude });
     if (!invoice) return null;
     return withLedger(invoice);
+  },
+
+  async getPdfBuffer(schoolId: string, id: string) {
+    const [school, invoice] = await Promise.all([
+      prisma.school.findUniqueOrThrow({ where: { id: schoolId } }),
+      prisma.feeInvoice.findFirst({ where: { id, schoolId }, include: invoiceInclude }),
+    ]);
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    const { effectivePaid, balance } = ledgerFor(invoice);
+
+    return generateInvoicePdf(school.name, {
+      invoiceNo: invoice.id.slice(-8).toUpperCase(),
+      student: {
+        fullName: `${invoice.student.user.firstName} ${invoice.student.user.lastName}`,
+        admissionNo: invoice.student.admissionNo,
+        className: invoice.student.class.name,
+        sectionName: invoice.student.section.name,
+      },
+      category: invoice.feeStructure.category,
+      period: invoice.period,
+      dueDate: invoice.dueDate,
+      amount: invoice.amount,
+      discountAmount: invoice.discountAmount,
+      netAmount: invoice.netAmount,
+      effectivePaid,
+      balance,
+      status: invoice.status,
+      payments: invoice.payments.map((p) => ({ date: p.paymentDate, amount: p.amountPaid, referenceNote: p.referenceNote })),
+    });
   },
 
   async listForStudent(schoolId: string, studentId: string) {
