@@ -382,6 +382,7 @@ model Student {
   issuedDocuments  IssuedDocument[]
   bookLoans        BookLoan[]
   bookReservations BookReservation[]
+  routeAssignment  StudentRoute?
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -790,4 +791,63 @@ model BookReservation {
   @@index([schoolId])
   @@index([bookId])
   @@index([studentId])
+}
+
+// Driver is deliberately just contact fields, not a Staff/User account —
+// there's no DRIVER role, drivers aren't expected to use the app. Live GPS
+// tracking and pickup/drop notifications were explicitly scoped out of this
+// pass (see sms_transport_management memory) — this is routes/vehicles/
+// student-mapping only.
+model Vehicle {
+  id             String   @id @default(cuid())
+  schoolId       String
+  registrationNo String
+  capacity       Int
+  driverName     String
+  driverPhone    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  routes Route[]
+
+  @@unique([schoolId, registrationNo])
+  @@index([schoolId])
+}
+
+model Route {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  vehicleId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle       Vehicle        @relation(fields: [vehicleId], references: [id])
+  studentRoutes StudentRoute[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@index([vehicleId])
+}
+
+// One active route per student — @@unique([studentId]) rather than a
+// history table, since without live tracking/notifications there's no
+// event stream that needs a past-assignment record; changing a student's
+// route is a delete-and-recreate, same simplicity level as the rest of
+// this pass.
+model StudentRoute {
+  id         String   @id @default(cuid())
+  schoolId   String
+  studentId  String
+  routeId    String
+  pickupStop String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id])
+  route   Route   @relation(fields: [routeId], references: [id])
+
+  @@unique([studentId])
+  @@index([schoolId])
+  @@index([routeId])
 }

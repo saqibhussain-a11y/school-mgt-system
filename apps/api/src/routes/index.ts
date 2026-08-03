@@ -28,6 +28,9 @@ import { reportsRouter } from "./reports.route";
 import { libraryBookRouter } from "./libraryBook.route";
 import { bookLoanRouter } from "./bookLoan.route";
 import { bookReservationRouter } from "./bookReservation.route";
+import { vehicleRouter } from "./vehicle.route";
+import { transportRouteRouter } from "./transportRoute.route";
+import { studentRouteRouter } from "./studentRoute.route";
 
 export const apiRouter = Router();
 
@@ -62,3 +65,6 @@ apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/library-books", libraryBookRouter);
 apiRouter.use("/book-loans", bookLoanRouter);
 apiRouter.use("/book-reservations", bookReservationRouter);
+apiRouter.use("/vehicles", vehicleRouter);
+apiRouter.use("/routes", transportRouteRouter);
+apiRouter.use("/student-routes", studentRouteRouter);

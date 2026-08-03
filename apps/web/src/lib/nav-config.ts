@@ -15,6 +15,7 @@ import {
   FileText,
   BarChart3,
   Library,
+  Bus,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@sms/shared-types";
@@ -85,6 +86,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/library",
     icon: Library,
     roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "LIBRARIAN", "STUDENT", "PARENT"],
+  },
+  {
+    label: "Transport",
+    href: "/dashboard/transport",
+    icon: Bus,
+    roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER", "STUDENT", "PARENT"],
   },
   {
     label: "Reports",
