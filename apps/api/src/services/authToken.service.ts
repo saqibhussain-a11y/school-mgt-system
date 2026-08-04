@@ -24,16 +24,16 @@ export const authTokenService = {
     });
   },
 
-  revoke(id: string) {
-    return prisma.refreshToken.update({
-      where: { id },
+  revoke(schoolId: string, id: string) {
+    return prisma.refreshToken.updateMany({
+      where: { id, schoolId },
       data: { revokedAt: new Date() },
     });
   },
 
-  revokeAllForUser(userId: string) {
+  revokeAllForUser(schoolId: string, userId: string) {
     return prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
+      where: { userId, schoolId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   },

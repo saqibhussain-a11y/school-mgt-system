@@ -7,8 +7,8 @@ export const userService = {
     });
   },
 
-  findById(id: string) {
-    return prisma.user.findUnique({ where: { id } });
+  getById(schoolId: string, id: string) {
+    return prisma.user.findFirst({ where: { id, schoolId } });
   },
 
   create(data: {
@@ -22,8 +22,8 @@ export const userService = {
     return prisma.user.create({ data });
   },
 
-  updatePassword(id: string, passwordHash: string) {
-    return prisma.user.update({ where: { id }, data: { passwordHash } });
+  async updatePassword(schoolId: string, id: string, passwordHash: string) {
+    await prisma.user.updateMany({ where: { id, schoolId }, data: { passwordHash } });
   },
 
   listByRole(schoolId: string, role: Role) {

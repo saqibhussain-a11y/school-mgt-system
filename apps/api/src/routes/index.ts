@@ -31,6 +31,7 @@ import { bookReservationRouter } from "./bookReservation.route";
 import { vehicleRouter } from "./vehicle.route";
 import { transportRouteRouter } from "./transportRoute.route";
 import { studentRouteRouter } from "./studentRoute.route";
+import { platformRouter } from "./platform.route";
 
 export const apiRouter = Router();
 
@@ -68,3 +69,4 @@ apiRouter.use("/book-reservations", bookReservationRouter);
 apiRouter.use("/vehicles", vehicleRouter);
 apiRouter.use("/routes", transportRouteRouter);
 apiRouter.use("/student-routes", studentRouteRouter);
+apiRouter.use("/platform", platformRouter);

@@ -1,7 +1,7 @@
-import { prisma, Prisma, Role, StudentStatus } from "@sms/db";
+import { prisma, type PrismaTransactionClient, Role, StudentStatus } from "@sms/db";
 import { hashPassword } from "../lib/password";
 
-type TxClient = Prisma.TransactionClient;
+type TxClient = PrismaTransactionClient;
 
 export interface CreateStudentInput {
   email: string;

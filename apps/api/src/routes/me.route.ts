@@ -12,7 +12,7 @@ export const meRouter = Router();
 
 meRouter.get("/", authenticate, async (req, res, next) => {
   try {
-    const user = await userService.findById(req.user!.sub);
+    const user = await userService.getById(req.user!.schoolId, req.user!.sub);
     if (!user) {
       throw new HttpError(404, "User not found");
     }

@@ -41,19 +41,19 @@ export const authService = {
       throw new HttpError(401, "Refresh token has been revoked or reused");
     }
 
-    const user = await userService.findById(payload.sub);
+    const user = await userService.getById(payload.schoolId, payload.sub);
     if (!user) {
       throw new HttpError(401, "User no longer exists");
     }
 
-    await authTokenService.revoke(stored.id);
+    await authTokenService.revoke(stored.schoolId, stored.id);
     return issueTokenPair(user);
   },
 
   async logout(rawToken: string) {
     const stored = await authTokenService.findActiveByRawToken(rawToken);
     if (stored) {
-      await authTokenService.revoke(stored.id);
+      await authTokenService.revoke(stored.schoolId, stored.id);
     }
   },
 
@@ -89,24 +89,24 @@ export const authService = {
     if (!user) {
       throw new HttpError(400, "Invalid OTP");
     }
-    const record = await passwordResetService.findValid(user.id, otp);
+    const record = await passwordResetService.findValid(schoolId, user.id, otp);
     if (!record) {
       throw new HttpError(400, "Invalid or expired OTP");
     }
-    await passwordResetService.consume(record.id);
+    await passwordResetService.consume(schoolId, record.id);
     const passwordHash = await hashPassword(newPassword);
-    await userService.updatePassword(user.id, passwordHash);
-    await authTokenService.revokeAllForUser(user.id);
+    await userService.updatePassword(schoolId, user.id, passwordHash);
+    await authTokenService.revokeAllForUser(schoolId, user.id);
     await notificationService.notifyPasswordChanged(email, "otp_reset");
   },
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await userService.findById(userId);
+  async changePassword(schoolId: string, userId: string, currentPassword: string, newPassword: string) {
+    const user = await userService.getById(schoolId, userId);
     if (!user || !(await verifyPassword(currentPassword, user.passwordHash))) {
       throw new HttpError(401, "Current password is incorrect");
     }
     const passwordHash = await hashPassword(newPassword);
-    await userService.updatePassword(user.id, passwordHash);
-    await authTokenService.revokeAllForUser(user.id);
+    await userService.updatePassword(schoolId, user.id, passwordHash);
+    await authTokenService.revokeAllForUser(schoolId, user.id);
   },
 };

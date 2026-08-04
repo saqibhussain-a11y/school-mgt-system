@@ -16,6 +16,7 @@ import {
   BarChart3,
   Library,
   Bus,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@sms/shared-types";
@@ -103,6 +104,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "School Admins",
     href: "/dashboard/school-admins",
     icon: ShieldCheck,
+    roles: ["SUPER_ADMIN"],
+  },
+  {
+    label: "Platform",
+    href: "/dashboard/platform",
+    icon: Building2,
     roles: ["SUPER_ADMIN"],
   },
 ];

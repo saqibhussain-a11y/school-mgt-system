@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { Role } from "@sms/db";
+import { Role, runWithTenant } from "@sms/db";
 import { verifyAccessToken } from "../lib/jwt";
 import { HttpError } from "./errorHandler";
 
@@ -15,7 +15,10 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
     throw new HttpError(401, "Invalid or expired access token");
   }
 
-  next();
+  // Everything downstream of authenticate runs inside this tenant's
+  // AsyncLocalStorage context, so the Prisma client extension can
+  // auto-scope by schoolId without every service needing to know about it.
+  runWithTenant(req.user.schoolId, next);
 }
 
 export function authorize(...roles: Role[]) {

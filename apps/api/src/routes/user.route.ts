@@ -28,14 +28,14 @@ userRouter.get("/school-admins", authorize(Role.SUPER_ADMIN), async (req, res, n
 // for this since no email provider is wired up yet.
 userRouter.post("/:id/reset-password", authorize(...ADMIN_ROLES), async (req, res, next) => {
   try {
-    const target = await userService.findById(req.params.id);
-    if (!target || target.schoolId !== req.user!.schoolId) {
+    const target = await userService.getById(req.user!.schoolId, req.params.id);
+    if (!target) {
       throw new HttpError(404, "User not found");
     }
 
     const temporaryPassword = generateTempPassword();
-    await userService.updatePassword(target.id, await hashPassword(temporaryPassword));
-    await authTokenService.revokeAllForUser(target.id);
+    await userService.updatePassword(req.user!.schoolId, target.id, await hashPassword(temporaryPassword));
+    await authTokenService.revokeAllForUser(req.user!.schoolId, target.id);
     await notificationService.notifyPasswordChanged(target.email, "admin_reset");
 
     res.json({ temporaryPassword });

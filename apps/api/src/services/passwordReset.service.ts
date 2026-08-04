@@ -15,9 +15,9 @@ export const passwordResetService = {
     });
   },
 
-  async findValid(userId: string, otp: string) {
+  async findValid(schoolId: string, userId: string, otp: string) {
     const candidates = await prisma.passwordResetOtp.findMany({
-      where: { userId, consumedAt: null, expiresAt: { gt: new Date() } },
+      where: { schoolId, userId, consumedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -29,9 +29,9 @@ export const passwordResetService = {
     return null;
   },
 
-  consume(id: string) {
-    return prisma.passwordResetOtp.update({
-      where: { id },
+  consume(schoolId: string, id: string) {
+    return prisma.passwordResetOtp.updateMany({
+      where: { id, schoolId },
       data: { consumedAt: new Date() },
     });
   },

@@ -1,8 +1,8 @@
-import { prisma, Prisma } from "@sms/db";
+import { prisma, type PrismaTransactionClient } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { gradeFor } from "../lib/grading";
 
-type TxClient = Prisma.TransactionClient;
+type TxClient = PrismaTransactionClient;
 
 export interface CreateExamInput {
   classId: string;
