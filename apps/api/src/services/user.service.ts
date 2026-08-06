@@ -1,10 +1,16 @@
-import { prisma, Role } from "@sms/db";
+import { prisma, Role, runAsPlatform } from "@sms/db";
 
 export const userService = {
   findByEmail(schoolId: string, email: string) {
     return prisma.user.findUnique({
       where: { schoolId_email: { schoolId, email } },
     });
+  },
+
+  // Platform-only lookup — there is exactly one super admin system-wide, so
+  // this searches across every tenant by email/role instead of a schoolId.
+  findSuperAdminByEmail(email: string) {
+    return runAsPlatform(() => prisma.user.findFirst({ where: { email, role: Role.SUPER_ADMIN } }));
   },
 
   getById(schoolId: string, id: string) {

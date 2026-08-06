@@ -28,6 +28,15 @@ export const authService = {
     return issueTokenPair(user);
   },
 
+  async platformLogin(email: string, password: string) {
+    const user = await userService.findSuperAdminByEmail(email);
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      throw new HttpError(401, "Invalid email or password");
+    }
+    const tokens = await issueTokenPair(user);
+    return { ...tokens, schoolId: user.schoolId };
+  },
+
   async refresh(rawToken: string) {
     let payload;
     try {

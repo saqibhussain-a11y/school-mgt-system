@@ -7,6 +7,7 @@ import { validateBody } from "../middleware/validate";
 import { generateTempPassword } from "../lib/tempPassword";
 import {
   loginSchema,
+  platformLoginSchema,
   refreshSchema,
   registerSchema,
   forgotPasswordSchema,
@@ -25,6 +26,22 @@ authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
     next(err);
   }
 });
+
+// Separate from /login: no schoolId, not linked from the public school
+// picker — the super admin signs in at its own unlisted page.
+authRouter.post(
+  "/platform-login",
+  validateBody(platformLoginSchema),
+  async (req, res, next) => {
+    try {
+      const { email, password } = req.body;
+      const tokens = await authService.platformLogin(email, password);
+      res.json(tokens);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 authRouter.post("/refresh", validateBody(refreshSchema), async (req, res, next) => {
   try {

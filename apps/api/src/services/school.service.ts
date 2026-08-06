@@ -8,8 +8,14 @@ export const schoolService = {
   // Public/unauthenticated — the login page needs to resolve a school before
   // a user has any credentials, so this stays open, but deliberately returns
   // nothing beyond what a school picker needs (no subdomain/subscription data).
+  // Excludes the platform owner's own school so the public picker never
+  // reveals that a super admin exists — that account signs in separately.
   listForLogin() {
-    return prisma.school.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
+    return prisma.school.findMany({
+      where: { users: { none: { role: Role.SUPER_ADMIN } } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
   },
 
   // Platform-only — spans every tenant, so it runs outside any tenant
