@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Role } from "@sms/db";
+import { Role, DayOfWeek } from "@sms/db";
 
 const STAFF_ROLES = [
   Role.TEACHER,
@@ -28,4 +28,24 @@ export const updateStaffSchema = z.object({
 export const assignTeacherSchema = z.object({
   classId: z.string().min(1),
   sectionId: z.string().min(1),
+});
+
+// Timetable-generation inputs — flat weekly values, see Staff model comment.
+export const updateAvailabilitySchema = z
+  .object({
+    workingDays: z.array(z.nativeEnum(DayOfWeek)).default([]),
+    periodsAvailableFrom: z.number().int().positive().nullable().optional(),
+    periodsAvailableTo: z.number().int().positive().nullable().optional(),
+    maxPeriodsPerWeek: z.number().int().positive().nullable().optional(),
+  })
+  .refine(
+    (data) =>
+      !data.periodsAvailableFrom ||
+      !data.periodsAvailableTo ||
+      data.periodsAvailableTo >= data.periodsAvailableFrom,
+    { message: "periodsAvailableTo must be >= periodsAvailableFrom", path: ["periodsAvailableTo"] },
+  );
+
+export const bulkSubjectAssignmentSchema = z.object({
+  subjectIds: z.array(z.string().min(1)).min(1),
 });

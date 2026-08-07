@@ -3,7 +3,6 @@
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -23,6 +22,7 @@ import {
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { TimetableSlotSummary } from "@/components/timetable/timetable-grid";
+import type { Room, Period } from "@/components/academics/room-types";
 
 const DAYS = [
   { value: "MONDAY", label: "Monday" },
@@ -36,6 +36,7 @@ const DAYS = [
 interface SubjectOption {
   id: string;
   name: string;
+  requiresLab: boolean;
 }
 
 interface TeacherAssignmentOption {
@@ -61,29 +62,35 @@ export function SlotFormDialog({
   const [subjectId, setSubjectId] = useState("");
   const [staffId, setStaffId] = useState("");
   const [dayOfWeek, setDayOfWeek] = useState("MONDAY");
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("09:45");
+  const [periodId, setPeriodId] = useState("");
+  const [roomId, setRoomId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const { data: subjects } = useApi<SubjectOption[]>(open ? `/api/subjects?classId=${classId}` : null);
   const { data: teacherAssignments } = useApi<TeacherAssignmentOption[]>(
     open ? `/api/sections/${sectionId}/teachers` : null,
   );
+  const { data: periods } = useApi<Period[]>(open ? "/api/periods" : null);
+  const { data: rooms } = useApi<Room[]>(open ? "/api/rooms" : null);
 
   useEffect(() => {
     if (!open) return;
     setSubjectId(slot?.subject.id ?? "");
     setStaffId(slot?.staff.id ?? "");
     setDayOfWeek(slot?.dayOfWeek ?? "MONDAY");
-    setStartTime(slot?.startTime ?? "09:00");
-    setEndTime(slot?.endTime ?? "09:45");
+    setPeriodId(slot?.period.id ?? "");
+    setRoomId(slot?.room.id ?? "");
   }, [open, slot]);
+
+  const selectedSubject = subjects?.find((s) => s.id === subjectId);
+  const roomOptions = (rooms ?? []).filter((r) => !selectedSubject?.requiresLab || r.type === "LAB");
+  const teachingPeriods = (periods ?? []).filter((p) => !p.isBreak);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const body = { classId, sectionId, subjectId, staffId, dayOfWeek, startTime, endTime };
+      const body = { classId, sectionId, subjectId, staffId, dayOfWeek, periodId, roomId };
       if (isEdit && slot) {
         await apiFetch(`/api/timetable-slots/${slot.id}`, {
           method: "PATCH",
@@ -182,28 +189,46 @@ export function SlotFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="ts-start">Start time</Label>
-              <Input
-                id="ts-start"
-                type="time"
-                required
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
+              <Label>Period</Label>
+              <Select
+                items={teachingPeriods.map((p) => ({ value: p.id, label: `Period ${p.periodNumber}` }))}
+                value={periodId}
+                onValueChange={(v) => setPeriodId(v ?? "")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teachingPeriods.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      Period {p.periodNumber} ({p.startTime}–{p.endTime})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="ts-end">End time</Label>
-              <Input
-                id="ts-end"
-                type="time"
-                required
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              />
+              <Label>Room</Label>
+              <Select
+                items={roomOptions.map((r) => ({ value: r.id, label: r.name }))}
+                value={roomId}
+                onValueChange={(v) => setRoomId(v ?? "")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select room" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roomOptions.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={submitting || !subjectId || !staffId}>
+            <Button type="submit" disabled={submitting || !subjectId || !staffId || !periodId || !roomId}>
               {submitting ? "Saving…" : isEdit ? "Save changes" : "Add slot"}
             </Button>
           </DialogFooter>

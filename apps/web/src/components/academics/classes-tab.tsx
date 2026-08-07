@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -15,30 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ClassDialog } from "./class-dialog";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { AcademicSession } from "./sessions-tab";
+import type { Room } from "./room-types";
 
 export interface SchoolClass {
   id: string;
   name: string;
   academicSessionId: string;
+  defaultRoomId: string | null;
+  defaultRoom: Room | null;
 }
 
 export function ClassesTab({ canManage }: { canManage: boolean }) {
@@ -57,26 +45,13 @@ export function ClassesTab({ canManage }: { canManage: boolean }) {
     refetch,
   } = useApi<SchoolClass[]>(sessionId ? `/api/classes?academicSessionId=${sessionId}` : null);
 
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
+  async function handleDelete(id: string) {
     try {
-      await apiFetch("/api/classes", {
-        method: "POST",
-        body: JSON.stringify({ name, academicSessionId: sessionId }),
-      });
-      toast.success("Class created");
-      setOpen(false);
-      setName("");
+      await apiFetch(`/api/classes/${id}`, { method: "DELETE" });
+      toast.success("Class deleted");
       refetch();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to create class");
-    } finally {
-      setSubmitting(false);
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete class");
     }
   }
 
@@ -102,34 +77,16 @@ export function ClassesTab({ canManage }: { canManage: boolean }) {
           </Select>
         </div>
         {canManage && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button size="sm" disabled={!sessionId} />}>
-              <Plus className="size-4" />
-              New class
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New class</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="class-name">Name</Label>
-                  <Input
-                    id="class-name"
-                    placeholder="Grade 5"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? "Creating…" : "Create class"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <ClassDialog
+            academicSessionId={sessionId}
+            onSaved={refetch}
+            trigger={
+              <Button size="sm" disabled={!sessionId}>
+                <Plus className="size-4" />
+                New class
+              </Button>
+            }
+          />
         )}
       </div>
 
@@ -147,12 +104,43 @@ export function ClassesTab({ canManage }: { canManage: boolean }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Default room</TableHead>
+                {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {classes.map((cls) => (
                 <TableRow key={cls.id}>
                   <TableCell className="font-medium">{cls.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{cls.defaultRoom?.name ?? "—"}</TableCell>
+                  {canManage && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <ClassDialog
+                          academicSessionId={sessionId}
+                          cls={cls}
+                          onSaved={refetch}
+                          trigger={
+                            <Button size="sm" variant="ghost" title="Edit">
+                              <Pencil className="size-3.5" />
+                            </Button>
+                          }
+                        />
+                        <ConfirmDialog
+                          trigger={
+                            <Button size="sm" variant="ghost" title="Delete">
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          }
+                          title="Delete this class?"
+                          description="Only possible if it has no sections, students, or subjects."
+                          confirmLabel="Delete"
+                          destructive
+                          onConfirm={() => handleDelete(cls.id)}
+                        />
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

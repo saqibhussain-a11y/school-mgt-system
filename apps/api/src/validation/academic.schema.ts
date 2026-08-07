@@ -13,10 +13,12 @@ export const updateAcademicSessionSchema = createAcademicSessionSchema
 export const createClassSchema = z.object({
   academicSessionId: z.string().min(1),
   name: z.string().min(1),
+  defaultRoomId: z.string().min(1).nullable().optional(),
 });
 
 export const updateClassSchema = z.object({
   name: z.string().min(1),
+  defaultRoomId: z.string().min(1).nullable().optional(),
 });
 
 export const createSectionSchema = z.object({
@@ -31,8 +33,14 @@ export const updateSectionSchema = z.object({
 export const createSubjectSchema = z.object({
   classId: z.string().min(1),
   name: z.string().min(1),
+  periodsPerWeek: z.number().int().positive().default(1),
+  requiresLab: z.boolean().default(false),
+  roomId: z.string().min(1).nullable().optional(),
 });
 
 export const updateSubjectSchema = z.object({
   name: z.string().min(1),
+  periodsPerWeek: z.number().int().positive().optional(),
+  requiresLab: z.boolean().optional(),
+  roomId: z.string().min(1).nullable().optional(),
 });

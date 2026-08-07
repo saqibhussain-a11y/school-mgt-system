@@ -1,4 +1,4 @@
-import { prisma, Role, StaffStatus } from "@sms/db";
+import { prisma, Role, StaffStatus, DayOfWeek } from "@sms/db";
 import { hashPassword } from "../lib/password";
 
 export interface CreateStaffInput {
@@ -69,5 +69,20 @@ export const staffService = {
     const existing = await prisma.staff.findFirst({ where: { id, schoolId } });
     if (!existing) return null;
     return prisma.staff.update({ where: { id }, data: { status: StaffStatus.DEACTIVATED } });
+  },
+
+  async updateAvailability(
+    schoolId: string,
+    id: string,
+    data: {
+      workingDays: DayOfWeek[];
+      periodsAvailableFrom?: number | null;
+      periodsAvailableTo?: number | null;
+      maxPeriodsPerWeek?: number | null;
+    },
+  ) {
+    const existing = await prisma.staff.findFirst({ where: { id, schoolId } });
+    if (!existing) return null;
+    return prisma.staff.update({ where: { id }, data });
   },
 };

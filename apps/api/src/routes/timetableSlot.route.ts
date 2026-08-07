@@ -19,15 +19,21 @@ timetableSlotRouter.use(authenticate);
 // weekly schedule isn't sensitive the way attendance/grades are.
 timetableSlotRouter.get("/", async (req, res, next) => {
   try {
-    const { sectionId, staffId } = req.query as { sectionId?: string; staffId?: string };
-    if (!sectionId && !staffId) {
-      throw new HttpError(400, "sectionId or staffId query param is required");
+    const { sectionId, staffId, roomId } = req.query as {
+      sectionId?: string;
+      staffId?: string;
+      roomId?: string;
+    };
+    if (!sectionId && !staffId && !roomId) {
+      throw new HttpError(400, "sectionId, staffId, or roomId query param is required");
     }
     const schoolId = req.user!.schoolId;
     res.json(
       sectionId
         ? await timetableSlotService.listForSection(schoolId, sectionId)
-        : await timetableSlotService.listForStaff(schoolId, staffId!),
+        : staffId
+          ? await timetableSlotService.listForStaff(schoolId, staffId)
+          : await timetableSlotService.listForRoom(schoolId, roomId!),
     );
   } catch (err) {
     next(err);

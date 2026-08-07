@@ -1,4 +1,4 @@
-import { prisma, DayOfWeek } from "@sms/db";
+import { prisma, DayOfWeek, TimetableSlotSource } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 
 export interface TimetableSlotInput {
@@ -7,8 +7,8 @@ export interface TimetableSlotInput {
   subjectId: string;
   staffId: string;
   dayOfWeek: DayOfWeek;
-  startTime: string;
-  endTime: string;
+  periodId: string;
+  roomId: string;
 }
 
 const timetableSlotInclude = {
@@ -16,11 +16,9 @@ const timetableSlotInclude = {
   section: true,
   subject: true,
   staff: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
+  period: true,
+  room: true,
 };
-
-function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string) {
-  return aStart < bEnd && bStart < aEnd;
-}
 
 async function assertValidAndConflictFree(
   schoolId: string,
@@ -37,37 +35,35 @@ async function assertValidAndConflictFree(
   });
   if (!subject) throw new HttpError(400, "Subject not found for this class");
 
-  // Ties the timetable to who's actually assigned to teach this section —
-  // same TeacherAssignment relationship attendance/student-scoping relies on.
-  const assignment = await prisma.teacherAssignment.findFirst({
-    where: { schoolId, staffId: input.staffId, classId: input.classId, sectionId: input.sectionId },
+  // Gated on teaching *capability*, not the (unrelated) attendance-scoping
+  // TeacherAssignment model — every generator-placed teacher already
+  // satisfies this by construction, so this never blocks a generated slot.
+  const capability = await prisma.teacherSubjectAssignment.findFirst({
+    where: { schoolId, staffId: input.staffId, subjectId: input.subjectId },
   });
-  if (!assignment) {
-    throw new HttpError(400, "This staff member isn't assigned to teach this class/section");
+  if (!capability) {
+    throw new HttpError(400, "This staff member isn't qualified to teach this subject");
   }
 
-  const sameDaySlots = await prisma.timetableSlot.findMany({
+  const samePeriodSlots = await prisma.timetableSlot.findMany({
     where: {
       schoolId,
       dayOfWeek: input.dayOfWeek,
-      OR: [{ sectionId: input.sectionId }, { staffId: input.staffId }],
+      periodId: input.periodId,
+      OR: [{ sectionId: input.sectionId }, { staffId: input.staffId }, { roomId: input.roomId }],
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
   });
 
-  for (const slot of sameDaySlots) {
-    if (!overlaps(input.startTime, input.endTime, slot.startTime, slot.endTime)) continue;
+  for (const slot of samePeriodSlots) {
     if (slot.sectionId === input.sectionId) {
-      throw new HttpError(
-        409,
-        `This section already has a class from ${slot.startTime} to ${slot.endTime} on ${input.dayOfWeek}`,
-      );
+      throw new HttpError(409, `This section already has a class in this period on ${input.dayOfWeek}`);
     }
     if (slot.staffId === input.staffId) {
-      throw new HttpError(
-        409,
-        `This teacher is already scheduled from ${slot.startTime} to ${slot.endTime} on ${input.dayOfWeek}`,
-      );
+      throw new HttpError(409, `This teacher is already scheduled in this period on ${input.dayOfWeek}`);
+    }
+    if (slot.roomId === input.roomId) {
+      throw new HttpError(409, `This room is already booked in this period on ${input.dayOfWeek}`);
     }
   }
 }
@@ -77,7 +73,7 @@ export const timetableSlotService = {
     return prisma.timetableSlot.findMany({
       where: { schoolId, sectionId },
       include: timetableSlotInclude,
-      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+      orderBy: [{ dayOfWeek: "asc" }, { period: { periodNumber: "asc" } }],
     });
   },
 
@@ -85,14 +81,22 @@ export const timetableSlotService = {
     return prisma.timetableSlot.findMany({
       where: { schoolId, staffId },
       include: timetableSlotInclude,
-      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+      orderBy: [{ dayOfWeek: "asc" }, { period: { periodNumber: "asc" } }],
+    });
+  },
+
+  listForRoom(schoolId: string, roomId: string) {
+    return prisma.timetableSlot.findMany({
+      where: { schoolId, roomId },
+      include: timetableSlotInclude,
+      orderBy: [{ dayOfWeek: "asc" }, { period: { periodNumber: "asc" } }],
     });
   },
 
   async create(schoolId: string, input: TimetableSlotInput) {
     await assertValidAndConflictFree(schoolId, input);
     return prisma.timetableSlot.create({
-      data: { schoolId, ...input },
+      data: { schoolId, ...input, source: TimetableSlotSource.MANUAL },
       include: timetableSlotInclude,
     });
   },
@@ -107,14 +111,16 @@ export const timetableSlotService = {
       subjectId: data.subjectId ?? existing.subjectId,
       staffId: data.staffId ?? existing.staffId,
       dayOfWeek: data.dayOfWeek ?? existing.dayOfWeek,
-      startTime: data.startTime ?? existing.startTime,
-      endTime: data.endTime ?? existing.endTime,
+      periodId: data.periodId ?? existing.periodId,
+      roomId: data.roomId ?? existing.roomId,
     };
     await assertValidAndConflictFree(schoolId, merged, id);
 
+    // Any hand edit means "an admin deliberately touched this" — flips away
+    // from GENERATED so a future regenerate can leave it alone.
     return prisma.timetableSlot.update({
       where: { id },
-      data: merged,
+      data: { ...merged, source: TimetableSlotSource.MANUAL },
       include: timetableSlotInclude,
     });
   },

@@ -2,13 +2,20 @@ import { Router } from "express";
 import { Role } from "@sms/db";
 import { staffService } from "../services/staff.service";
 import { teacherAssignmentService } from "../services/teacherAssignment.service";
+import { teacherSubjectAssignmentService } from "../services/teacherSubjectAssignment.service";
 import { sectionService } from "../services/section.service";
 import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { generateTempPassword } from "../lib/tempPassword";
-import { createStaffSchema, updateStaffSchema, assignTeacherSchema } from "../validation/staff.schema";
+import {
+  createStaffSchema,
+  updateStaffSchema,
+  assignTeacherSchema,
+  updateAvailabilitySchema,
+  bulkSubjectAssignmentSchema,
+} from "../validation/staff.schema";
 
 // SCHOOL_ADMIN is the only one who creates/manages staff now — SUPER_ADMIN
 // keeps read access for oversight (VIEW_ROLES below) but no longer writes.
@@ -130,6 +137,68 @@ staffRouter.delete(
       );
       if (!removed) throw new HttpError(404, "Assignment not found");
       res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Which subjects this teacher is qualified to teach — feeds the timetable
+// generator, deliberately separate from the attendance-scoping assignments above.
+staffRouter.get("/:id/subject-assignments", authorize(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    res.json(await teacherSubjectAssignmentService.listForStaff(req.user!.schoolId, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+staffRouter.post(
+  "/:id/subject-assignments",
+  authorize(...ADMIN_ROLES),
+  validateBody(bulkSubjectAssignmentSchema),
+  async (req, res, next) => {
+    try {
+      const result = await teacherSubjectAssignmentService.createBulk(
+        req.user!.schoolId,
+        req.params.id,
+        req.body.subjectIds,
+      );
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+staffRouter.delete(
+  "/:id/subject-assignments/:subjectId",
+  authorize(...ADMIN_ROLES),
+  async (req, res, next) => {
+    try {
+      const removed = await teacherSubjectAssignmentService.remove(
+        req.user!.schoolId,
+        req.params.id,
+        req.params.subjectId,
+      );
+      if (!removed) throw new HttpError(404, "Assignment not found");
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Timetable-generation availability — flat weekly values, see Staff model comment.
+staffRouter.patch(
+  "/:id/availability",
+  authorize(...ADMIN_ROLES),
+  validateBody(updateAvailabilitySchema),
+  async (req, res, next) => {
+    try {
+      const staff = await staffService.updateAvailability(req.user!.schoolId, req.params.id, req.body);
+      if (!staff) throw new HttpError(404, "Staff member not found");
+      res.json(staff);
     } catch (err) {
       next(err);
     }

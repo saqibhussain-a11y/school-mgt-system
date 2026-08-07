@@ -4,8 +4,8 @@ import { Card } from "@/components/ui/card";
 export interface TimetableSlotSummary {
   id: string;
   dayOfWeek: string;
-  startTime: string;
-  endTime: string;
+  period: { id: string; periodNumber: number; startTime: string; endTime: string };
+  room: { id: string; name: string };
   class: { id: string; name: string };
   section: { id: string; name: string };
   subject: { id: string; name: string };
@@ -25,10 +25,12 @@ const DAY_LABELS: Record<string, string> = {
 export function TimetableGrid({
   slots,
   showClassSection,
+  showRoom,
   renderActions,
 }: {
   slots: TimetableSlotSummary[];
   showClassSection?: boolean;
+  showRoom?: boolean;
   renderActions?: (slot: TimetableSlotSummary) => ReactNode;
 }) {
   const byDay: Record<string, TimetableSlotSummary[]> = {};
@@ -36,7 +38,7 @@ export function TimetableGrid({
     (byDay[slot.dayOfWeek] ??= []).push(slot);
   }
   for (const day of DAYS) {
-    byDay[day]?.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    byDay[day]?.sort((a, b) => a.period.periodNumber - b.period.periodNumber);
   }
 
   return (
@@ -50,7 +52,7 @@ export function TimetableGrid({
             (byDay[day] ?? []).map((slot) => (
               <Card key={slot.id} className="p-3">
                 <div className="text-xs text-muted-foreground">
-                  {slot.startTime} – {slot.endTime}
+                  Period {slot.period.periodNumber} · {slot.period.startTime}–{slot.period.endTime}
                 </div>
                 <div className="text-sm font-medium">{slot.subject.name}</div>
                 <div className="text-xs text-muted-foreground">
@@ -61,6 +63,7 @@ export function TimetableGrid({
                     {slot.class.name} – {slot.section.name}
                   </div>
                 )}
+                {showRoom && <div className="text-xs text-muted-foreground">{slot.room.name}</div>}
                 {renderActions && <div className="mt-2 flex gap-1">{renderActions(slot)}</div>}
               </Card>
             ))
