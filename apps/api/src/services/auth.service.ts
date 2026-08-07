@@ -22,7 +22,14 @@ async function issueTokenPair(user: { id: string; schoolId: string; role: Role }
 export const authService = {
   async login(schoolId: string, email: string, password: string) {
     const user = await userService.findByEmail(schoolId, email);
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    // SUPER_ADMIN can only authenticate via /platform-login — enforced here,
+    // not just by hiding a school from the picker, so it holds regardless of
+    // which school happens to contain that account.
+    if (
+      !user ||
+      user.role === Role.SUPER_ADMIN ||
+      !(await verifyPassword(password, user.passwordHash))
+    ) {
       throw new HttpError(401, "Invalid email or password");
     }
     return issueTokenPair(user);

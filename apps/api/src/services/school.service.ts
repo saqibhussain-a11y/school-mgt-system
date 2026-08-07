@@ -8,11 +8,12 @@ export const schoolService = {
   // Public/unauthenticated — the login page needs to resolve a school before
   // a user has any credentials, so this stays open, but deliberately returns
   // nothing beyond what a school picker needs (no subdomain/subscription data).
-  // Excludes the platform owner's own school so the public picker never
-  // reveals that a super admin exists — that account signs in separately.
+  // Not filtered by whether a school happens to contain a super admin — that
+  // would also hide every *other* legitimate user in the same school. The
+  // real boundary is in authService.login, which refuses SUPER_ADMIN
+  // outright regardless of which school its account lives in.
   listForLogin() {
     return prisma.school.findMany({
-      where: { users: { none: { role: Role.SUPER_ADMIN } } },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });

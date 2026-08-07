@@ -100,37 +100,40 @@
 }
 
 .dark {
-  --background: #0d0d0d;
+  /* Deeper true-black background with clearly-lifted, cool-tinted surfaces —
+     the old set (bg #0d0d0d vs card #1a1a19) had almost no contrast, which is
+     why it read as flat/dull. Brand hues (primary/chart/status) are untouched. */
+  --background: #07080a;
   --foreground: #ffffff;
-  --card: #1a1a19;
+  --card: #14161c;
   --card-foreground: #ffffff;
-  --popover: #1a1a19;
+  --popover: #14161c;
   --popover-foreground: #ffffff;
   --primary: #3987e5;
   --primary-foreground: #ffffff;
-  --secondary: #232322;
+  --secondary: #1b1e25;
   --secondary-foreground: #ffffff;
-  --muted: #232322;
-  --muted-foreground: #a3a29c;
+  --muted: #1b1e25;
+  --muted-foreground: #9aa0aa;
   --accent: #16283d;
   --accent-foreground: #9ec5f4;
   --destructive: #e66767;
-  --destructive-foreground: #1a1a19;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.15);
+  --destructive-foreground: #14161c;
+  --border: rgba(255, 255, 255, 0.14);
+  --input: rgba(255, 255, 255, 0.2);
   --ring: #3987e5;
   --chart-1: #3987e5;
   --chart-2: #199e70;
   --chart-3: #c98500;
   --chart-4: #9085e9;
   --chart-5: #d95926;
-  --sidebar: #141413;
+  --sidebar: #0d0f13;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #3987e5;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #16283d;
   --sidebar-accent-foreground: #9ec5f4;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-border: rgba(255, 255, 255, 0.14);
   --sidebar-ring: #3987e5;
   --status-good: #0ca30c;
   --status-warning: #fab219;
@@ -149,4 +152,14 @@
   html {
     @apply font-sans;
   }
+}
+
+/* Global card elevation for dark mode — a faint top sheen plus a soft drop
+   shadow so surfaces read as raised panels against the near-black background
+   instead of flat rectangles. Applies to every Card everywhere (incl. the
+   Platform admin panel) since it targets the shared component's data-slot. */
+.dark [data-slot="card"] {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -16px rgba(0, 0, 0, 0.7);
 }

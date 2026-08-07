@@ -1,10 +1,12 @@
-import { Role, prisma } from "@sms/db";
+import { Role, prisma, runAsPlatform } from "@sms/db";
 import { announcementService, buildAnnouncementViewer } from "./announcement.service";
 import { attendanceService } from "./attendance.service";
 import { studentGuardianService } from "./studentGuardian.service";
 
+// SUPER_ADMIN is deliberately excluded here — it gets its own platform-wide
+// branch below instead of this school-scoped one (its own "school" is just
+// the platform-owner's internal shell, not a real customer to report on).
 const STAFF_ROLES: Role[] = [
-  Role.SUPER_ADMIN,
   Role.SCHOOL_ADMIN,
   Role.PRINCIPAL,
   Role.TEACHER,
@@ -28,6 +30,30 @@ function daysAgo(n: number) {
 export const dashboardService = {
   async getForUser(schoolId: string, user: { sub: string; role: string }) {
     const role = user.role as Role;
+
+    // Platform-wide, not school-scoped — runs outside any tenant context.
+    if (role === Role.SUPER_ADMIN) {
+      return runAsPlatform(async () => {
+        const [totalSchools, activeCount, pastDueCount, suspendedCount, recentSchools] = await Promise.all([
+          prisma.school.count(),
+          prisma.school.count({ where: { subscriptionStatus: "active" } }),
+          prisma.school.count({ where: { subscriptionStatus: "past_due" } }),
+          prisma.school.count({ where: { subscriptionStatus: "suspended" } }),
+          prisma.school.findMany({
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: { id: true, name: true, subdomain: true, subscriptionStatus: true, createdAt: true },
+          }),
+        ]);
+
+        return {
+          role,
+          widgets: { totalSchools, activeCount, pastDueCount, suspendedCount, recentSchools },
+          recentAnnouncements: [],
+        };
+      });
+    }
+
     const viewer = await buildAnnouncementViewer(schoolId, user);
     const recentAnnouncements = await announcementService.list(schoolId, viewer, 5);
 
@@ -39,17 +65,35 @@ export const dashboardService = {
         attendanceService.getSchoolSummary(schoolId, startOfDay(new Date()), startOfDay(new Date())),
       ]);
 
-      return {
-        role,
-        widgets: {
-          totalStudents,
-          totalStaff,
-          totalClasses,
-          todayAttendancePercent: todayAttendance.percentage,
-          todayAttendanceMarked: todayAttendance.totalMarked,
-        },
-        recentAnnouncements,
+      const widgets: Record<string, unknown> = {
+        totalStudents,
+        totalStaff,
+        totalClasses,
+        todayAttendancePercent: todayAttendance.percentage,
+        todayAttendanceMarked: todayAttendance.totalMarked,
       };
+
+      if (role === Role.LIBRARIAN) {
+        const [activeLoans, overdueLoans, pendingReservations] = await Promise.all([
+          prisma.bookLoan.count({ where: { schoolId, status: "ACTIVE" } }),
+          prisma.bookLoan.count({
+            where: { schoolId, status: "ACTIVE", dueDate: { lt: startOfDay(new Date()) } },
+          }),
+          prisma.bookReservation.count({ where: { schoolId, status: "PENDING" } }),
+        ]);
+        Object.assign(widgets, { activeLoans, overdueLoans, pendingReservations });
+      }
+
+      if (role === Role.TRANSPORT_MANAGER) {
+        const [totalVehicles, totalRoutes, studentsAssigned] = await Promise.all([
+          prisma.vehicle.count({ where: { schoolId } }),
+          prisma.route.count({ where: { schoolId } }),
+          prisma.studentRoute.count({ where: { schoolId } }),
+        ]);
+        Object.assign(widgets, { totalVehicles, totalRoutes, studentsAssigned });
+      }
+
+      return { role, widgets, recentAnnouncements };
     }
 
     if (role === Role.STUDENT) {
