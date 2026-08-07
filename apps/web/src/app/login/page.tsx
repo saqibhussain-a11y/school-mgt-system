@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { GraduationCap, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,21 +63,19 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted p-4">
       <div className="flex w-full max-w-4xl overflow-hidden rounded-3xl bg-card shadow-xl md:min-h-[600px]">
-        {/* Brand panel — hidden on small screens. Swap /public/login-illustration.svg
-            for your own artwork any time; nothing else here needs to change. */}
-        <div className="relative hidden w-[44%] shrink-0 overflow-hidden p-10 md:flex md:flex-col md:justify-between">
-          <img
-            src="/login-illustration.svg"
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/50" />
-
-          <div className="relative flex items-center gap-2 text-white">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-white/15">
-              <GraduationCap className="size-5" />
-            </div>
-            <span className="font-semibold">School Management System</span>
+        {/* Brand panel — hidden on small screens. The badge logo is the
+            centerpiece here (swap /public/Logo.png for other artwork any
+            time); nothing else needs to change. */}
+        <div className="relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-br from-[#14306b] to-[#081226] p-10 md:flex">
+          <div className="relative flex flex-1 items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a
+                static public-folder brand asset, not an optimizable
+                content image */}
+            <img
+              src="/Logo.png"
+              alt="School Management System"
+              className="h-64 w-64 rounded-full object-cover drop-shadow-2xl"
+            />
           </div>
 
           <div className="relative">

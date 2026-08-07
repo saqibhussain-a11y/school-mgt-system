@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GraduationCap, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -28,9 +28,7 @@ export function MobileSidebar() {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0">
         <SheetHeader className="flex-row items-center gap-2 border-b border-sidebar-border px-5 py-4">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <GraduationCap className="size-5" />
-          </div>
+          <img src="/Logo.png" alt="" className="size-9 shrink-0 rounded-full object-cover" />
           <SheetTitle>School Management System</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-3">
