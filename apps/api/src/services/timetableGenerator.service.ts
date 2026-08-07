@@ -147,6 +147,7 @@ function runGreedyPass(params: {
         : periods;
 
     const daysUsedForPair = new Set<DayOfWeek>();
+    const periodsUsedForPair = new Set<string>();
     let scheduled = 0;
 
     for (let occurrence = 0; occurrence < g.count; occurrence++) {
@@ -162,9 +163,20 @@ function runGreedyPass(params: {
         return aCount - bCount;
       });
 
+      // Same soft-spread idea as days: a class shouldn't have this subject
+      // land at the same time-of-day on every occurrence (e.g. always
+      // Period 3), so prefer a period not yet used for this pair before
+      // falling back to a repeat.
+      const orderedPeriods = [...usablePeriods].sort((a, b) => {
+        const aUsed = periodsUsedForPair.has(a.id) ? 1 : 0;
+        const bUsed = periodsUsedForPair.has(b.id) ? 1 : 0;
+        if (aUsed !== bUsed) return aUsed - bUsed;
+        return a.periodNumber - b.periodNumber;
+      });
+
       let placed = false;
       for (const day of orderedDays) {
-        for (const period of usablePeriods) {
+        for (const period of orderedPeriods) {
           if (sectionBusy.has(key(g.sectionId, day, period.id))) continue;
           if (staffBusy.has(key(teacherId, day, period.id))) continue;
 
@@ -177,6 +189,7 @@ function runGreedyPass(params: {
           staffWeeklyCount.set(teacherId, (staffWeeklyCount.get(teacherId) ?? 0) + 1);
           staffDayCount.set(key(teacherId, day), (staffDayCount.get(key(teacherId, day)) ?? 0) + 1);
           daysUsedForPair.add(day);
+          periodsUsedForPair.add(period.id);
 
           slots.push({
             schoolId,

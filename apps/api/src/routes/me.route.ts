@@ -6,6 +6,7 @@ import { staffService } from "../services/staff.service";
 import { studentService } from "../services/student.service";
 import { teacherAssignmentService } from "../services/teacherAssignment.service";
 import { timetableSlotService } from "../services/timetableSlot.service";
+import { examInvigilationService } from "../services/examInvigilation.service";
 import { HttpError } from "../middleware/errorHandler";
 
 export const meRouter = Router();
@@ -61,6 +62,17 @@ meRouter.get("/timetable", authenticate, async (req, res, next) => {
       return;
     }
     res.json([]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Invigilation duty is assignable to ANY Staff row (a Librarian, an
+// Accountant — not just teachers), so this gates on "has a Staff record at
+// all", not role === TEACHER like /assignments and /timetable above.
+meRouter.get("/invigilation-duties", authenticate, async (req, res, next) => {
+  try {
+    res.json(await examInvigilationService.myDuties(req.user!.schoolId, req.user!.sub));
   } catch (err) {
     next(err);
   }

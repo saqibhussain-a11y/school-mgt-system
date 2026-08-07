@@ -7,6 +7,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EditExamDialog } from "@/components/exams/edit-exam-dialog";
 import { MarksEntryTab } from "@/components/exams/marks-entry-tab";
 import { ExamOverviewTab } from "@/components/exams/exam-overview-tab";
+import { DatesheetTab } from "@/components/exams/datesheet-tab";
+import { ClassSeatingTab } from "@/components/exams/class-seating-tab";
+import { ClassInvigilationTab } from "@/components/exams/class-invigilation-tab";
+import { AdmitCardsTab } from "@/components/exams/admit-cards-tab";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -108,12 +112,28 @@ export default function ExamDetailPage() {
           <TabsList>
             <TabsTrigger value="marks">Marks entry</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="datesheet">Datesheet</TabsTrigger>
+            <TabsTrigger value="seating">Seating</TabsTrigger>
+            <TabsTrigger value="invigilation">Invigilation</TabsTrigger>
+            <TabsTrigger value="admit-cards">Admit Cards</TabsTrigger>
           </TabsList>
           <TabsContent value="marks" className="mt-4">
             <MarksEntryTab exam={exam} />
           </TabsContent>
           <TabsContent value="overview" className="mt-4">
             <ExamOverviewTab examId={exam.id} />
+          </TabsContent>
+          <TabsContent value="datesheet" className="mt-4">
+            <DatesheetTab examId={exam.id} subjects={exam.examSubjects} onChanged={refetch} />
+          </TabsContent>
+          <TabsContent value="seating" className="mt-4">
+            <ClassSeatingTab examId={exam.id} examSessionId={exam.examSessionId} onGenerated={refetch} />
+          </TabsContent>
+          <TabsContent value="invigilation" className="mt-4">
+            <ClassInvigilationTab examSessionId={exam.examSessionId} />
+          </TabsContent>
+          <TabsContent value="admit-cards" className="mt-4">
+            <AdmitCardsTab examId={exam.id} classId={exam.classId} />
           </TabsContent>
         </Tabs>
       ) : (

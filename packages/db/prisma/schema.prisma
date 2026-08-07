@@ -111,8 +111,9 @@ model AcademicSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  classes Class[]
-  exams   Exam[]
+  classes      Class[]
+  exams        Exam[]
+  examSessions ExamSession[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -184,6 +185,34 @@ model Subject {
   @@index([schoolId])
 }
 
+// Groups several classes' per-class Exam rows into one combined "sitting"
+// so they can share seating/invigilation across rooms — e.g. Grade 4's and
+// Grade 5's Mid-Term. Exam.examSessionId is nullable and populated lazily
+// (see examSeating.service.ts): most exams never need cross-class seating,
+// so creating a session eagerly for every exam would be pure UI clutter.
+// isAutoCreated marks the trivial 1:1 sessions the seating generator
+// creates behind the scenes for a standalone exam, so the "combine with
+// other classes" picker can filter them out.
+model ExamSession {
+  id                String   @id @default(cuid())
+  schoolId          String
+  academicSessionId String
+  name              String
+  startDate         DateTime @db.Date
+  endDate           DateTime @db.Date
+  isAutoCreated     Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  academicSession AcademicSession      @relation(fields: [academicSessionId], references: [id])
+  exams           Exam[]
+  seatAllocations ExamSeatAllocation[]
+  invigilations   ExamInvigilation[]
+
+  @@index([schoolId])
+  @@index([academicSessionId])
+}
+
 // Percentage-only grading for this pass (master doc's GPA/custom-rubric
 // options deferred — a school-configurable grading system is a bigger
 // project on its own). See lib/grading.ts for the fixed letter-grade bands.
@@ -192,6 +221,7 @@ model Exam {
   schoolId          String
   classId           String
   academicSessionId String
+  examSessionId     String?
   name              String
   startDate         DateTime @db.Date
   endDate           DateTime @db.Date
@@ -200,22 +230,35 @@ model Exam {
 
   class           Class           @relation(fields: [classId], references: [id])
   academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  examSession     ExamSession?    @relation(fields: [examSessionId], references: [id])
   examSubjects    ExamSubject[]
 
+  // Postgres treats multiple NULLs as distinct, so this only enforces "one
+  // Exam per class per session" for actual session members — standalone
+  // exams (examSessionId: null) are unaffected.
+  @@unique([examSessionId, classId])
   @@index([schoolId])
   @@index([classId])
+  @@index([examSessionId])
 }
 
 // Which subjects are covered by an exam, and each one's max marks — set
 // once at exam creation. Deliberately no update/remove-subject endpoint
 // once marks exist against it (see exam.service.ts) to avoid orphaning Mark
-// rows silently.
+// rows silently. examDate/startTime/endTime are the per-paper datesheet —
+// free-form "HH:mm" strings like Period, but deliberately NOT linked to
+// Period: exam blocks run longer than a regular class period and aren't
+// grid-aligned. All three are nullable so "exam created, datesheet not set
+// yet" is a valid, expected interim state.
 model ExamSubject {
-  id        String @id @default(cuid())
+  id        String    @id @default(cuid())
   schoolId  String
   examId    String
   subjectId String
   maxMarks  Int
+  examDate  DateTime? @db.Date
+  startTime String?
+  endTime   String?
 
   exam    Exam    @relation(fields: [examId], references: [id])
   subject Subject @relation(fields: [subjectId], references: [id])
@@ -223,6 +266,7 @@ model ExamSubject {
 
   @@unique([examId, subjectId])
   @@index([schoolId])
+  @@index([schoolId, examDate])
 }
 
 // isAbsent is separate from marksObtained=0 — a student absent from an exam
@@ -335,6 +379,8 @@ model Room {
   classesDefaultingHere Class[]
   subjects              Subject[]
   timetableSlots        TimetableSlot[]
+  examSeatAllocations   ExamSeatAllocation[]
+  examInvigilations     ExamInvigilation[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -418,6 +464,72 @@ model TimetableSlot {
   @@index([roomId, dayOfWeek])
 }
 
+// Deliberately separate from TimetableSlotSource so a future timetable-only
+// change can't accidentally affect exam seating/invigilation code.
+enum ExamAssignmentSource {
+  GENERATED
+  MANUAL
+}
+
+// A student's fixed room+seat for one whole ExamSession, reused across
+// every paper in that session (not reassigned per date) — matches how
+// schools actually run a multi-day sitting and avoids the much harder
+// problem of room composition varying day-to-day. classId/sectionId are a
+// snapshot at seating time, same rationale as Attendance.classId/sectionId:
+// correct-as-recorded even if the student is later transferred, and lets
+// the seat chart group by class with no extra join.
+model ExamSeatAllocation {
+  id            String               @id @default(cuid())
+  schoolId      String
+  examSessionId String
+  studentId     String
+  classId       String
+  sectionId     String
+  roomId        String
+  seatNumber    Int
+  source        ExamAssignmentSource @default(GENERATED)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  examSession ExamSession @relation(fields: [examSessionId], references: [id])
+  student     Student     @relation(fields: [studentId], references: [id])
+  room        Room        @relation(fields: [roomId], references: [id])
+
+  @@unique([examSessionId, studentId])
+  @@unique([examSessionId, roomId, seatNumber])
+  @@index([schoolId])
+  @@index([roomId])
+}
+
+// Coverage slots (room + date + time-window) are derived at generation
+// time from seated students' scheduled papers, not modeled separately — an
+// invigilator covers a room regardless of which subject is being written.
+// endTime is part of the unique key alongside startTime because two
+// distinct time-windows for the same room+date, while unusual, aren't
+// impossible (e.g. a morning and an afternoon shift).
+model ExamInvigilation {
+  id            String               @id @default(cuid())
+  schoolId      String
+  examSessionId String
+  staffId       String
+  roomId        String
+  examDate      DateTime             @db.Date
+  startTime     String
+  endTime       String
+  source        ExamAssignmentSource @default(GENERATED)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  examSession ExamSession @relation(fields: [examSessionId], references: [id])
+  staff       Staff       @relation(fields: [staffId], references: [id])
+  room        Room        @relation(fields: [roomId], references: [id])
+
+  @@unique([examSessionId, roomId, examDate, startTime, endTime, staffId])
+  @@index([schoolId])
+  @@index([staffId, examDate])
+  @@index([roomId, examDate])
+}
+
 enum StudentStatus {
   ACTIVE
   WITHDRAWN
@@ -453,18 +565,19 @@ model Student {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  user             User              @relation(fields: [userId], references: [id])
-  class            Class             @relation(fields: [classId], references: [id])
-  section          Section           @relation(fields: [sectionId], references: [id])
-  guardians        StudentGuardian[]
-  attendances      Attendance[]
-  marks            Mark[]
-  submissions      Submission[]
-  feeInvoices      FeeInvoice[]
-  issuedDocuments  IssuedDocument[]
-  bookLoans        BookLoan[]
-  bookReservations BookReservation[]
-  routeAssignment  StudentRoute?
+  user                User                 @relation(fields: [userId], references: [id])
+  class               Class                @relation(fields: [classId], references: [id])
+  section             Section              @relation(fields: [sectionId], references: [id])
+  guardians           StudentGuardian[]
+  attendances         Attendance[]
+  marks               Mark[]
+  submissions         Submission[]
+  feeInvoices         FeeInvoice[]
+  issuedDocuments     IssuedDocument[]
+  bookLoans           BookLoan[]
+  bookReservations    BookReservation[]
+  routeAssignment     StudentRoute?
+  examSeatAllocations ExamSeatAllocation[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -499,6 +612,7 @@ model Staff {
   assignments        TeacherAssignment[]
   subjectAssignments TeacherSubjectAssignment[]
   timetableSlots     TimetableSlot[]
+  examInvigilations  ExamInvigilation[]
 
   @@index([schoolId])
 }

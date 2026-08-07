@@ -10,12 +10,32 @@ export interface CreateExamInput {
   name: string;
   startDate: Date;
   endDate: Date;
+  examSessionId?: string | null;
   subjects: { subjectId: string; maxMarks: number }[];
+}
+
+// Proactive check ahead of the @@unique([examSessionId, classId]) DB
+// constraint, purely for a clearer error message than the generic P2002
+// mapping ("A record with these details already exists").
+async function assertExamSessionValid(
+  schoolId: string,
+  examSessionId: string,
+  classId: string,
+  excludeExamId?: string,
+) {
+  const session = await prisma.examSession.findFirst({ where: { id: examSessionId, schoolId } });
+  if (!session) throw new HttpError(400, "Exam session not found");
+
+  const conflict = await prisma.exam.findFirst({
+    where: { examSessionId, classId, ...(excludeExamId ? { id: { not: excludeExamId } } : {}) },
+  });
+  if (conflict) throw new HttpError(400, "This class is already part of that exam session");
 }
 
 const examInclude = {
   class: true,
   academicSession: true,
+  examSession: true,
   examSubjects: { include: { subject: true } },
 };
 
@@ -58,6 +78,9 @@ export const examService = {
   },
 
   async create(schoolId: string, input: CreateExamInput) {
+    if (input.examSessionId) {
+      await assertExamSessionValid(schoolId, input.examSessionId, input.classId);
+    }
     return prisma.$transaction(async (tx: TxClient) => {
       const exam = await tx.exam.create({
         data: {
@@ -67,6 +90,7 @@ export const examService = {
           name: input.name,
           startDate: input.startDate,
           endDate: input.endDate,
+          examSessionId: input.examSessionId ?? null,
         },
       });
       await tx.examSubject.createMany({
@@ -81,9 +105,16 @@ export const examService = {
     });
   },
 
-  async update(schoolId: string, id: string, data: Partial<{ name: string; startDate: Date; endDate: Date }>) {
+  async update(
+    schoolId: string,
+    id: string,
+    data: Partial<{ name: string; startDate: Date; endDate: Date; examSessionId: string | null }>,
+  ) {
     const existing = await prisma.exam.findFirst({ where: { id, schoolId } });
     if (!existing) return null;
+    if (data.examSessionId) {
+      await assertExamSessionValid(schoolId, data.examSessionId, existing.classId, id);
+    }
     return prisma.exam.update({ where: { id }, data, include: examInclude });
   },
 

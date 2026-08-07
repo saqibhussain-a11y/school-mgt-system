@@ -25,6 +25,7 @@ import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { AcademicSession } from "@/components/academics/sessions-tab";
 import type { SchoolClass } from "@/components/academics/classes-tab";
+import type { ExamSessionSummary } from "@/components/exam-sessions/exam-session-types";
 
 interface SubjectOption {
   id: string;
@@ -49,6 +50,7 @@ export function CreateExamDialog({
   const [classId, setClassId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [examSessionId, setExamSessionId] = useState("");
   const [rows, setRows] = useState<SubjectRow[]>([{ subjectId: "", maxMarks: "100" }]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,6 +61,7 @@ export function CreateExamDialog({
   const { data: subjects } = useApi<SubjectOption[]>(
     open && classId ? `/api/subjects?classId=${classId}` : null,
   );
+  const { data: examSessions } = useApi<ExamSessionSummary[]>(open ? "/api/exam-sessions" : null);
 
   useEffect(() => {
     if (open && !academicSessionId && sessions && sessions.length > 0) {
@@ -78,6 +81,7 @@ export function CreateExamDialog({
     setName("");
     setStartDate("");
     setEndDate("");
+    setExamSessionId("");
     setRows([{ subjectId: "", maxMarks: "100" }]);
   }
 
@@ -99,6 +103,7 @@ export function CreateExamDialog({
           academicSessionId,
           startDate,
           endDate,
+          examSessionId: examSessionId || null,
           subjects: validRows.map((r) => ({ subjectId: r.subjectId, maxMarks: Number(r.maxMarks) })),
         }),
       });
@@ -196,6 +201,34 @@ export function CreateExamDialog({
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Combine with other classes (exam session)</Label>
+            <Select
+              items={[
+                { value: "", label: "None — standalone exam" },
+                ...(examSessions ?? []).map((s) => ({ value: s.id, label: s.name })),
+              ]}
+              value={examSessionId}
+              onValueChange={(v) => setExamSessionId(v ?? "")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="None — standalone exam" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None — standalone exam</SelectItem>
+                {(examSessions ?? []).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Combining classes lets them share seating/invigilation for the same sitting. Leave as
+              standalone unless you specifically need that.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2">

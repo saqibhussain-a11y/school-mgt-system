@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { Role } from "@sms/db";
 import { examService } from "../services/exam.service";
+import { examDatesheetService } from "../services/examDatesheet.service";
+import { examSeatingService } from "../services/examSeating.service";
+import { buildAdmitCardsPdf } from "../lib/examAdmitCardPdf";
 import { studentService } from "../services/student.service";
 import { studentGuardianService } from "../services/studentGuardian.service";
 import { getAssignedClassIdsForUser } from "../services/teacherAssignment.service";
@@ -8,6 +11,11 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createExamSchema, updateExamSchema, saveMarksSchema } from "../validation/exam.schema";
+import {
+  generateDatesheetSchema,
+  updateExamSubjectScheduleSchema,
+} from "../validation/examDatesheet.schema";
+import { generateSeatingSchema } from "../validation/examSeating.schema";
 
 const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
@@ -109,6 +117,87 @@ examRouter.delete("/:id", authorize(...ADMIN_ROLES), async (req, res, next) => {
     const exam = await examService.remove(req.user!.schoolId, req.params.id);
     if (!exam) throw new HttpError(404, "Exam not found");
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+examRouter.post(
+  "/:id/datesheet/generate",
+  validateBody(generateDatesheetSchema),
+  async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const exam = await examService.getById(schoolId, req.params.id);
+      if (!exam) throw new HttpError(404, "Exam not found");
+      await assertCanManageExamClass(schoolId, req.user!, exam.classId);
+      res.json(await examDatesheetService.generate(schoolId, req.params.id, req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+examSubjectRouter.patch(
+  "/:id/schedule",
+  validateBody(updateExamSubjectScheduleSchema),
+  async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const context = await examService.getExamSubjectContext(schoolId, req.params.id);
+      if (!context) throw new HttpError(404, "Exam subject not found");
+      await assertCanManageExamClass(schoolId, req.user!, context.exam.classId);
+      res.json(await examDatesheetService.updateSchedule(schoolId, req.params.id, req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+examRouter.post(
+  "/:id/seating/generate",
+  authorize(...ADMIN_ROLES),
+  validateBody(generateSeatingSchema),
+  async (req, res, next) => {
+    try {
+      const result = await examSeatingService.generate(req.user!.schoolId, {
+        examId: req.params.id,
+        roomIds: req.body.roomIds,
+      });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Read-only — unlike seat generation, this does NOT lazily create a
+// session for a standalone exam; it just renders without a seat map.
+examRouter.get("/:id/admit-cards", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const exam = await examService.getById(schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    await assertCanManageExamClass(schoolId, req.user!, exam.classId);
+    const pdf = await buildAdmitCardsPdf(schoolId, { examId: req.params.id });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="admit-cards.pdf"');
+    res.send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
+examRouter.get("/:id/students/:studentId/admit-card", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const exam = await examService.getById(schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    await assertCanViewReportCard(schoolId, req.user!, exam.classId, req.params.studentId);
+    const pdf = await buildAdmitCardsPdf(schoolId, { examId: req.params.id, studentId: req.params.studentId });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="admit-card.pdf"');
+    res.send(pdf);
   } catch (err) {
     next(err);
   }
