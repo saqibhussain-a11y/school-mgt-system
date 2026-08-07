@@ -33,6 +33,8 @@
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-tertiary: var(--tertiary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
@@ -54,21 +56,29 @@
 }
 
 /*
- * Palette: validated education-appropriate theme (blue primary, status colors
- * reserved for state). See dataviz skill references/palette.md — hue values
- * are the reference instance's chrome/ink/status/categorical tokens.
+ * Palette: "Academic Core" brand set — primary/secondary/tertiary/neutral
+ * supplied by the user, applied to the equivalently-named tokens below.
+ * status and chart hues are DELIBERATELY untouched: they're a separately
+ * accessibility-validated categorical/status palette (see dataviz skill
+ * references/palette.md), and swapping them to brand hues without
+ * re-running that validation would risk breaking CVD-safe separation.
+ * destructive is also untouched — it's a reserved error state, never a
+ * brand color, confirmed by the source mockup itself showing a distinct red
+ * next to the brand tertiary rust.
  */
 :root {
-  --background: #f9f9f7;
+  --background: #f9fafb;
   --foreground: #0b0b0b;
-  --card: #fcfcfb;
+  --card: #ffffff;
   --card-foreground: #0b0b0b;
-  --popover: #fcfcfb;
+  --popover: #ffffff;
   --popover-foreground: #0b0b0b;
-  --primary: #2a78d6;
+  --primary: #1e40af;
   --primary-foreground: #ffffff;
-  --secondary: #f0efec;
-  --secondary-foreground: #0b0b0b;
+  --secondary: #e0f2fe;
+  --secondary-foreground: #1e40af;
+  --tertiary: #882d00;
+  --tertiary-foreground: #ffffff;
   --muted: #f0efec;
   --muted-foreground: #6f6e69;
   --accent: #eaf1fb;
@@ -77,21 +87,21 @@
   --destructive-foreground: #ffffff;
   --border: rgba(11, 11, 11, 0.1);
   --input: rgba(11, 11, 11, 0.14);
-  --ring: #2a78d6;
+  --ring: #1e40af;
   --chart-1: #2a78d6;
   --chart-2: #1baf7a;
   --chart-3: #eda100;
   --chart-4: #4a3aa7;
   --chart-5: #eb6834;
   --radius: 0.625rem;
-  --sidebar: #fcfcfb;
+  --sidebar: #ffffff;
   --sidebar-foreground: #0b0b0b;
-  --sidebar-primary: #2a78d6;
+  --sidebar-primary: #1e40af;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #eaf1fb;
   --sidebar-accent-foreground: #184f95;
   --sidebar-border: rgba(11, 11, 11, 0.1);
-  --sidebar-ring: #2a78d6;
+  --sidebar-ring: #1e40af;
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
@@ -102,17 +112,22 @@
 .dark {
   /* Deeper true-black background with clearly-lifted, cool-tinted surfaces —
      the old set (bg #0d0d0d vs card #1a1a19) had almost no contrast, which is
-     why it read as flat/dull. Brand hues (primary/chart/status) are untouched. */
+     why it read as flat/dull. Surfaces (background/card/popover/sidebar) are
+     untouched by the brand-palette swap below — only primary/secondary/
+     tertiary shift, lightened for contrast against a dark backdrop; the same
+     status, chart, and destructive exclusions from :root apply here too. */
   --background: #07080a;
   --foreground: #ffffff;
   --card: #14161c;
   --card-foreground: #ffffff;
   --popover: #14161c;
   --popover-foreground: #ffffff;
-  --primary: #3987e5;
+  --primary: #3b6fe0;
   --primary-foreground: #ffffff;
-  --secondary: #1b1e25;
-  --secondary-foreground: #ffffff;
+  --secondary: #17304f;
+  --secondary-foreground: #bee0ff;
+  --tertiary: #c2542a;
+  --tertiary-foreground: #ffffff;
   --muted: #1b1e25;
   --muted-foreground: #9aa0aa;
   --accent: #16283d;
@@ -121,7 +136,7 @@
   --destructive-foreground: #14161c;
   --border: rgba(255, 255, 255, 0.14);
   --input: rgba(255, 255, 255, 0.2);
-  --ring: #3987e5;
+  --ring: #3b6fe0;
   --chart-1: #3987e5;
   --chart-2: #199e70;
   --chart-3: #c98500;
@@ -129,12 +144,12 @@
   --chart-5: #d95926;
   --sidebar: #0d0f13;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #3987e5;
+  --sidebar-primary: #3b6fe0;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #16283d;
   --sidebar-accent-foreground: #9ec5f4;
   --sidebar-border: rgba(255, 255, 255, 0.14);
-  --sidebar-ring: #3987e5;
+  --sidebar-ring: #3b6fe0;
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
