@@ -1,16 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import {
-  GraduationCap,
-  BookOpen,
-  CalendarCheck,
-  Wallet,
-  Users,
-  Eye,
-  EyeOff,
-  Loader2,
-} from "lucide-react";
+import { GraduationCap, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,18 +15,7 @@ import {
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 import type { SchoolDto } from "@sms/shared-types";
-
-// Floating icon tiles for the brand panel — plain divs + lucide icons, no
-// external assets, colored purely from the app's own gradient tokens.
-const BRAND_TILES = [
-  { Icon: GraduationCap, className: "top-[8%] left-[12%] size-16 -rotate-6", delay: "0s" },
-  { Icon: BookOpen, className: "top-[20%] right-[10%] size-14 rotate-9", delay: "0.15s" },
-  { Icon: CalendarCheck, className: "bottom-[26%] left-[6%] size-14 rotate-3", delay: "0.3s" },
-  { Icon: Wallet, className: "bottom-[10%] right-[16%] size-16 -rotate-9", delay: "0.45s" },
-  { Icon: Users, className: "top-[46%] left-[42%] size-12 rotate-12", delay: "0.6s" },
-];
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -83,39 +63,26 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted p-4">
       <div className="flex w-full max-w-4xl overflow-hidden rounded-3xl bg-card shadow-xl md:min-h-[600px]">
-        {/* Brand panel — hidden on small screens */}
-        <div
-          className="relative hidden w-[44%] shrink-0 overflow-hidden p-10 md:flex md:flex-col md:justify-between"
-          style={{
-            backgroundImage:
-              "linear-gradient(135deg, var(--primary), var(--chart-4))",
-          }}
-        >
-          <div className="flex items-center gap-2 text-primary-foreground">
+        {/* Brand panel — hidden on small screens. Swap /public/login-illustration.svg
+            for your own artwork any time; nothing else here needs to change. */}
+        <div className="relative hidden w-[44%] shrink-0 overflow-hidden p-10 md:flex md:flex-col md:justify-between">
+          <img
+            src="/login-illustration.svg"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/50" />
+
+          <div className="relative flex items-center gap-2 text-white">
             <div className="flex size-9 items-center justify-center rounded-lg bg-white/15">
               <GraduationCap className="size-5" />
             </div>
             <span className="font-semibold">School Management System</span>
           </div>
 
-          <div className="relative my-10 flex-1">
-            {BRAND_TILES.map(({ Icon, className, delay }, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "absolute flex items-center justify-center rounded-2xl bg-white/12 text-primary-foreground shadow-lg ring-1 ring-white/20 backdrop-blur-sm animate-in fade-in zoom-in",
-                  className,
-                )}
-                style={{ animationDelay: delay, animationDuration: "0.6s" }}
-              >
-                <Icon className="size-1/2" />
-              </div>
-            ))}
-          </div>
-
-          <div className="text-primary-foreground">
-            <h2 className="text-2xl font-semibold">Everything your school needs, in one place</h2>
-            <p className="mt-2 text-sm text-primary-foreground/80">
+          <div className="relative">
+            <h2 className="text-2xl font-semibold text-white">Everything your school needs, in one place</h2>
+            <p className="mt-2 text-sm text-white/80">
               Attendance, fees, exams, transport and more — managed from a single dashboard.
             </p>
           </div>
@@ -145,7 +112,7 @@ export default function LoginPage() {
                   value={schoolId}
                   onValueChange={(v) => setSchoolId(v ?? "")}
                 >
-                  <SelectTrigger className="h-11 w-full rounded-xl border-0 bg-accent px-4 text-sm text-accent-foreground">
+                  <SelectTrigger className="h-11 w-full rounded-xl border-0 bg-muted px-4 text-sm text-foreground dark:bg-muted dark:hover:bg-muted">
                     <SelectValue placeholder="Select your school" />
                   </SelectTrigger>
                   <SelectContent>
