@@ -124,7 +124,7 @@ export default function ExamDetailPage() {
             <ExamOverviewTab examId={exam.id} />
           </TabsContent>
           <TabsContent value="datesheet" className="mt-4">
-            <DatesheetTab examId={exam.id} subjects={exam.examSubjects} onChanged={refetch} />
+            <DatesheetTab exam={exam} onChanged={refetch} />
           </TabsContent>
           <TabsContent value="seating" className="mt-4">
             <ClassSeatingTab examId={exam.id} examSessionId={exam.examSessionId} onGenerated={refetch} />

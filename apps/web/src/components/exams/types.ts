@@ -24,4 +24,11 @@ export interface ExamSummary {
   class: { id: string; name: string };
   academicSession: { id: string; name: string };
   examSubjects: DatesheetExamSubjectSummary[];
+  examSession: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    exams: { id: string; classId: string; class: { name: string } }[];
+  } | null;
 }

@@ -102,11 +102,47 @@ export const examDatesheetService = {
     if (data.examDate < rangeStart || data.examDate > rangeEnd) {
       throw new HttpError(400, "The scheduled date must fall within the exam's date range");
     }
+    if (dayOfWeekFromDate(data.examDate) === null) {
+      throw new HttpError(400, "Exams cannot be scheduled on a Sunday");
+    }
 
-    return prisma.examSubject.update({
+    // Proactive check ahead of the @@unique([examId, examDate]) DB
+    // constraint, purely for a clearer error message than the generic P2002
+    // mapping ("A record with these details already exists").
+    const conflict = await prisma.examSubject.findFirst({
+      where: { examId: examSubject.examId, examDate: data.examDate, id: { not: examSubjectId } },
+      include: { subject: true },
+    });
+    if (conflict) {
+      throw new HttpError(400, `This class already has a paper scheduled that day (${conflict.subject.name})`);
+    }
+
+    // Only the exact slot this edit is vacating counts as "going stale" —
+    // scheduling a previously-unscheduled subject for the first time has
+    // nothing to orphan, and this must never fire for every edit in a
+    // session that's merely had invigilation generated at some point.
+    let staleInvigilationWarning: string | null = null;
+    if (examSubject.examDate && examSubject.startTime && examSubject.endTime && examSubject.exam.examSessionId) {
+      const staleSlot = await prisma.examInvigilation.findFirst({
+        where: {
+          examSessionId: examSubject.exam.examSessionId,
+          examDate: examSubject.examDate,
+          startTime: examSubject.startTime,
+          endTime: examSubject.endTime,
+        },
+      });
+      if (staleSlot) {
+        staleInvigilationWarning =
+          'This paper already had an invigilation duty assigned for its old date/time — re-run "Generate invigilation" to update the roster.';
+      }
+    }
+
+    const updated = await prisma.examSubject.update({
       where: { id: examSubjectId },
       data,
       include: { subject: true },
     });
+
+    return { ...updated, staleInvigilationWarning };
   },
 };

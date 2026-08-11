@@ -265,6 +265,10 @@ model ExamSubject {
   marks   Mark[]
 
   @@unique([examId, subjectId])
+  // Postgres treats multiple NULLs as distinct, so unscheduled subjects
+  // (examDate: null) are never constrained against each other — only two
+  // subjects genuinely sharing a real day for the same exam collide.
+  @@unique([examId, examDate])
   @@index([schoolId])
   @@index([schoolId, examDate])
 }

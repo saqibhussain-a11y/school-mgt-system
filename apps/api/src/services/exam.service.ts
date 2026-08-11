@@ -35,7 +35,10 @@ async function assertExamSessionValid(
 const examInclude = {
   class: true,
   academicSession: true,
-  examSession: true,
+  // Nested `exams` (beyond the base scalar fields) exists so a session-linked
+  // exam's datesheet page can disclose which sibling classes share this
+  // session's dates, without a separate endpoint.
+  examSession: { include: { exams: { select: { id: true, classId: true, class: { select: { name: true } } } } } },
   examSubjects: { include: { subject: true } },
 };
 
