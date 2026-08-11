@@ -16,7 +16,11 @@ export interface PendingSchedule {
   targetDate: string;
 }
 
-type ScheduledSubject = DatesheetExamSubjectSummary & { staleInvigilationWarning: string | null };
+type ScheduledSubject = DatesheetExamSubjectSummary & {
+  staleInvigilationWarning: string | null;
+  syncedSiblings: { id: string; className: string; subjectName: string }[];
+  skippedSiblings: { id: string; className: string; subjectName: string; reason: string }[];
+};
 
 // A subject dropped straight out of the Unscheduled lane has no time block
 // yet, so the drop can't just PATCH a guessed 09:00–12:00 — this dialog asks

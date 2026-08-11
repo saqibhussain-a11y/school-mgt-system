@@ -27,3 +27,14 @@ const UTC_DAY_TO_DAY_OF_WEEK: Record<number, DayOfWeek | null> = {
 export function dayOfWeekFromDate(date: Date): DayOfWeek | null {
   return UTC_DAY_TO_DAY_OF_WEEK[date.getUTCDay()];
 }
+
+// JS `Date` equality is reference equality — two Dates for the same calendar
+// day are never `===`. Compare via this key, never via `===`, whenever "is
+// this the same day" is the actual question.
+export function toUtcDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function toUtcMidnight(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}

@@ -20,5 +20,14 @@ export const updateExamSubjectScheduleSchema = z
     examDate: z.coerce.date(),
     startTime: z.string().regex(TIME_RE, "Expected HH:mm"),
     endTime: z.string().regex(TIME_RE, "Expected HH:mm"),
+    syncSiblings: z.boolean().optional(),
+  })
+  .refine((data) => timeToMinutes(data.startTime) < timeToMinutes(data.endTime), timeOrderCheck);
+
+export const schedulePreviewQuerySchema = z
+  .object({
+    examDate: z.coerce.date(),
+    startTime: z.string().regex(TIME_RE, "Expected HH:mm"),
+    endTime: z.string().regex(TIME_RE, "Expected HH:mm"),
   })
   .refine((data) => timeToMinutes(data.startTime) < timeToMinutes(data.endTime), timeOrderCheck);

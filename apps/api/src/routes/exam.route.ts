@@ -14,6 +14,7 @@ import { createExamSchema, updateExamSchema, saveMarksSchema } from "../validati
 import {
   generateDatesheetSchema,
   updateExamSubjectScheduleSchema,
+  schedulePreviewQuerySchema,
 } from "../validation/examDatesheet.schema";
 import { generateSeatingSchema } from "../validation/examSeating.schema";
 
@@ -138,6 +139,20 @@ examRouter.post(
   },
 );
 
+examSubjectRouter.get("/:id/schedule-siblings", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const context = await examService.getExamSubjectContext(schoolId, req.params.id);
+    if (!context) throw new HttpError(404, "Exam subject not found");
+    await assertCanManageExamClass(schoolId, req.user!, context.exam.classId);
+    const query = schedulePreviewQuerySchema.safeParse(req.query);
+    if (!query.success) throw new HttpError(400, query.error.issues.map((i) => i.message).join(", "));
+    res.json(await examDatesheetService.previewSiblingSync(schoolId, req.params.id, query.data, req.user!));
+  } catch (err) {
+    next(err);
+  }
+});
+
 examSubjectRouter.patch(
   "/:id/schedule",
   validateBody(updateExamSubjectScheduleSchema),
@@ -147,7 +162,7 @@ examSubjectRouter.patch(
       const context = await examService.getExamSubjectContext(schoolId, req.params.id);
       if (!context) throw new HttpError(404, "Exam subject not found");
       await assertCanManageExamClass(schoolId, req.user!, context.exam.classId);
-      res.json(await examDatesheetService.updateSchedule(schoolId, req.params.id, req.body));
+      res.json(await examDatesheetService.updateSchedule(schoolId, req.params.id, req.body, req.user!));
     } catch (err) {
       next(err);
     }
