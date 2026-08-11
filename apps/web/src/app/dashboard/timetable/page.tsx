@@ -41,6 +41,8 @@ interface StaffOption {
 interface GenerateResult {
   createdCount: number;
   warnings: string[];
+  notices: string[];
+  unscheduledPeriodCount: number;
 }
 
 function GenerateTimetableButton({
@@ -78,18 +80,31 @@ function GenerateTimetableButton({
         <Sparkles className="size-4" />
         {submitting ? "Generating…" : classId ? "Generate for this class" : "Generate timetable"}
       </Button>
-      {result && result.warnings.length > 0 && (
+      {result && (result.unscheduledPeriodCount > 0 || result.notices.length > 0) && (
         <Card className="max-w-lg">
-          <CardContent className="flex flex-col gap-1 py-3 text-sm">
-            <span className="font-medium text-status-warning">
-              {result.warnings.length} period{result.warnings.length === 1 ? "" : "s"} couldn't be
-              scheduled
-            </span>
-            <ul className="list-disc pl-4 text-xs text-muted-foreground">
-              {result.warnings.map((w, i) => (
-                <li key={i}>{w}</li>
-              ))}
-            </ul>
+          <CardContent className="flex flex-col gap-3 py-3 text-sm">
+            {result.unscheduledPeriodCount > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="font-medium text-status-warning">
+                  {`${result.unscheduledPeriodCount} period${result.unscheduledPeriodCount === 1 ? "" : "s"} couldn't be scheduled`}
+                </span>
+                <ul className="list-disc pl-4 text-xs text-muted-foreground">
+                  {result.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {result.notices.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="font-medium text-muted-foreground">Scheduled, with some compromises</span>
+                <ul className="list-disc pl-4 text-xs text-muted-foreground">
+                  {result.notices.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

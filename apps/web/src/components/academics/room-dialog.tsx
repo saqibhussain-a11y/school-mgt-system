@@ -113,6 +113,9 @@ export function RoomDialog({
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                Seats — used for exam seating and to check a room fits a class.
+              </p>
             </div>
           </div>
           <DialogFooter>

@@ -376,7 +376,7 @@ model Room {
   schoolId  String
   name      String
   type      RoomType @default(GENERAL)
-  capacity  Int?
+  capacity  Int? // Seats. Shared by exam seating (bulk-generate requires it; manual seat entry tolerates null) and the timetable generator's room-fits-section advisory (never blocks generation, only null is ever ambiguous).
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
