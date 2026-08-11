@@ -1,5 +1,7 @@
 import { prisma, type PrismaTransactionClient, Role, StudentStatus } from "@sms/db";
 import { hashPassword } from "../lib/password";
+import { HttpError } from "../middleware/errorHandler";
+import { creditPoolFor, roundMoney } from "../lib/feeLedger";
 
 type TxClient = PrismaTransactionClient;
 
@@ -126,6 +128,22 @@ export const studentService = {
   async withdraw(schoolId: string, id: string) {
     const existing = await prisma.student.findFirst({ where: { id, schoolId } });
     if (!existing) return null;
+
+    // Withdrawing leaves no invoice to ever apply outstanding fee credit
+    // to, and no automatic refund path — block rather than silently
+    // stranding it as an invisible liability.
+    const invoices = await prisma.feeInvoice.findMany({
+      where: { schoolId, studentId: id },
+      select: { netAmount: true, payments: { select: { amountPaid: true, paymentMethod: true, refunds: { select: { amount: true } } } } },
+    });
+    const creditBalance = Math.max(0, creditPoolFor(invoices));
+    if (creditBalance > 0) {
+      throw new HttpError(
+        400,
+        `This student has ${roundMoney(creditBalance)} of unapplied fee credit — apply it to an invoice or account for it before withdrawing`,
+      );
+    }
+
     return prisma.student.update({
       where: { id },
       data: { status: StudentStatus.WITHDRAWN },

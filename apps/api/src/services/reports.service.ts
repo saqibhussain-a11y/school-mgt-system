@@ -1,5 +1,6 @@
 import { prisma, AttendanceStatus } from "@sms/db";
 import { gradeFor } from "../lib/grading";
+import { ledgerFor, roundMoney } from "../lib/feeLedger";
 
 const STATUS_WEIGHT: Record<AttendanceStatus, number> = {
   PRESENT: 1,
@@ -116,14 +117,17 @@ export const reportsService = {
       include: { payments: { include: { refunds: true } } },
     });
 
-    const byMonth = new Map<string, { invoiced: number; collected: number }>();
+    const byMonth = new Map<string, { invoiced: number; collected: number; outstanding: number }>();
     for (const invoice of invoices) {
       const key = monthKey(invoice.dueDate);
-      const totalPaid = invoice.payments.reduce((s, p) => s + p.amountPaid, 0);
-      const totalRefunded = invoice.payments.reduce((s, p) => s + p.refunds.reduce((rs, r) => rs + r.amount, 0), 0);
-      const bucket = byMonth.get(key) ?? { invoiced: 0, collected: 0 };
+      const { effectivePaid, balance } = ledgerFor(invoice);
+      const bucket = byMonth.get(key) ?? { invoiced: 0, collected: 0, outstanding: 0 };
       bucket.invoiced += invoice.netAmount;
-      bucket.collected += totalPaid - totalRefunded;
+      // Capped at netAmount — unapplied credit is a deferred liability, not
+      // collected revenue (see feeInvoice.service.ts's summary() for the
+      // same fix applied to the school-wide totals).
+      bucket.collected += Math.min(effectivePaid, invoice.netAmount);
+      bucket.outstanding += balance;
       byMonth.set(key, bucket);
     }
 
@@ -131,9 +135,9 @@ export const reportsService = {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, bucket]) => ({
         month: monthLabel(key),
-        totalInvoiced: Math.round(bucket.invoiced * 100) / 100,
-        totalCollected: Math.round(bucket.collected * 100) / 100,
-        totalOutstanding: Math.round((bucket.invoiced - bucket.collected) * 100) / 100,
+        totalInvoiced: roundMoney(bucket.invoiced),
+        totalCollected: roundMoney(bucket.collected),
+        totalOutstanding: roundMoney(bucket.outstanding),
       }));
   },
 };

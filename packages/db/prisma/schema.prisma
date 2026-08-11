@@ -825,6 +825,14 @@ enum FeeInvoiceStatus {
   PAID
 }
 
+// CREDIT payments are how the derived fee-credit pool is "spent" — see
+// feeLedger.ts's creditPoolFor(). A payment's method must stay constrained
+// (not a free string) because that math depends on it.
+enum FeePaymentMethod {
+  MANUAL
+  CREDIT
+}
+
 // period is a free-form label ("September 2026", "Term 1") the accountant
 // supplies at generation time — invoicing is manual/on-demand (no
 // scheduler in this codebase), not an auto-recurring billing cycle.
@@ -857,15 +865,15 @@ model FeeInvoice {
 }
 
 model FeePayment {
-  id               String   @id @default(cuid())
+  id               String           @id @default(cuid())
   schoolId         String
   invoiceId        String
   amountPaid       Float
-  paymentMethod    String   @default("manual")
+  paymentMethod    FeePaymentMethod @default(MANUAL)
   referenceNote    String?
-  paymentDate      DateTime @default(now())
+  paymentDate      DateTime         @default(now())
   recordedByUserId String
-  createdAt        DateTime @default(now())
+  createdAt        DateTime         @default(now())
 
   invoice    FeeInvoice  @relation(fields: [invoiceId], references: [id])
   recordedBy User        @relation("FeePaymentRecordedBy", fields: [recordedByUserId], references: [id])

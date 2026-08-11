@@ -37,6 +37,8 @@ export function generateInvoicePdf(schoolName: string, data: InvoicePdfData): Pr
   doc.text(`Status: ${STATUS_LABELS[data.status] ?? data.status}`);
   doc.moveDown();
 
+  const overpayment = Math.max(0, Math.round((data.effectivePaid - data.netAmount) * 100) / 100);
+
   let y = doc.y;
   y = drawTable(
     doc,
@@ -45,11 +47,20 @@ export function generateInvoicePdf(schoolName: string, data: InvoicePdfData): Pr
       ["Amount", String(data.amount)],
       ["Discount", String(data.discountAmount)],
       ["Net amount", String(data.netAmount)],
-      ["Amount paid", String(data.effectivePaid)],
+      // Never shows more paid than owed — the excess is credited to the
+      // student's account, not lost, but it isn't "amount paid on THIS
+      // invoice" either.
+      ["Amount paid", String(Math.min(data.effectivePaid, data.netAmount))],
       ["Balance due", String(data.balance)],
     ],
     y,
   );
+
+  if (overpayment > 0) {
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`Overpayment of ${overpayment} credited to student account.`, 60, y + 6);
+    y = doc.y;
+  }
 
   if (data.payments.length > 0) {
     doc.moveDown();

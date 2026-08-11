@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Select,
@@ -28,45 +28,70 @@ interface DashboardResponse {
 function StudentInvoices({ studentId }: { studentId: string }) {
   const router = useRouter();
   const { data: invoices, loading } = useApi<FeeInvoice[]>(`/api/fee-invoices/student/${studentId}`);
+  const { data: creditData } = useApi<{ creditBalance: number }>(`/api/fee-invoices/student/${studentId}/credit-balance`);
+  const creditBalance = creditData?.creditBalance ?? 0;
 
   if (loading) return <Skeleton className="h-48 rounded-xl" />;
+
+  // Shown independent of the invoice list below — a student can hold
+  // credit even with zero invoices, and this is the one place they can
+  // actually see it exists.
+  const creditBanner = creditBalance > 0 && (
+    <Card>
+      <CardContent className="flex items-center justify-between py-4">
+        <span className="text-sm text-muted-foreground">Fee credit balance</span>
+        <span className="text-lg font-semibold">{creditBalance}</span>
+      </CardContent>
+    </Card>
+  );
+
   if (!invoices || invoices.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">No invoices yet.</CardContent>
-      </Card>
+      <div className="flex flex-col gap-4">
+        {creditBanner}
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">No invoices yet.</CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Category</TableHead>
-            <TableHead>Period</TableHead>
-            <TableHead>Due date</TableHead>
-            <TableHead>Net amount</TableHead>
-            <TableHead>Balance</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {invoices.map((inv) => (
-            <TableRow key={inv.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/fees/${inv.id}`)}>
-              <TableCell className="font-medium capitalize">{inv.feeStructure.category}</TableCell>
-              <TableCell>{inv.period}</TableCell>
-              <TableCell>{formatDate(inv.dueDate)}</TableCell>
-              <TableCell>{inv.netAmount}</TableCell>
-              <TableCell>{inv.balance}</TableCell>
-              <TableCell>
-                <FeeStatusBadge status={inv.status} />
-              </TableCell>
+    <div className="flex flex-col gap-4">
+      {creditBanner}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Category</TableHead>
+              <TableHead>Period</TableHead>
+              <TableHead>Due date</TableHead>
+              <TableHead>Net amount</TableHead>
+              <TableHead>Balance</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+          </TableHeader>
+          <TableBody>
+            {invoices.map((inv) => (
+              <TableRow
+                key={inv.id}
+                className="cursor-pointer"
+                onClick={() => router.push(`/dashboard/fees/${inv.id}`)}
+              >
+                <TableCell className="font-medium capitalize">{inv.feeStructure.category}</TableCell>
+                <TableCell>{inv.period}</TableCell>
+                <TableCell>{formatDate(inv.dueDate)}</TableCell>
+                <TableCell>{inv.netAmount}</TableCell>
+                <TableCell>{inv.balance}</TableCell>
+                <TableCell>
+                  <FeeStatusBadge status={inv.status} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
   );
 }
 
@@ -75,9 +100,9 @@ export function MyFeesView() {
   const [selectedChild, setSelectedChild] = useState("");
 
   const children = data?.widgets.children ?? [];
-  useEffect(() => {
-    if (!selectedChild && children.length > 0) setSelectedChild(children[0].studentId);
-  }, [children, selectedChild]);
+  if (!selectedChild && children.length > 0) {
+    setSelectedChild(children[0].studentId);
+  }
 
   if (loading || !data) return <Skeleton className="h-64 rounded-xl" />;
 

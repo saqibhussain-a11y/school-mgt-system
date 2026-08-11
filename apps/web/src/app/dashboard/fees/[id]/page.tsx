@@ -7,7 +7,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { FeeStatusBadge } from "@/components/fees/fee-status-badge";
 import { RecordPaymentDialog } from "@/components/fees/record-payment-dialog";
 import { RefundDialog } from "@/components/fees/refund-dialog";
+import { ApplyCreditDialog } from "@/components/fees/apply-credit-dialog";
 import { EditDiscountDialog } from "@/components/fees/edit-discount-dialog";
+import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,15 @@ export default function FeeInvoiceDetailPage() {
   const canManage = !!user && FEE_MANAGE_ROLES.includes(user.role);
 
   const { data: invoice, loading, refetch } = useApi<FeeInvoice>(`/api/fee-invoices/${params.id}`);
+  const { data: creditData, refetch: refetchCredit } = useApi<{ creditBalance: number }>(
+    invoice ? `/api/fee-invoices/student/${invoice.studentId}/credit-balance` : null,
+  );
+  const creditBalance = creditData?.creditBalance ?? 0;
+
+  function refetchAll() {
+    refetch();
+    refetchCredit();
+  }
 
   async function handleDownload() {
     try {
@@ -143,19 +154,40 @@ export default function FeeInvoiceDetailPage() {
               <div className="text-xs text-muted-foreground">Status</div>
               <FeeStatusBadge status={invoice.status} />
             </div>
+            {creditBalance > 0 && (
+              <div>
+                <div className="text-xs text-muted-foreground">Student credit balance</div>
+                <div className="text-lg font-semibold">{creditBalance}</div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Payments</CardTitle>
-            {canManage && invoice.balance > 0 && (
-              <RecordPaymentDialog
-                invoiceId={invoice.id}
-                balance={invoice.balance}
-                onSaved={refetch}
-                trigger={<Button size="sm">Record payment</Button>}
-              />
+            {canManage && (
+              <div className="flex gap-2">
+                {invoice.balance > 0 && creditBalance > 0 && (
+                  <ApplyCreditDialog
+                    invoiceId={invoice.id}
+                    balance={invoice.balance}
+                    creditBalance={creditBalance}
+                    onSaved={refetchAll}
+                    trigger={
+                      <Button size="sm" variant="outline">
+                        Apply credit
+                      </Button>
+                    }
+                  />
+                )}
+                <RecordPaymentDialog
+                  invoiceId={invoice.id}
+                  balance={invoice.balance}
+                  onSaved={refetchAll}
+                  trigger={<Button size="sm">Record payment</Button>}
+                />
+              </div>
             )}
           </CardHeader>
           <CardContent className="p-0">
@@ -179,7 +211,12 @@ export default function FeeInvoiceDetailPage() {
                     return (
                       <TableRow key={p.id}>
                         <TableCell>{formatDate(p.paymentDate)}</TableCell>
-                        <TableCell>{p.amountPaid}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {p.amountPaid}
+                            {p.paymentMethod === "CREDIT" && <Badge variant="secondary">Credit</Badge>}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-muted-foreground">{p.referenceNote || "—"}</TableCell>
                         <TableCell>
                           {refunded > 0 ? (
@@ -201,10 +238,10 @@ export default function FeeInvoiceDetailPage() {
                               <RefundDialog
                                 paymentId={p.id}
                                 refundable={refundable}
-                                onSaved={refetch}
+                                onSaved={refetchAll}
                                 trigger={
                                   <Button size="sm" variant="ghost">
-                                    Refund
+                                    {p.paymentMethod === "CREDIT" ? "Un-apply" : "Refund"}
                                   </Button>
                                 }
                               />

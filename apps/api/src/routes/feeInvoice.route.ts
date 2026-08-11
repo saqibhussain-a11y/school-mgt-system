@@ -11,6 +11,7 @@ import {
   generateInvoicesSchema,
   updateInvoiceDiscountSchema,
   recordPaymentSchema,
+  applyCreditSchema,
   recordRefundSchema,
 } from "../validation/fee.schema";
 
@@ -63,6 +64,16 @@ feeInvoiceRouter.get("/student/:studentId", async (req, res, next) => {
     const schoolId = req.user!.schoolId;
     await assertCanViewStudentFees(schoolId, req.user!, req.params.studentId);
     res.json(await feeInvoiceService.listForStudent(schoolId, req.params.studentId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+feeInvoiceRouter.get("/student/:studentId/credit-balance", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    await assertCanViewStudentFees(schoolId, req.user!, req.params.studentId);
+    res.json(await feeInvoiceService.getCreditBalance(schoolId, req.params.studentId));
   } catch (err) {
     next(err);
   }
@@ -151,6 +162,25 @@ feeInvoiceRouter.post(
         ...req.body,
         recordedByUserId: req.user!.sub,
       });
+      res.status(201).json(payment);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+feeInvoiceRouter.post(
+  "/:id/apply-credit",
+  authorize(...FEE_MANAGE_ROLES),
+  validateBody(applyCreditSchema),
+  async (req, res, next) => {
+    try {
+      const payment = await feeInvoiceService.applyCredit(
+        req.user!.schoolId,
+        req.params.id,
+        req.body.amount,
+        req.user!.sub,
+      );
       res.status(201).json(payment);
     } catch (err) {
       next(err);

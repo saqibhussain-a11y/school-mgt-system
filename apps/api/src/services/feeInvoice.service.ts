@@ -1,9 +1,12 @@
-import { prisma, FeeInvoiceStatus } from "@sms/db";
+import { prisma, FeeInvoiceStatus, type PrismaTransactionClient } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { studentService } from "./student.service";
 import { studentGuardianService } from "./studentGuardian.service";
 import { inAppNotificationService } from "./inAppNotification.service";
 import { generateInvoicePdf } from "../lib/invoicePdf";
+import { roundMoney, ledgerFor, statusFor, creditPoolFor } from "../lib/feeLedger";
+
+type TxClient = PrismaTransactionClient;
 
 const invoiceInclude = {
   student: {
@@ -20,37 +23,36 @@ const invoiceInclude = {
   payments: { include: { refunds: true }, orderBy: { paymentDate: "desc" as const } },
 };
 
-// balance/effectivePaid are always derived from the payments+refunds ledger,
-// never stored — status IS persisted (recomputed on every write) so list
-// queries (defaulter reports) don't need to join+sum for every row.
-function ledgerFor(invoice: { netAmount: number; payments: { amountPaid: number; refunds: { amount: number }[] }[] }) {
-  const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amountPaid, 0);
-  const totalRefunded = invoice.payments.reduce(
-    (sum, p) => sum + p.refunds.reduce((s, r) => s + r.amount, 0),
-    0,
-  );
-  const effectivePaid = totalPaid - totalRefunded;
-  const balance = Math.round((invoice.netAmount - effectivePaid) * 100) / 100;
-  return { effectivePaid, balance };
-}
+const creditPoolInclude = {
+  netAmount: true,
+  payments: { select: { amountPaid: true, paymentMethod: true, refunds: { select: { amount: true } } } },
+};
 
-function statusFor(netAmount: number, effectivePaid: number): FeeInvoiceStatus {
-  if (effectivePaid >= netAmount) return FeeInvoiceStatus.PAID;
-  if (effectivePaid > 0) return FeeInvoiceStatus.PARTIALLY_PAID;
-  return FeeInvoiceStatus.UNPAID;
-}
-
-async function recomputeStatus(invoiceId: string) {
-  const invoice = await prisma.feeInvoice.findUniqueOrThrow({
+async function recomputeStatus(tx: TxClient, invoiceId: string) {
+  const invoice = await tx.feeInvoice.findUniqueOrThrow({
     where: { id: invoiceId },
     include: { payments: { include: { refunds: true } } },
   });
   const { effectivePaid } = ledgerFor(invoice);
   const status = statusFor(invoice.netAmount, effectivePaid);
   if (status !== invoice.status) {
-    await prisma.feeInvoice.update({ where: { id: invoiceId }, data: { status } });
+    await tx.feeInvoice.update({ where: { id: invoiceId }, data: { status } });
   }
   return status;
+}
+
+// Forces a row lock on the student for the lifetime of the enclosing
+// transaction — every money-moving operation on a given student (payment,
+// refund, credit application) must serialize against every other one, since
+// the credit pool is a derived SUM with no unique constraint that could
+// otherwise catch a concurrent double-spend. See feeLedger.ts.
+async function lockStudentRow(tx: TxClient, studentId: string) {
+  await tx.student.update({ where: { id: studentId }, data: { updatedAt: new Date() } });
+}
+
+async function creditPoolForStudent(tx: TxClient, schoolId: string, studentId: string) {
+  const invoices = await tx.feeInvoice.findMany({ where: { schoolId, studentId }, select: creditPoolInclude });
+  return creditPoolFor(invoices);
 }
 
 function withLedger<T extends { netAmount: number; payments: { amountPaid: number; refunds: { amount: number }[] }[] }>(
@@ -189,19 +191,44 @@ export const feeInvoiceService = {
 
     let totalInvoiced = 0;
     let totalCollected = 0;
+    let totalOutstanding = 0;
     const countByStatus: Record<FeeInvoiceStatus, number> = { UNPAID: 0, PARTIALLY_PAID: 0, PAID: 0 };
     for (const invoice of invoices) {
-      const { effectivePaid } = ledgerFor(invoice);
+      const { effectivePaid, balance } = ledgerFor(invoice);
       totalInvoiced += invoice.netAmount;
-      totalCollected += effectivePaid;
+      // Capped at netAmount — unapplied credit is a deferred liability, not
+      // collected revenue, and balance is already clamped at 0 so summing
+      // it never lets one student's overpayment net against another's
+      // arrears (both were true bugs in the unclamped version of this).
+      totalCollected += Math.min(effectivePaid, invoice.netAmount);
+      totalOutstanding += balance;
       countByStatus[invoice.status] += 1;
+    }
+
+    // Unapplied credit is computed school-wide, independent of this
+    // summary's class/period filter — a student's overpayment doesn't stop
+    // being a real liability just because this report is scoped elsewhere.
+    const allInvoices = await prisma.feeInvoice.findMany({
+      where: { schoolId },
+      select: { studentId: true, ...creditPoolInclude },
+    });
+    const byStudent = new Map<string, typeof allInvoices>();
+    for (const invoice of allInvoices) {
+      const list = byStudent.get(invoice.studentId) ?? [];
+      list.push(invoice);
+      byStudent.set(invoice.studentId, list);
+    }
+    let totalUnappliedCredit = 0;
+    for (const studentInvoices of byStudent.values()) {
+      totalUnappliedCredit += Math.max(0, creditPoolFor(studentInvoices));
     }
 
     return {
       invoiceCount: invoices.length,
-      totalInvoiced: Math.round(totalInvoiced * 100) / 100,
-      totalCollected: Math.round(totalCollected * 100) / 100,
-      totalOutstanding: Math.round((totalInvoiced - totalCollected) * 100) / 100,
+      totalInvoiced: roundMoney(totalInvoiced),
+      totalCollected: roundMoney(totalCollected),
+      totalOutstanding: roundMoney(totalOutstanding),
+      totalUnappliedCredit: roundMoney(totalUnappliedCredit),
       countByStatus,
     };
   },
@@ -233,58 +260,149 @@ export const feeInvoiceService = {
     return invoice;
   },
 
+  // No upper guard on amountPaid vs. the invoice's balance — an amount
+  // beyond what's owed mints fee credit (see feeLedger.ts's creditPoolFor)
+  // rather than being rejected. This also means a payment on an
+  // already-fully-paid invoice (the classic "duplicate bank transfer"
+  // case) is a supported action now, not an error.
   async recordPayment(
     schoolId: string,
     invoiceId: string,
     data: { amountPaid: number; referenceNote?: string; recordedByUserId: string },
   ) {
-    const invoice = await prisma.feeInvoice.findFirst({
-      where: { id: invoiceId, schoolId },
-      include: { payments: { include: { refunds: true } }, student: { select: { id: true, userId: true } } },
-    });
-    if (!invoice) throw new HttpError(404, "Invoice not found");
-    const { balance } = ledgerFor(invoice);
-    if (balance <= 0) throw new HttpError(400, "This invoice is already fully paid");
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.feeInvoice.findFirst({
+        where: { id: invoiceId, schoolId },
+        include: { payments: { include: { refunds: true } }, student: { select: { id: true, userId: true } } },
+      });
+      if (!invoice) throw new HttpError(404, "Invoice not found");
 
-    const payment = await prisma.feePayment.create({
-      data: {
-        schoolId,
-        invoiceId,
-        amountPaid: data.amountPaid,
-        referenceNote: data.referenceNote,
-        recordedByUserId: data.recordedByUserId,
-      },
-    });
-    const status = await recomputeStatus(invoiceId);
+      await lockStudentRow(tx, invoice.studentId);
 
-    const parentUserIds = await studentGuardianService.getGuardianUserIdsForStudents(schoolId, [invoice.studentId]);
-    await inAppNotificationService.notifyMany(schoolId, [invoice.student.userId, ...parentUserIds], {
+      const { effectivePaid: oldEffectivePaid } = ledgerFor(invoice);
+      const oldMinted = Math.max(0, roundMoney(oldEffectivePaid - invoice.netAmount));
+
+      const payment = await tx.feePayment.create({
+        data: {
+          schoolId,
+          invoiceId,
+          amountPaid: data.amountPaid,
+          referenceNote: data.referenceNote,
+          recordedByUserId: data.recordedByUserId,
+        },
+      });
+      const status = await recomputeStatus(tx, invoiceId);
+
+      const newMinted = Math.max(0, roundMoney(oldEffectivePaid + data.amountPaid - invoice.netAmount));
+      const creditMinted = roundMoney(newMinted - oldMinted);
+
+      return { payment, status, creditMinted, studentId: invoice.studentId, studentUserId: invoice.student.userId };
+    });
+
+    const parentUserIds = await studentGuardianService.getGuardianUserIdsForStudents(schoolId, [result.studentId]);
+    const creditNote = result.creditMinted > 0 ? ` (${result.creditMinted} of this was added to their fee credit balance)` : "";
+    await inAppNotificationService.notifyMany(schoolId, [result.studentUserId, ...parentUserIds], {
       type: "fee_payment",
       title: "Fee payment recorded",
-      body: `Payment of ${data.amountPaid} received${status === "PAID" ? " — invoice fully paid" : ""}`,
+      body: `Payment of ${data.amountPaid} received${result.status === "PAID" ? " — invoice fully paid" : ""}${creditNote}`,
       link: "/dashboard/fees",
     });
 
-    return payment;
+    return result.payment;
   },
 
+  // Applying credit is just a normal FeePayment tagged paymentMethod:
+  // CREDIT — see feeLedger.ts's creditPoolFor for how that's later read back
+  // out as "spent" credit. No separate ledger/application record needed.
+  async applyCredit(schoolId: string, invoiceId: string, amount: number, recordedByUserId: string) {
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.feeInvoice.findFirst({
+        where: { id: invoiceId, schoolId },
+        include: { payments: { include: { refunds: true } }, student: { select: { id: true, userId: true } } },
+      });
+      if (!invoice) throw new HttpError(404, "Invoice not found");
+
+      await lockStudentRow(tx, invoice.studentId);
+
+      const { balance } = ledgerFor(invoice);
+      if (amount > balance) {
+        throw new HttpError(400, "Credit applied cannot exceed the invoice's outstanding balance");
+      }
+
+      const pool = await creditPoolForStudent(tx, schoolId, invoice.studentId);
+      if (amount > pool) {
+        throw new HttpError(400, `This student only has ${roundMoney(pool)} of fee credit available`);
+      }
+
+      const payment = await tx.feePayment.create({
+        data: {
+          schoolId,
+          invoiceId,
+          amountPaid: amount,
+          paymentMethod: "CREDIT",
+          referenceNote: "Applied from student credit balance",
+          recordedByUserId,
+        },
+      });
+      const status = await recomputeStatus(tx, invoiceId);
+
+      return { payment, status, studentId: invoice.studentId, studentUserId: invoice.student.userId };
+    });
+
+    const parentUserIds = await studentGuardianService.getGuardianUserIdsForStudents(schoolId, [result.studentId]);
+    await inAppNotificationService.notifyMany(schoolId, [result.studentUserId, ...parentUserIds], {
+      type: "fee_payment",
+      title: "Fee credit applied",
+      body: `${amount} of fee credit applied to an invoice${result.status === "PAID" ? " — invoice fully paid" : ""}`,
+      link: "/dashboard/fees",
+    });
+
+    return result.payment;
+  },
+
+  async getCreditBalance(schoolId: string, studentId: string) {
+    const pool = await prisma.$transaction((tx) => creditPoolForStudent(tx, schoolId, studentId));
+    return { creditBalance: Math.max(0, pool) };
+  },
+
+  // The refund is inserted speculatively inside the transaction, then the
+  // student's whole credit pool is recomputed from that (now-refunded)
+  // state — if it would go negative, throwing rolls the insert back
+  // automatically. This is the only way to correctly catch "this refund
+  // would leave credit that's already been spent on a different invoice
+  // unbacked", since the pool is derived across the student's entire
+  // invoice set, not trackable per-payment (see feeLedger.ts).
   async recordRefund(schoolId: string, paymentId: string, data: { amount: number; reason: string; recordedByUserId: string }) {
-    const payment = await prisma.feePayment.findFirst({
-      where: { id: paymentId, schoolId },
-      include: { refunds: true, invoice: true },
-    });
-    if (!payment) throw new HttpError(404, "Payment not found");
+    const result = await prisma.$transaction(async (tx) => {
+      const payment = await tx.feePayment.findFirst({
+        where: { id: paymentId, schoolId },
+        include: { refunds: true, invoice: { select: { id: true, studentId: true } } },
+      });
+      if (!payment) throw new HttpError(404, "Payment not found");
 
-    const alreadyRefunded = payment.refunds.reduce((sum, r) => sum + r.amount, 0);
-    if (data.amount > payment.amountPaid - alreadyRefunded) {
-      throw new HttpError(400, "Refund amount exceeds what remains refundable on this payment");
-    }
+      await lockStudentRow(tx, payment.invoice.studentId);
 
-    const refund = await prisma.feeRefund.create({
-      data: { schoolId, paymentId, amount: data.amount, reason: data.reason, recordedByUserId: data.recordedByUserId },
+      const alreadyRefunded = payment.refunds.reduce((sum, r) => sum + r.amount, 0);
+      if (data.amount > payment.amountPaid - alreadyRefunded) {
+        throw new HttpError(400, "Refund amount exceeds what remains refundable on this payment");
+      }
+
+      const refund = await tx.feeRefund.create({
+        data: { schoolId, paymentId, amount: data.amount, reason: data.reason, recordedByUserId: data.recordedByUserId },
+      });
+
+      const poolAfter = await creditPoolForStudent(tx, schoolId, payment.invoice.studentId);
+      if (poolAfter < 0) {
+        throw new HttpError(
+          400,
+          `This refund would leave ${roundMoney(-poolAfter)} of this student's fee credit — already applied to another invoice — unbacked. Un-apply that credit first.`,
+        );
+      }
+
+      await recomputeStatus(tx, payment.invoice.id);
+      return refund;
     });
-    await recomputeStatus(payment.invoiceId);
-    return refund;
+    return result;
   },
 
   async remind(schoolId: string, invoiceId: string) {

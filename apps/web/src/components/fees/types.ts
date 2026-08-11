@@ -21,6 +21,7 @@ export interface FeeRefund {
 export interface FeePayment {
   id: string;
   amountPaid: number;
+  paymentMethod: "MANUAL" | "CREDIT";
   referenceNote: string | null;
   paymentDate: string;
   refunds: FeeRefund[];
@@ -52,5 +53,6 @@ export interface FeeSummary {
   totalInvoiced: number;
   totalCollected: number;
   totalOutstanding: number;
+  totalUnappliedCredit: number;
   countByStatus: Record<FeeInvoiceStatus, number>;
 }

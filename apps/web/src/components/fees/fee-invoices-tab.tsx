@@ -45,7 +45,7 @@ export function FeeInvoicesTab() {
   return (
     <div className="flex flex-col gap-4">
       {summary && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total invoiced</CardTitle>
@@ -63,6 +63,12 @@ export function FeeInvoicesTab() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
             </CardHeader>
             <CardContent className="text-2xl font-semibold">{summary.totalOutstanding}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Unapplied fee credit</CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">{summary.totalUnappliedCredit}</CardContent>
           </Card>
         </div>
       )}
