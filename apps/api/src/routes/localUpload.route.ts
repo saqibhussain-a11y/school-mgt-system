@@ -1,5 +1,6 @@
 import { Router } from "express";
 import crypto from "node:crypto";
+import path from "node:path";
 import { HttpError } from "../middleware/errorHandler";
 import { readLocalFile, signLocalDownload } from "../lib/storage";
 
@@ -17,18 +18,22 @@ localUploadRouter.get("/", async (req, res, next) => {
     const key = req.query.key as string | undefined;
     const exp = Number(req.query.exp);
     const sig = req.query.sig as string | undefined;
+    const forceDownload = req.query.dl === "1";
     if (!key || key.includes("..") || !exp || !sig) {
       throw new HttpError(400, "Invalid or missing link parameters");
     }
     if (Date.now() > exp) throw new HttpError(410, "This download link has expired");
 
-    const expected = signLocalDownload(key, exp);
+    const expected = signLocalDownload(key, exp, forceDownload);
     const sigBuf = Buffer.from(sig);
     const expectedBuf = Buffer.from(expected);
     if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
       throw new HttpError(403, "Invalid download link");
     }
 
+    if (forceDownload) {
+      res.setHeader("Content-Disposition", `attachment; filename="${path.basename(key)}"`);
+    }
     res.sendFile(readLocalFile(key));
   } catch (err) {
     next(err);

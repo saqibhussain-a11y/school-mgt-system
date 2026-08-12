@@ -4,6 +4,7 @@ import { authService } from "../services/auth.service";
 import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
+import { loginLimiter, passwordResetRequestLimiter, otpVerifyLimiter } from "../middleware/rateLimit";
 import { generateTempPassword } from "../lib/tempPassword";
 import {
   loginSchema,
@@ -17,7 +18,7 @@ import {
 
 export const authRouter = Router();
 
-authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
+authRouter.post("/login", loginLimiter, validateBody(loginSchema), async (req, res, next) => {
   try {
     const { schoolId, email, password } = req.body;
     const tokens = await authService.login(schoolId, email, password);
@@ -31,6 +32,7 @@ authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
 // picker — the super admin signs in at its own unlisted page.
 authRouter.post(
   "/platform-login",
+  loginLimiter,
   validateBody(platformLoginSchema),
   async (req, res, next) => {
     try {
@@ -97,6 +99,7 @@ authRouter.post(
 
 authRouter.post(
   "/forgot-password",
+  passwordResetRequestLimiter,
   validateBody(forgotPasswordSchema),
   async (req, res, next) => {
     try {
@@ -109,7 +112,7 @@ authRouter.post(
   },
 );
 
-authRouter.post("/reset-password", validateBody(resetPasswordSchema), async (req, res, next) => {
+authRouter.post("/reset-password", otpVerifyLimiter, validateBody(resetPasswordSchema), async (req, res, next) => {
   try {
     const { schoolId, email, otp, newPassword } = req.body;
     await authService.resetPassword(schoolId, email, otp, newPassword);

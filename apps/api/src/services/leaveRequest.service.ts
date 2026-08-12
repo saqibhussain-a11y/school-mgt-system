@@ -1,9 +1,10 @@
-import { prisma, Role, LeaveStatus, AttendanceStatus } from "@sms/db";
+import { prisma, Role, LeaveStatus, AttendanceStatus, type PrismaTransactionClient } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { staffService } from "./staff.service";
-import { studentService } from "./student.service";
 import { inAppNotificationService } from "./inAppNotification.service";
 import { LEAVE_TYPES } from "../validation/leaveRequest.schema";
+
+type TxClient = PrismaTransactionClient;
 
 // Same reviewer set as REVIEW_ROLES in leaveRequest.route.ts — duplicated
 // here (not imported) since routes shouldn't be a dependency of services.
@@ -33,12 +34,20 @@ function inclusiveDayCount(start: Date, end: Date) {
 // teacher doesn't have to separately re-mark days already covered by an
 // approved request. classId/sectionId are captured from the student's
 // *current* assignment at approval time, matching how markBulk captures them.
+//
+// Runs inside the SAME transaction as the leave-request status update (see
+// review() below) — this used to be its own separate transaction run after
+// the status write had already committed, so a crash in between left an
+// unretryable APPROVED request with attendance never synced (review() refuses
+// to touch a non-PENDING request, so there was no way to recover except a
+// manual DB fix).
 async function syncStudentAttendance(
+  tx: TxClient,
   schoolId: string,
   request: { userId: string; startDate: Date; endDate: Date },
   reviewerId: string,
 ) {
-  const student = await studentService.getByUserId(schoolId, request.userId);
+  const student = await tx.student.findFirst({ where: { schoolId, userId: request.userId } });
   if (!student) return;
 
   const days = inclusiveDayCount(request.startDate, request.endDate);
@@ -47,28 +56,26 @@ async function syncStudentAttendance(
     (_, i) => new Date(request.startDate.getTime() + i * 86_400_000),
   );
 
-  await prisma.$transaction(
-    dates.map((date) =>
-      prisma.attendance.upsert({
-        where: { studentId_date: { studentId: student.id, date } },
-        create: {
-          schoolId,
-          studentId: student.id,
-          classId: student.classId,
-          sectionId: student.sectionId,
-          date,
-          status: AttendanceStatus.LEAVE,
-          remarks: "Approved leave",
-          markedByUserId: reviewerId,
-        },
-        update: {
-          status: AttendanceStatus.LEAVE,
-          remarks: "Approved leave",
-          markedByUserId: reviewerId,
-        },
-      }),
-    ),
-  );
+  for (const date of dates) {
+    await tx.attendance.upsert({
+      where: { studentId_date: { studentId: student.id, date } },
+      create: {
+        schoolId,
+        studentId: student.id,
+        classId: student.classId,
+        sectionId: student.sectionId,
+        date,
+        status: AttendanceStatus.LEAVE,
+        remarks: "Approved leave",
+        markedByUserId: reviewerId,
+      },
+      update: {
+        status: AttendanceStatus.LEAVE,
+        remarks: "Approved leave",
+        markedByUserId: reviewerId,
+      },
+    });
+  }
 }
 
 export const leaveRequestService = {
@@ -146,15 +153,19 @@ export const leaveRequestService = {
       throw new HttpError(400, "Only pending requests can be reviewed");
     }
 
-    const updated = await prisma.leaveRequest.update({
-      where: { id },
-      data: { status, reviewedById: reviewerId, reviewedAt: new Date(), reviewNote },
-      include: leaveRequestInclude,
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const updated = await tx.leaveRequest.update({
+        where: { id },
+        data: { status, reviewedById: reviewerId, reviewedAt: new Date(), reviewNote },
+        include: leaveRequestInclude,
+      });
 
-    if (status === LeaveStatus.APPROVED && existing.role === Role.STUDENT) {
-      await syncStudentAttendance(schoolId, existing, reviewerId);
-    }
+      if (status === LeaveStatus.APPROVED && existing.role === Role.STUDENT) {
+        await syncStudentAttendance(tx, schoolId, existing, reviewerId);
+      }
+
+      return updated;
+    });
 
     await inAppNotificationService.notify(schoolId, existing.userId, {
       type: "leave_review",

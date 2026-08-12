@@ -68,9 +68,12 @@ export const examService = {
     });
   },
 
-  list(schoolId: string, classId?: string) {
+  list(schoolId: string, classId?: string, restrictToClassIds?: string[]) {
     return prisma.exam.findMany({
-      where: { schoolId, ...(classId ? { classId } : {}) },
+      where: {
+        schoolId,
+        ...(classId ? { classId } : restrictToClassIds ? { classId: { in: restrictToClassIds } } : {}),
+      },
       include: examInclude,
       orderBy: { startDate: "desc" },
     });

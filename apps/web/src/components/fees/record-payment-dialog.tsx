@@ -36,11 +36,17 @@ export function RecordPaymentDialog({
   const [amountPaid, setAmountPaid] = useState(String(balance));
   const [referenceNote, setReferenceNote] = useState("");
   const [confirmOverpay, setConfirmOverpay] = useState(false);
+  // One key per genuinely new submission intent (each time the dialog is
+  // freshly opened) — a retry of a failed submit reuses this same key, so
+  // the server can tell "resend after a dropped response" apart from "the
+  // user deliberately submitted again."
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   if (open && !wasOpen) {
     setWasOpen(true);
     setAmountPaid(String(balance));
     setReferenceNote("");
     setConfirmOverpay(false);
+    setIdempotencyKey(crypto.randomUUID());
   } else if (!open && wasOpen) {
     setWasOpen(false);
   }
@@ -56,7 +62,7 @@ export function RecordPaymentDialog({
     try {
       await apiFetch(`/api/fee-invoices/${invoiceId}/payments`, {
         method: "POST",
-        body: JSON.stringify({ amountPaid: parsedAmount, referenceNote: referenceNote || undefined }),
+        body: JSON.stringify({ amountPaid: parsedAmount, referenceNote: referenceNote || undefined, idempotencyKey }),
       });
       toast.success("Payment recorded");
       setOpen(false);

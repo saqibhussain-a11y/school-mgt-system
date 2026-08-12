@@ -4,7 +4,16 @@
 // end-user-visible benefit here.
 export function toCsv(columns: { key: string; label: string }[], rows: Record<string, unknown>[]) {
   function escape(value: unknown) {
-    const str = value === null || value === undefined ? "" : String(value);
+    let str = value === null || value === undefined ? "" : String(value);
+    // Formula-injection guard: Excel/Sheets treat a cell starting with any
+    // of these as the start of a formula regardless of quoting — a
+    // free-text field (student/guardian name, reference note) could
+    // otherwise plant a formula that executes when someone opens the
+    // export. A leading literal single-quote is the standard mitigation;
+    // spreadsheet apps render it as plain text, not part of the value.
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
     return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
   }
 

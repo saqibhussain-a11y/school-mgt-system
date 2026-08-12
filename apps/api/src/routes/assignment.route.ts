@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import path from "node:path";
 import { Role } from "@sms/db";
 import { assignmentService } from "../services/assignment.service";
 import { studentService } from "../services/student.service";
@@ -16,7 +17,43 @@ import {
 } from "../validation/assignment.schema";
 
 const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+// Allow-list, not a deny-list — narrower than exhaustively blocking every
+// dangerous extension, and closes the actual risk: an uploaded .html/.svg
+// stored and later served back gets rendered inline by the browser instead
+// of downloaded, since nothing here validates the client-supplied mimetype
+// against the file's real content. (getDownloadUrl's forced
+// Content-Disposition: attachment, below, is the deeper defense — this
+// filter just stops the obviously-wrong file types at the door.)
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".csv",
+  ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(path.extname(file.originalname).toLowerCase())) {
+      cb(new HttpError(400, "This file type isn't allowed for assignment attachments"));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 export const assignmentRouter = Router();
 assignmentRouter.use(authenticate);

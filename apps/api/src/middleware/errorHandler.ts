@@ -32,7 +32,12 @@ function mapKnownError(err: unknown): { status: number; message: string } | null
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   const mapped = mapKnownError(err);
   const status = mapped?.status ?? 500;
-  const message = mapped?.message ?? (err instanceof Error ? err.message : "Internal server error");
+  // Anything not explicitly mapped above is an unexpected failure — its raw
+  // message (a Prisma validation error naming a column/table, a bare
+  // exception message, etc.) is an implementation detail, not something
+  // safe to hand back to a client probing endpoints with malformed input.
+  // Every mapped message above was written to be user-facing on purpose.
+  const message = mapped?.message ?? "Internal server error";
 
   if (status === 500) {
     console.error(err);

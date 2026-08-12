@@ -1,4 +1,4 @@
-import { prisma, FeeInvoiceStatus, type PrismaTransactionClient } from "@sms/db";
+import { prisma, Prisma, FeeInvoiceStatus, type PrismaTransactionClient } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { studentService } from "./student.service";
 import { studentGuardianService } from "./studentGuardian.service";
@@ -90,35 +90,58 @@ export const feeInvoiceService = {
       throw new HttpError(400, "All matching students already have an invoice for this fee structure and period");
     }
 
-    const created = await prisma.$transaction(
-      toInvoice.map((s) =>
-        prisma.feeInvoice.create({
-          data: {
-            schoolId,
-            studentId: s.id,
-            feeStructureId: input.feeStructureId,
-            period: input.period,
-            amount: structure.amount,
-            netAmount: structure.amount,
-            dueDate: input.dueDate,
-            createdByUserId: input.createdByUserId,
-          },
-        }),
-      ),
-    );
+    // createMany + skipDuplicates, not an array of individual creates inside
+    // one all-or-nothing $transaction — that form meant a single student
+    // who got invoiced by a concurrent request in the gap between the check
+    // above and this write aborted creation for every OTHER, non-conflicting
+    // student in the same batch too. skipDuplicates lets Postgres silently
+    // no-op just the genuinely-conflicting row(s) instead of the whole batch.
+    const result = await prisma.feeInvoice.createMany({
+      data: toInvoice.map((s) => ({
+        schoolId,
+        studentId: s.id,
+        feeStructureId: input.feeStructureId,
+        period: input.period,
+        amount: structure.amount,
+        netAmount: structure.amount,
+        dueDate: input.dueDate,
+        createdByUserId: input.createdByUserId,
+      })),
+      skipDuplicates: true,
+    });
+
+    // createMany doesn't return which rows landed — re-check against
+    // `toInvoice` specifically (not `students`) so a concurrent request that
+    // won the race on one of these students isn't double-notified as if we
+    // had invoiced them.
+    const invoicedNow = await prisma.feeInvoice.findMany({
+      where: {
+        schoolId,
+        feeStructureId: input.feeStructureId,
+        period: input.period,
+        studentId: { in: toInvoice.map((s) => s.id) },
+      },
+      select: { studentId: true },
+    });
+    const invoicedNowIds = new Set(invoicedNow.map((i) => i.studentId));
+    const actuallyInvoiced = toInvoice.filter((s) => invoicedNowIds.has(s.id));
 
     const parentUserIds = await studentGuardianService.getGuardianUserIdsForStudents(
       schoolId,
-      toInvoice.map((s) => s.id),
+      actuallyInvoiced.map((s) => s.id),
     );
-    await inAppNotificationService.notifyMany(schoolId, [...toInvoice.map((s) => s.userId), ...parentUserIds], {
-      type: "fee_invoice",
-      title: "New fee invoice",
-      body: `${structure.category} fee for ${input.period}: ${structure.amount}`,
-      link: "/dashboard/fees",
-    });
+    await inAppNotificationService.notifyMany(
+      schoolId,
+      [...actuallyInvoiced.map((s) => s.userId), ...parentUserIds],
+      {
+        type: "fee_invoice",
+        title: "New fee invoice",
+        body: `${structure.category} fee for ${input.period}: ${structure.amount}`,
+        link: "/dashboard/fees",
+      },
+    );
 
-    return { created: created.length, skipped: students.length - toInvoice.length };
+    return { created: result.count, skipped: students.length - result.count };
   },
 
   async getById(schoolId: string, id: string) {
@@ -268,36 +291,57 @@ export const feeInvoiceService = {
   async recordPayment(
     schoolId: string,
     invoiceId: string,
-    data: { amountPaid: number; referenceNote?: string; recordedByUserId: string },
+    data: { amountPaid: number; referenceNote?: string; recordedByUserId: string; idempotencyKey?: string },
   ) {
-    const result = await prisma.$transaction(async (tx) => {
-      const invoice = await tx.feeInvoice.findFirst({
-        where: { id: invoiceId, schoolId },
-        include: { payments: { include: { refunds: true } }, student: { select: { id: true, userId: true } } },
+    // A retried/double-clicked submission replays the same key — return the
+    // payment that request already created rather than recording a second
+    // one. Deliberately does NOT re-send the notification below; that fired
+    // once, on whichever attempt actually created the row.
+    if (data.idempotencyKey) {
+      const existing = await prisma.feePayment.findFirst({ where: { schoolId, idempotencyKey: data.idempotencyKey } });
+      if (existing) return existing;
+    }
+
+    let result;
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        const invoice = await tx.feeInvoice.findFirst({
+          where: { id: invoiceId, schoolId },
+          include: { payments: { include: { refunds: true } }, student: { select: { id: true, userId: true } } },
+        });
+        if (!invoice) throw new HttpError(404, "Invoice not found");
+
+        await lockStudentRow(tx, invoice.studentId);
+
+        const { effectivePaid: oldEffectivePaid } = ledgerFor(invoice);
+        const oldMinted = Math.max(0, roundMoney(oldEffectivePaid - invoice.netAmount));
+
+        const payment = await tx.feePayment.create({
+          data: {
+            schoolId,
+            invoiceId,
+            amountPaid: data.amountPaid,
+            referenceNote: data.referenceNote,
+            recordedByUserId: data.recordedByUserId,
+            idempotencyKey: data.idempotencyKey,
+          },
+        });
+        const status = await recomputeStatus(tx, invoiceId);
+
+        const newMinted = Math.max(0, roundMoney(oldEffectivePaid + data.amountPaid - invoice.netAmount));
+        const creditMinted = roundMoney(newMinted - oldMinted);
+
+        return { payment, status, creditMinted, studentId: invoice.studentId, studentUserId: invoice.student.userId };
       });
-      if (!invoice) throw new HttpError(404, "Invoice not found");
-
-      await lockStudentRow(tx, invoice.studentId);
-
-      const { effectivePaid: oldEffectivePaid } = ledgerFor(invoice);
-      const oldMinted = Math.max(0, roundMoney(oldEffectivePaid - invoice.netAmount));
-
-      const payment = await tx.feePayment.create({
-        data: {
-          schoolId,
-          invoiceId,
-          amountPaid: data.amountPaid,
-          referenceNote: data.referenceNote,
-          recordedByUserId: data.recordedByUserId,
-        },
-      });
-      const status = await recomputeStatus(tx, invoiceId);
-
-      const newMinted = Math.max(0, roundMoney(oldEffectivePaid + data.amountPaid - invoice.netAmount));
-      const creditMinted = roundMoney(newMinted - oldMinted);
-
-      return { payment, status, creditMinted, studentId: invoice.studentId, studentUserId: invoice.student.userId };
-    });
+    } catch (err) {
+      if (data.idempotencyKey && err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        // Lost a genuine concurrent race to another request carrying the
+        // same key — that one already recorded the payment.
+        const existing = await prisma.feePayment.findFirst({ where: { schoolId, idempotencyKey: data.idempotencyKey } });
+        if (existing) return existing;
+      }
+      throw err;
+    }
 
     const parentUserIds = await studentGuardianService.getGuardianUserIdsForStudents(schoolId, [result.studentId]);
     const creditNote = result.creditMinted > 0 ? ` (${result.creditMinted} of this was added to their fee credit balance)` : "";

@@ -39,6 +39,14 @@ const studentInclude = {
 };
 
 async function generateAdmissionNo(tx: TxClient, schoolId: string) {
+  // Locks auto-numbering for this school so two concurrent admissions can't
+  // both count() before either has inserted and compute the identical next
+  // number (that race was previously caught only by the unique constraint,
+  // failing one of the two legitimate concurrent admissions outright rather
+  // than giving it the next number) — same UPDATE-as-lock technique as fee
+  // credit-carry's lockStudentRow. Only taken here, so an explicit
+  // caller-supplied admissionNo (bulk CSV import) never triggers this lock.
+  await tx.school.update({ where: { id: schoolId }, data: { updatedAt: new Date() } });
   const prefix = `ADM-${new Date().getFullYear()}-`;
   const count = await tx.student.count({
     where: { schoolId, admissionNo: { startsWith: prefix } },

@@ -8,6 +8,13 @@ import { initSocket } from "./lib/socket";
 
 const app = express();
 
+// One reverse-proxy hop in front of this process in every deployed
+// environment (Docker/Nginx on Railway/Render) — without this, express-rate-limit
+// keys every request off the proxy's IP, putting all traffic in one bucket.
+if (env.nodeEnv === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(cors({ origin: env.corsOrigin }));
 app.use(express.json());
 

@@ -89,6 +89,7 @@ model PasswordResetOtp {
   schoolId   String
   userId     String
   otpHash    String
+  attempts   Int       @default(0)
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
@@ -873,12 +874,20 @@ model FeePayment {
   referenceNote    String?
   paymentDate      DateTime         @default(now())
   recordedByUserId String
-  createdAt        DateTime         @default(now())
+  // Client-generated, one per submission attempt (regenerated only when the
+  // user starts a genuinely new one) — a retried/double-clicked request
+  // replays the same key and returns the original payment instead of
+  // creating a second one. Null for payment rows created any other way
+  // (applyCredit, seed data) — Postgres treats each NULL as distinct, so
+  // those never collide with each other or with a real key.
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
 
   invoice    FeeInvoice  @relation(fields: [invoiceId], references: [id])
   recordedBy User        @relation("FeePaymentRecordedBy", fields: [recordedByUserId], references: [id])
   refunds    FeeRefund[]
 
+  @@unique([schoolId, idempotencyKey])
   @@index([schoolId])
   @@index([invoiceId])
 }
@@ -920,10 +929,16 @@ model IssuedDocument {
   fields         Json?
   issuedByUserId String
   issuedAt       DateTime @default(now())
+  // Nullable — existing rows predate this column and were never backfilled
+  // (it was previously computed inline, embedded in the PDF, and never
+  // persisted at all). Postgres treats every NULL as distinct in the unique
+  // index below, so those old rows never collide with anything.
+  certificateNo  String?
 
   student  Student @relation(fields: [studentId], references: [id])
   issuedBy User    @relation("DocumentIssuedBy", fields: [issuedByUserId], references: [id])
 
+  @@unique([schoolId, certificateNo])
   @@index([schoolId])
   @@index([studentId])
 }

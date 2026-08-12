@@ -42,6 +42,49 @@ async function assertCanManageExamClass(
   throw new HttpError(403, "You do not have permission to manage marks for this class");
 }
 
+// Viewing rule for the exam schedule/subject/maxMarks listing itself — not
+// marks/scores, which stay behind assertCanViewReportCard's studentId check.
+// Same shape as assignments' assertCanViewClass.
+async function assertCanViewExam(
+  schoolId: string,
+  user: { sub: string; role: string },
+  classId: string,
+) {
+  if (ADMIN_ROLES.includes(user.role as Role)) return;
+  if (user.role === Role.TEACHER) {
+    const assignedClassIds = await getAssignedClassIdsForUser(schoolId, user.sub);
+    if (assignedClassIds.includes(classId)) return;
+  }
+  if (user.role === Role.STUDENT) {
+    const student = await studentService.getByUserId(schoolId, user.sub);
+    if (student?.classId === classId) return;
+  }
+  if (user.role === Role.PARENT) {
+    const children = await studentGuardianService.getChildrenForGuardianUser(schoolId, user.sub);
+    if (children.some((c) => c.classId === classId)) return;
+  }
+  throw new HttpError(403, "You do not have permission to view exams for this class");
+}
+
+// For the unfiltered list (no ?classId given) — null means unrestricted
+// (admin), an array is the exact set of classes this caller may see.
+async function getViewableClassIds(
+  schoolId: string,
+  user: { sub: string; role: string },
+): Promise<string[] | null> {
+  if (ADMIN_ROLES.includes(user.role as Role)) return null;
+  if (user.role === Role.TEACHER) return getAssignedClassIdsForUser(schoolId, user.sub);
+  if (user.role === Role.STUDENT) {
+    const student = await studentService.getByUserId(schoolId, user.sub);
+    return student ? [student.classId] : [];
+  }
+  if (user.role === Role.PARENT) {
+    const children = await studentGuardianService.getChildrenForGuardianUser(schoolId, user.sub);
+    return children.map((c) => c.classId);
+  }
+  return [];
+}
+
 async function assertCanViewReportCard(
   schoolId: string,
   user: { sub: string; role: string },
@@ -67,8 +110,15 @@ async function assertCanViewReportCard(
 
 examRouter.get("/", async (req, res, next) => {
   try {
+    const schoolId = req.user!.schoolId;
     const classId = req.query.classId as string | undefined;
-    res.json(await examService.list(req.user!.schoolId, classId));
+    if (classId) {
+      await assertCanViewExam(schoolId, req.user!, classId);
+      res.json(await examService.list(schoolId, classId));
+    } else {
+      const viewableClassIds = await getViewableClassIds(schoolId, req.user!);
+      res.json(await examService.list(schoolId, undefined, viewableClassIds ?? undefined));
+    }
   } catch (err) {
     next(err);
   }
@@ -76,8 +126,10 @@ examRouter.get("/", async (req, res, next) => {
 
 examRouter.get("/:id", async (req, res, next) => {
   try {
-    const exam = await examService.getById(req.user!.schoolId, req.params.id);
+    const schoolId = req.user!.schoolId;
+    const exam = await examService.getById(schoolId, req.params.id);
     if (!exam) throw new HttpError(404, "Exam not found");
+    await assertCanViewExam(schoolId, req.user!, exam.classId);
     res.json(exam);
   } catch (err) {
     next(err);

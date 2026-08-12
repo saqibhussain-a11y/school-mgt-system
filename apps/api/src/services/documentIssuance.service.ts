@@ -1,4 +1,4 @@
-import { prisma } from "@sms/db";
+import { prisma, Prisma } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { putObject, getDownloadUrl, deleteObject } from "../lib/storage";
 import { generateCertificatePdf, DOCUMENT_TITLES, type DocumentType } from "../lib/certificates";
@@ -17,6 +17,27 @@ const issuedDocumentInclude = {
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+}
+
+const MAX_CERTIFICATE_NO_ATTEMPTS = 3;
+
+// Was `${type}-${year}-${studentId}` with no running count — every
+// issuance of the same type to the same student in the same year printed
+// the IDENTICAL number, defeating the whole point of a certificate number
+// (verifying which specific document is genuine) the moment a school
+// re-issued one (lost original, needs a duplicate — a legitimate action,
+// same as fee payments deliberately allowing a real duplicate). Counting
+// existing rows isn't itself race-proof against two truly simultaneous
+// requests, so `@@unique([schoolId, certificateNo])` is the real backstop —
+// generate() retries with a freshly-counted number on a collision instead
+// of erroring.
+async function nextCertificateNo(schoolId: string, studentId: string, type: DocumentType, year: number) {
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
+  const count = await prisma.issuedDocument.count({
+    where: { schoolId, studentId, type, issuedAt: { gte: yearStart, lt: yearEnd } },
+  });
+  return `${type.slice(0, 3).toUpperCase()}-${year}-${studentId.slice(-6).toUpperCase()}-${count + 1}`;
 }
 
 async function loadStudentForCertificate(schoolId: string, studentId: string) {
@@ -65,34 +86,51 @@ export const documentIssuanceService = {
     ]);
 
     const issueDate = new Date();
-    const certificateNo = `${input.type.slice(0, 3).toUpperCase()}-${issueDate.getFullYear()}-${input.studentId.slice(-6).toUpperCase()}`;
 
-    const pdfBuffer = await generateCertificatePdf(
-      input.type,
-      school.name,
-      studentInfo,
-      input.fields ?? {},
-      certificateNo,
-      issueDate,
-    );
+    for (let attempt = 1; attempt <= MAX_CERTIFICATE_NO_ATTEMPTS; attempt++) {
+      const certificateNo = await nextCertificateNo(schoolId, input.studentId, input.type, issueDate.getFullYear());
 
-    const filename = sanitizeFilename(`${DOCUMENT_TITLES[input.type]}-${studentInfo.fullName}.pdf`);
-    const key = `schools/${schoolId}/documents/${input.studentId}/${Date.now()}-${filename}`;
-    await putObject(key, pdfBuffer, "application/pdf");
+      const pdfBuffer = await generateCertificatePdf(
+        input.type,
+        school.name,
+        studentInfo,
+        input.fields ?? {},
+        certificateNo,
+        issueDate,
+      );
 
-    return prisma.issuedDocument.create({
-      data: {
-        schoolId,
-        studentId: input.studentId,
-        type: input.type,
-        fileKey: key,
-        fileFilename: filename,
-        fields: input.fields ?? {},
-        issuedByUserId: input.issuedByUserId,
-        issuedAt: issueDate,
-      },
-      include: issuedDocumentInclude,
-    });
+      const filename = sanitizeFilename(`${DOCUMENT_TITLES[input.type]}-${studentInfo.fullName}.pdf`);
+      const key = `schools/${schoolId}/documents/${input.studentId}/${Date.now()}-${filename}`;
+      await putObject(key, pdfBuffer, "application/pdf");
+
+      try {
+        return await prisma.issuedDocument.create({
+          data: {
+            schoolId,
+            studentId: input.studentId,
+            type: input.type,
+            fileKey: key,
+            fileFilename: filename,
+            fields: input.fields ?? {},
+            issuedByUserId: input.issuedByUserId,
+            issuedAt: issueDate,
+            certificateNo,
+          },
+          include: issuedDocumentInclude,
+        });
+      } catch (err) {
+        const isCollision = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+        if (!isCollision || attempt === MAX_CERTIFICATE_NO_ATTEMPTS) {
+          await deleteObject(key).catch(() => {});
+          throw err;
+        }
+        // Lost a genuine simultaneous-issuance race — the PDF we just
+        // uploaded has the now-stale number printed on it; discard it and
+        // regenerate with a freshly-counted one on the next loop iteration.
+        await deleteObject(key).catch(() => {});
+      }
+    }
+    throw new HttpError(409, "Could not allocate a certificate number — please try again.");
   },
 
   list(schoolId: string, filters: { studentId?: string; type?: string } = {}) {

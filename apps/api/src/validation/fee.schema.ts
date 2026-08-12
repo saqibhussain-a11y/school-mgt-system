@@ -33,6 +33,7 @@ export const updateInvoiceDiscountSchema = z.object({
 export const recordPaymentSchema = z.object({
   amountPaid: moneyAmount,
   referenceNote: z.string().optional(),
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 export const applyCreditSchema = z.object({

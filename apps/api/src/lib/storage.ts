@@ -34,8 +34,15 @@ const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000";
 // middleware at all.
 const LOCAL_LINK_SECRET = process.env.JWT_ACCESS_SECRET ?? "dev-local-storage-secret";
 
-export function signLocalDownload(key: string, expiresAt: number) {
-  return crypto.createHmac("sha256", LOCAL_LINK_SECRET).update(`${key}:${expiresAt}`).digest("hex");
+export function signLocalDownload(key: string, expiresAt: number, forceDownload = false) {
+  // forceDownload is part of the signed payload, not a trailing query param
+  // read independently — otherwise a client could strip `dl=1` from an
+  // otherwise-valid signed URL to force inline rendering of a file this
+  // link was deliberately generated to force-download.
+  return crypto
+    .createHmac("sha256", LOCAL_LINK_SECRET)
+    .update(`${key}:${expiresAt}:${forceDownload ? "1" : "0"}`)
+    .digest("hex");
 }
 
 export function isObjectStorageConfigured() {
@@ -57,13 +64,31 @@ export async function putObject(key: string, body: Buffer, contentType: string) 
 // Short-lived (5 min) — generated fresh on each request, never stored.
 // Downloads always happen via a browser navigation (window.open), not a
 // cross-origin fetch, so this needs no CORS configuration on the bucket.
-export async function getDownloadUrl(key: string) {
+// forceDownload: true is for untrusted, user-uploaded content (assignment
+// attachments/submissions) — forces the browser to download rather than
+// render inline, the real defense against a spoofed .html/.svg (one that
+// got past the upload-time extension filter, or whose stored ContentType
+// came straight from an attacker-controlled multer mimetype) executing as a
+// page instead of downloading as a file. Left false for server-generated,
+// fully-trusted PDFs (certificates) where the product deliberately opens
+// them inline in a new tab — see generate-certificate-dialog.tsx.
+export async function getDownloadUrl(key: string, options: { forceDownload?: boolean } = {}) {
+  const forceDownload = options.forceDownload ?? false;
   if (client) {
-    return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 300 });
+    return getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ...(forceDownload ? { ResponseContentDisposition: "attachment" } : {}),
+      }),
+      { expiresIn: 300 },
+    );
   }
   const expiresAt = Date.now() + 5 * 60 * 1000;
-  const sig = signLocalDownload(key, expiresAt);
-  return `${API_BASE_URL}/api/uploads/local?key=${encodeURIComponent(key)}&exp=${expiresAt}&sig=${sig}`;
+  const sig = signLocalDownload(key, expiresAt, forceDownload);
+  const dl = forceDownload ? "&dl=1" : "";
+  return `${API_BASE_URL}/api/uploads/local?key=${encodeURIComponent(key)}&exp=${expiresAt}&sig=${sig}${dl}`;
 }
 
 export async function deleteObject(key: string) {

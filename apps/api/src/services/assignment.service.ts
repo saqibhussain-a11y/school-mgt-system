@@ -113,7 +113,7 @@ export const assignmentService = {
     const assignment = await prisma.assignment.findFirst({ where: { id, schoolId } });
     if (!assignment) throw new HttpError(404, "Assignment not found");
     if (!assignment.attachmentKey) throw new HttpError(404, "This assignment has no attachment");
-    return getDownloadUrl(assignment.attachmentKey);
+    return getDownloadUrl(assignment.attachmentKey, { forceDownload: true });
   },
 
   async getSubmissionForStudent(schoolId: string, assignmentId: string, studentId: string) {
@@ -202,7 +202,7 @@ export const assignmentService = {
   async getSubmissionFileDownloadUrl(schoolId: string, assignmentId: string, studentId: string) {
     const submission = await prisma.submission.findFirst({ where: { schoolId, assignmentId, studentId } });
     if (!submission?.fileKey) throw new HttpError(404, "No file attached to this submission");
-    return getDownloadUrl(submission.fileKey);
+    return getDownloadUrl(submission.fileKey, { forceDownload: true });
   },
 
   async gradeSubmission(
