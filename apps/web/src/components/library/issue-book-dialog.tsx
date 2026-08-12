@@ -86,7 +86,7 @@ export function IssueBookDialog({
       <DialogTrigger render={trigger} />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Issue "{book.title}"</DialogTitle>
+          <DialogTitle>Issue &quot;{book.title}&quot;</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
           {book.availableCopies} cop{book.availableCopies === 1 ? "y" : "ies"} available. Due back in{" "}

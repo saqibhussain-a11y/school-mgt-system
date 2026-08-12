@@ -40,7 +40,11 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   const message = mapped?.message ?? "Internal server error";
 
   if (status === 500) {
-    console.error(err);
+    // req.log (from pino-http) carries the same request id as the
+    // request-completion log line for this request — correlates the two
+    // instead of leaving an untagged console.error with no way to tell
+    // which request it came from.
+    req.log?.error({ err }, "Unhandled error");
   }
 
   res.status(status).json({ error: message });

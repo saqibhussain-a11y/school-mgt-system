@@ -82,7 +82,7 @@ export function GenerateSeatingDialog({
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Leave everything unchecked to reuse whichever rooms are already in this session's seating.
+            Leave everything unchecked to reuse whichever rooms are already in this session&apos;s seating.
             Rooms need a capacity set before they can be used here.
           </p>
         </div>

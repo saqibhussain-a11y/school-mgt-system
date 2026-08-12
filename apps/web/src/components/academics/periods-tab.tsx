@@ -46,7 +46,7 @@ export function PeriodsTab({ canManage }: { canManage: boolean }) {
       ) : !periods || periods.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No periods yet. Set up the school's daily period grid before generating a timetable.
+            No periods yet. Set up the school&apos;s daily period grid before generating a timetable.
           </CardContent>
         </Card>
       ) : (

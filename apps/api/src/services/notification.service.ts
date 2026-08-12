@@ -1,4 +1,5 @@
 import { sendMail } from "../lib/mailer";
+import { logger } from "../lib/logger";
 import { otpEmail, welcomeEmail, passwordChangedEmail } from "../lib/emailTemplates";
 
 function loginUrl() {
@@ -18,7 +19,7 @@ export const notificationService = {
       const { subject, html } = welcomeEmail(firstName, email, password, loginUrl());
       await sendMail(email, subject, html);
     } catch (err) {
-      console.error(`[mail] Failed to send welcome email to ${email}:`, err);
+      logger.error({ err, email }, "Failed to send welcome email");
     }
   },
 
@@ -27,7 +28,7 @@ export const notificationService = {
       const { subject, html } = passwordChangedEmail(reason);
       await sendMail(email, subject, html);
     } catch (err) {
-      console.error(`[mail] Failed to send password-changed notice to ${email}:`, err);
+      logger.error({ err, email }, "Failed to send password-changed notice");
     }
   },
 };

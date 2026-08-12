@@ -57,8 +57,8 @@ export function ClassSeatingTab({
     <Card>
       <CardContent className="flex flex-col items-start gap-3 py-8">
         <p className="text-sm text-muted-foreground">
-          This class's seating is part of a shared exam session — the seat chart includes other
-          classes combined into that session, so it's shown on the session page.
+          This class&apos;s seating is part of a shared exam session — the seat chart includes other
+          classes combined into that session, so it&apos;s shown on the session page.
         </p>
         <Button size="sm" variant="outline" onClick={() => router.push(`/dashboard/exam-sessions/${examSessionId}`)}>
           View full session seating

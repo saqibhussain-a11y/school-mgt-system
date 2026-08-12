@@ -65,7 +65,27 @@ declare global {
 }
 
 function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaPg(
+    {
+      connectionString: process.env.DATABASE_URL,
+      // No explicit size before this — on a small PaaS Postgres plan, an
+      // unbounded/driver-default pool can exhaust the DB's max connections
+      // under load. Configurable since the right number depends on the
+      // Postgres plan this actually deploys against.
+      max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+    },
+    {
+      // console, not a request-scoped logger — this file is shared
+      // low-level plumbing with no dependency on apps/api's pino setup, and
+      // these events (pool exhaustion, a connection dropping) aren't tied
+      // to any one HTTP request anyway. Without this, either callback
+      // firing was previously silent.
+      onPoolError: (err) => console.error("[prisma] pool error", err),
+      onConnectionError: (err) => console.error("[prisma] connection error", err),
+    },
+  );
   return withTenantScoping(new PrismaClient({ adapter }));
 }
 

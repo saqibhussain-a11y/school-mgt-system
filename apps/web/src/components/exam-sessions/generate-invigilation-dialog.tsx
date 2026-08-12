@@ -80,7 +80,7 @@ export function GenerateInvigilationDialog({
             Ignore regular timetable conflicts (use if this school suspends normal classes during exams)
           </label>
           <p className="text-xs text-muted-foreground">
-            Requires seating to already be generated, and every linked exam's datesheet to be
+            Requires seating to already be generated, and every linked exam&apos;s datesheet to be
             complete.
           </p>
         </div>

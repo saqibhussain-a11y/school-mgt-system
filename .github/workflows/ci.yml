@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DATABASE_URL: "postgresql://sms:sms_ci_password@localhost:5432/sms_ci"
+  REDIS_URL: "redis://localhost:6379"
+  JWT_ACCESS_SECRET: "ci-access-secret"
+  JWT_REFRESH_SECRET: "ci-refresh-secret"
+  CORS_ORIGIN: "http://localhost:3000"
+  NEXT_PUBLIC_API_URL: "http://localhost:4000"
+  NODE_ENV: "test"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sms
+          POSTGRES_PASSWORD: sms_ci_password
+          POSTGRES_DB: sms_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run generate -w packages/db
+
+      # Applies every migration to a genuinely fresh database — catches a
+      # migration that doesn't apply cleanly (a typo, a bad constraint, a
+      # forgotten dependency between migrations) before it ever reaches a
+      # real deploy, not just "it worked on my dev DB that already had the
+      # old schema."
+      - name: Apply migrations to a fresh database
+        run: npm run migrate:deploy -w packages/db
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build

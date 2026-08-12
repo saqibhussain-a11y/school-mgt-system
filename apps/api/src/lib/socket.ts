@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import type { Server as HttpServer } from "node:http";
 import { verifyAccessToken } from "./jwt";
 import { env } from "../config/env";
+import { logger } from "./logger";
 
 let io: Server | null = null;
 
@@ -26,11 +27,34 @@ export function initSocket(httpServer: HttpServer) {
     }
   });
 
+  // Without these, a socket-level error (emit failure, malformed payload)
+  // or a handshake-level failure was silently swallowed by socket.io
+  // internals with no log line — real-time notifications could stop
+  // reaching a user with zero diagnostic trail.
+  io.engine.on("connection_error", (err) => {
+    logger.warn({ err }, "Socket.io connection error");
+  });
+
   io.on("connection", (socket) => {
     socket.join(`user:${socket.data.userId}`);
+
+    socket.on("error", (err) => {
+      logger.warn({ err, userId: socket.data.userId }, "Socket error");
+    });
+
+    socket.on("disconnect", (reason) => {
+      logger.debug({ userId: socket.data.userId, reason }, "Socket disconnected");
+    });
   });
 
   return io;
+}
+
+export function closeSocket() {
+  return new Promise<void>((resolve) => {
+    if (!io) return resolve();
+    io.close(() => resolve());
+  });
 }
 
 export function emitToUser(userId: string, event: string, payload: unknown) {

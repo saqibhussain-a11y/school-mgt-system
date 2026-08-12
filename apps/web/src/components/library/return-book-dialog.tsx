@@ -58,7 +58,7 @@ export function ReturnBookDialog({
       <DialogTrigger render={trigger} />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Return "{loan.book.title}"</DialogTitle>
+          <DialogTitle>Return &quot;{loan.book.title}&quot;</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           {late > 0 && !lost && (

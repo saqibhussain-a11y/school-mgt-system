@@ -29,3 +29,14 @@ export const otpVerifyLimiter = rateLimit({
   legacyHeaders: false,
   message,
 });
+
+// This endpoint is deliberately unauthenticated (a crashed frontend can't
+// guarantee a valid token), so it's a plain open POST — this is the only
+// thing standing between it and someone flooding the logs for free.
+export const clientErrorReportLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message,
+});

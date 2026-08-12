@@ -67,7 +67,7 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
         {credentials ? (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">
-              Share these credentials with the school's admin — this password won&apos;t be shown again.
+              Share these credentials with the school&apos;s admin — this password won&apos;t be shown again.
             </p>
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted p-3 text-sm">
               <div className="flex items-center justify-between gap-2">

@@ -22,7 +22,7 @@ export function ClassInvigilationTab({ examSessionId }: { examSessionId: string 
     <Card>
       <CardContent className="flex flex-col items-start gap-3 py-8">
         <p className="text-sm text-muted-foreground">
-          Invigilation duty is assigned per room across the whole exam session, so it's managed from
+          Invigilation duty is assigned per room across the whole exam session, so it&apos;s managed from
           the session page.
         </p>
         <Button size="sm" variant="outline" onClick={() => router.push(`/dashboard/exam-sessions/${examSessionId}`)}>

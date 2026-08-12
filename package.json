@@ -16,11 +16,18 @@
     "build:api": "npm run build -w apps/api",
     "build": "npm run build -ws --if-present",
     "lint": "npm run lint -ws --if-present",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "test": "npm run test -ws --if-present",
     "db:generate": "npm run generate -w packages/db",
     "db:migrate": "npm run migrate:dev -w packages/db",
     "db:studio": "npm run studio -w packages/db",
     "db:seed": "npm run seed -w packages/db",
     "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0"
   }
 }
