@@ -6,7 +6,15 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { HttpError } from "../middleware/errorHandler";
 import { toCsv } from "../lib/csv";
 import { generateReportPdf } from "../lib/reportPdf";
+import { getOrSet } from "../lib/cache";
 import { FEE_MANAGE_ROLES } from "./feeStructure.route";
+
+// Short TTL, not event-based invalidation — these trend charts recompute
+// from attendance/marks/fee tables that change throughout the day, but a
+// dashboard chart being up to a minute stale is an acceptable trade for not
+// scattering cache-invalidation calls across every write path that touches
+// attendance, marks, or fee payments.
+const REPORT_CACHE_TTL_SECONDS = 60;
 
 const ACADEMIC_REPORT_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
 
@@ -60,7 +68,10 @@ reportsRouter.get("/attendance-trend", authorize(...ACADEMIC_REPORT_ROLES), asyn
     const classId = await resolveClassIdForAcademicReport(schoolId, req.user!, req.query.classId as string | undefined);
     const from = req.query.from ? new Date(req.query.from as string) : new Date(Date.now() - 30 * 86_400_000);
     const to = req.query.to ? new Date(req.query.to as string) : new Date();
-    const rows = await reportsService.attendanceTrend(schoolId, { classId, from, to });
+    const cacheKey = `reports:attendance-trend:${schoolId}:${classId ?? "all"}:${from.toISOString()}:${to.toISOString()}`;
+    const rows = await getOrSet(cacheKey, REPORT_CACHE_TTL_SECONDS, () =>
+      reportsService.attendanceTrend(schoolId, { classId, from, to }),
+    );
     await respond(req, res, schoolId, "Attendance trend", [
       { key: "date", label: "Date", width: 150 },
       { key: "percentage", label: "Attendance %", width: 150 },
@@ -75,7 +86,10 @@ reportsRouter.get("/performance-trend", authorize(...ACADEMIC_REPORT_ROLES), asy
   try {
     const schoolId = req.user!.schoolId;
     const classId = await resolveClassIdForAcademicReport(schoolId, req.user!, req.query.classId as string | undefined);
-    const rows = await reportsService.performanceTrend(schoolId, { classId });
+    const cacheKey = `reports:performance-trend:${schoolId}:${classId ?? "all"}`;
+    const rows = await getOrSet(cacheKey, REPORT_CACHE_TTL_SECONDS, () =>
+      reportsService.performanceTrend(schoolId, { classId }),
+    );
     await respond(req, res, schoolId, "Performance trend", [
       { key: "examName", label: "Exam", width: 180 },
       { key: "startDate", label: "Start date", width: 110 },
@@ -92,7 +106,10 @@ reportsRouter.get("/fee-collection-trend", authorize(...FEE_MANAGE_ROLES), async
   try {
     const schoolId = req.user!.schoolId;
     const classId = req.query.classId as string | undefined;
-    const rows = await reportsService.feeCollectionTrend(schoolId, { classId });
+    const cacheKey = `reports:fee-collection-trend:${schoolId}:${classId ?? "all"}`;
+    const rows = await getOrSet(cacheKey, REPORT_CACHE_TTL_SECONDS, () =>
+      reportsService.feeCollectionTrend(schoolId, { classId }),
+    );
     await respond(req, res, schoolId, "Fee collection trend", [
       { key: "month", label: "Month", width: 110 },
       { key: "totalInvoiced", label: "Invoiced", width: 110 },

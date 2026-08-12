@@ -1,9 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { AttendanceTrendChart } from "@/components/reports/attendance-trend-chart";
-import { PerformanceTrendChart } from "@/components/reports/performance-trend-chart";
-import { FeeCollectionChart } from "@/components/reports/fee-collection-chart";
+import { AttendanceTrendChart, PerformanceTrendChart, FeeCollectionChart } from "@/components/reports/lazy-charts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 import { useReportClasses } from "@/lib/use-report-classes";

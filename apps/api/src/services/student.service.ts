@@ -38,6 +38,21 @@ const studentInclude = {
   },
 };
 
+// list() has no consumer that reads .guardians (roster/dropdown views only
+// need name/class/section) — the 3-level guardian.guardian.user nest was
+// pure over-fetch on every roster load, worst-case the whole school's
+// students at once when no classId/sectionId filter is applied.
+const studentListInclude = {
+  user: { select: { id: true, email: true, firstName: true, lastName: true, role: true } },
+  class: true,
+  section: true,
+};
+
+// Not real pagination (no consumer's UI paginates) — just a backstop so an
+// unfiltered list on a school with a pathologically large roster can't
+// return an unbounded payload. Comfortably above any real school's size.
+const LIST_SAFETY_CAP = 2000;
+
 async function generateAdmissionNo(tx: TxClient, schoolId: string) {
   // Locks auto-numbering for this school so two concurrent admissions can't
   // both count() before either has inserted and compute the identical next
@@ -93,8 +108,9 @@ export const studentService = {
     const { sectionIdIn, ...rest } = filters;
     return prisma.student.findMany({
       where: { schoolId, ...rest, ...(sectionIdIn ? { sectionId: { in: sectionIdIn } } : {}) },
-      include: studentInclude,
+      include: studentListInclude,
       orderBy: { admissionNo: "asc" },
+      take: LIST_SAFETY_CAP,
     });
   },
 

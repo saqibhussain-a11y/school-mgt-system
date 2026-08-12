@@ -11,6 +11,9 @@ export function Sidebar() {
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
       <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-5">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a static
+            public-folder brand asset, not an optimizable content image (see
+            the same call made in login/page.tsx). */}
         <img src="/Logo.png" alt="" className="size-9 shrink-0 rounded-full object-cover" />
         <span className="font-semibold text-sidebar-foreground">SMS</span>
       </div>

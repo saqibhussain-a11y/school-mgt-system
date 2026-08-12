@@ -85,6 +85,12 @@ export const attendanceService = {
     });
   },
 
+  // Not real pagination — "All time" is a deliberate, named preset on the
+  // student attendance card (see the Attendance viewing feature), so this
+  // can't silently cap at some small page size without breaking that
+  // feature's own point. The cap here is a backstop against a pathological
+  // case only, comfortably above any real multi-year daily-attendance
+  // history (10 school years of every day, weekends included).
   getHistoryForStudent(schoolId: string, studentId: string, from?: Date, to?: Date) {
     return prisma.attendance.findMany({
       where: {
@@ -93,38 +99,43 @@ export const attendanceService = {
         ...(from || to ? { date: { gte: from, lte: to } } : {}),
       },
       orderBy: { date: "desc" },
+      take: 3650,
     });
   },
 
+  // Pushed into Postgres as a GROUP BY instead of pulling every attendance
+  // row into Node just to count them — was `select: { status: true }` over
+  // the full row set, reduced in JS.
   async getSummaryForStudent(schoolId: string, studentId: string, from?: Date, to?: Date) {
-    const records = await prisma.attendance.findMany({
+    const groups = await prisma.attendance.groupBy({
+      by: ["status"],
       where: {
         schoolId,
         studentId,
         ...(from || to ? { date: { gte: from, lte: to } } : {}),
       },
-      select: { status: true },
+      _count: { _all: true },
     });
 
-    const totalDays = records.length;
-    const presentEquivalent = records.reduce((sum, r) => sum + STATUS_WEIGHT[r.status], 0);
+    let totalDays = 0;
+    let presentEquivalent = 0;
+    const breakdown = {} as Record<AttendanceStatus, number>;
+    for (const g of groups) {
+      breakdown[g.status] = g._count._all;
+      totalDays += g._count._all;
+      presentEquivalent += STATUS_WEIGHT[g.status] * g._count._all;
+    }
     const percentage = totalDays > 0 ? Math.round((presentEquivalent / totalDays) * 10000) / 100 : 0;
-
-    const breakdown = records.reduce(
-      (acc, r) => {
-        acc[r.status] = (acc[r.status] ?? 0) + 1;
-        return acc;
-      },
-      {} as Record<AttendanceStatus, number>,
-    );
 
     return { totalDays, percentage, breakdown };
   },
 
   // Per-student % + breakdown for a whole class/section over a date range —
   // the "weekly/monthly for the class" view the day-by-day mark/view tab
-  // doesn't provide. One query for all attendance rows in range, grouped in
-  // JS, rather than one getSummaryForStudent query per student.
+  // doesn't provide. Grouped by Postgres (studentId, status), not by pulling
+  // every attendance row in range into Node — a class over a school year
+  // collapses to a handful of grouped rows per student instead of one row
+  // per school day per student.
   async getClassSectionRangeSummary(
     schoolId: string,
     classId: string,
@@ -138,35 +149,33 @@ export const attendanceService = {
       orderBy: { admissionNo: "asc" },
     });
 
-    const records = await prisma.attendance.findMany({
+    const groups = await prisma.attendance.groupBy({
+      by: ["studentId", "status"],
       where: {
         schoolId,
         classId,
         sectionId,
         ...(from || to ? { date: { gte: from, lte: to } } : {}),
       },
-      select: { studentId: true, status: true },
+      _count: { _all: true },
     });
 
-    const statusesByStudent = new Map<string, AttendanceStatus[]>();
-    for (const record of records) {
-      const list = statusesByStudent.get(record.studentId) ?? [];
-      list.push(record.status);
-      statusesByStudent.set(record.studentId, list);
+    const breakdownByStudent = new Map<string, Record<AttendanceStatus, number>>();
+    for (const g of groups) {
+      const breakdown = breakdownByStudent.get(g.studentId) ?? ({} as Record<AttendanceStatus, number>);
+      breakdown[g.status] = g._count._all;
+      breakdownByStudent.set(g.studentId, breakdown);
     }
 
     return students.map((student) => {
-      const statuses = statusesByStudent.get(student.id) ?? [];
-      const totalDays = statuses.length;
-      const presentEquivalent = statuses.reduce((sum, s) => sum + STATUS_WEIGHT[s], 0);
+      const breakdown = breakdownByStudent.get(student.id) ?? ({} as Record<AttendanceStatus, number>);
+      let totalDays = 0;
+      let presentEquivalent = 0;
+      for (const [status, count] of Object.entries(breakdown) as [AttendanceStatus, number][]) {
+        totalDays += count;
+        presentEquivalent += STATUS_WEIGHT[status] * count;
+      }
       const percentage = totalDays > 0 ? Math.round((presentEquivalent / totalDays) * 10000) / 100 : 0;
-      const breakdown = statuses.reduce(
-        (acc, s) => {
-          acc[s] = (acc[s] ?? 0) + 1;
-          return acc;
-        },
-        {} as Record<AttendanceStatus, number>,
-      );
       return {
         studentId: student.id,
         admissionNo: student.admissionNo,
@@ -179,16 +188,24 @@ export const attendanceService = {
     });
   },
 
+  // Called on every staff dashboard load — was a full unfiltered table scan
+  // reduced in JS, now a Postgres GROUP BY that returns at most 4 rows
+  // (one per AttendanceStatus) regardless of how many attendance records
+  // the school has accumulated.
   async getSchoolSummary(schoolId: string, from?: Date, to?: Date) {
-    const records = await prisma.attendance.findMany({
+    const groups = await prisma.attendance.groupBy({
+      by: ["status"],
       where: { schoolId, ...(from || to ? { date: { gte: from, lte: to } } : {}) },
-      select: { status: true },
+      _count: { _all: true },
     });
 
-    const totalMarked = records.length;
-    const presentEquivalent = records.reduce((sum, r) => sum + STATUS_WEIGHT[r.status], 0);
-    const percentage =
-      totalMarked > 0 ? Math.round((presentEquivalent / totalMarked) * 10000) / 100 : 0;
+    let totalMarked = 0;
+    let presentEquivalent = 0;
+    for (const g of groups) {
+      totalMarked += g._count._all;
+      presentEquivalent += STATUS_WEIGHT[g.status] * g._count._all;
+    }
+    const percentage = totalMarked > 0 ? Math.round((presentEquivalent / totalMarked) * 10000) / 100 : 0;
 
     return { totalMarked, percentage };
   },

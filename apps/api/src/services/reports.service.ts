@@ -72,18 +72,33 @@ export const reportsService = {
       orderBy: { startDate: "asc" },
     });
 
+    // One query across every exam's subjects, not one query per exam — this
+    // used to fire a sequential prisma.mark.findMany inside the exam loop,
+    // so a school with N exams made N+1 round-trips for one chart.
+    const allExamSubjectIds = exams.flatMap((exam) => exam.examSubjects.map((es) => es.id));
+    const marks =
+      allExamSubjectIds.length > 0
+        ? await prisma.mark.findMany({
+            where: { schoolId, examSubjectId: { in: allExamSubjectIds }, isAbsent: false, marksObtained: { not: null } },
+            select: { studentId: true, examSubjectId: true, marksObtained: true },
+          })
+        : [];
+
+    const marksByExamSubject = new Map<string, typeof marks>();
+    for (const m of marks) {
+      const list = marksByExamSubject.get(m.examSubjectId) ?? [];
+      list.push(m);
+      marksByExamSubject.set(m.examSubjectId, list);
+    }
+
     const results = [];
     for (const exam of exams) {
-      const examSubjectIds = exam.examSubjects.map((es) => es.id);
       const maxMarksByExamSubject = new Map(exam.examSubjects.map((es) => [es.id, es.maxMarks]));
-      const marks = await prisma.mark.findMany({
-        where: { schoolId, examSubjectId: { in: examSubjectIds }, isAbsent: false, marksObtained: { not: null } },
-        select: { studentId: true, examSubjectId: true, marksObtained: true },
-      });
-      if (marks.length === 0) continue;
+      const examMarks = exam.examSubjects.flatMap((es) => marksByExamSubject.get(es.id) ?? []);
+      if (examMarks.length === 0) continue;
 
       const byStudent = new Map<string, { obtained: number; max: number }>();
-      for (const m of marks) {
+      for (const m of examMarks) {
         const maxMarks = maxMarksByExamSubject.get(m.examSubjectId) ?? 0;
         const entry = byStudent.get(m.studentId) ?? { obtained: 0, max: 0 };
         entry.obtained += m.marksObtained ?? 0;

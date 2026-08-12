@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { MeDto } from "@sms/shared-types";
 import { apiFetch, tokenStorage } from "./api-client";
+import { clearApiCache } from "./use-api";
 
 interface AuthContextValue {
   user: MeDto | null;
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "/api/auth/login",
         { method: "POST", body: JSON.stringify({ schoolId, email, password }) },
       );
+      clearApiCache();
       tokenStorage.set(tokens.accessToken, tokens.refreshToken, schoolId);
       await loadUser();
       router.push("/dashboard");
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "/api/auth/platform-login",
         { method: "POST", body: JSON.stringify({ email, password }) },
       );
+      clearApiCache();
       tokenStorage.set(tokens.accessToken, tokens.refreshToken, tokens.schoolId);
       await loadUser();
       router.push("/dashboard");
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => undefined);
     }
     tokenStorage.clear();
+    clearApiCache();
     setUser(null);
     router.push("/login");
   }, [router]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,58 @@ const STATUS_ITEMS = STATUSES.map((s) => ({ value: s, label: s.replace("_", " ")
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
+
+// Split out and memoized so editing one student's status/remarks doesn't
+// re-render every other row in the section — the parent's `drafts` state is
+// one object keyed by studentId, and `setDrafts(prev => ({...prev, [id]:
+// next}))` leaves every sibling entry's object reference untouched, so
+// React.memo's default reference-equality check on `draft` alone is enough
+// to skip re-rendering rows nobody touched.
+const AttendanceRow = memo(function AttendanceRow({
+  student,
+  draft,
+  onStatusChange,
+  onRemarksChange,
+}: {
+  student: StudentSummary;
+  draft: { status: string; remarks: string };
+  onStatusChange: (studentId: string, status: string) => void;
+  onRemarksChange: (studentId: string, remarks: string) => void;
+}) {
+  return (
+    <TableRow>
+      <TableCell>{student.admissionNo}</TableCell>
+      <TableCell className="font-medium">
+        {student.user.firstName} {student.user.lastName}
+      </TableCell>
+      <TableCell>
+        <Select
+          items={STATUS_ITEMS}
+          value={draft.status}
+          onValueChange={(v) => onStatusChange(student.id, v ?? draft.status)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUSES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s.replace("_", " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <Input
+          value={draft.remarks}
+          placeholder="Optional"
+          onChange={(e) => onRemarksChange(student.id, e.target.value)}
+        />
+      </TableCell>
+    </TableRow>
+  );
+});
 
 export function MarkAttendanceTab() {
   const { user } = useAuth();
@@ -108,6 +160,14 @@ export function MarkAttendanceTab() {
     }
     setDrafts(next);
   }, [roster, existing]);
+
+  const handleStatusChange = useCallback((studentId: string, status: string) => {
+    setDrafts((prev) => ({ ...prev, [studentId]: { ...prev[studentId], status } }));
+  }, []);
+
+  const handleRemarksChange = useCallback((studentId: string, remarks: string) => {
+    setDrafts((prev) => ({ ...prev, [studentId]: { ...prev[studentId], remarks } }));
+  }, []);
 
   async function handleSubmit() {
     setSubmitting(true);
@@ -208,52 +268,15 @@ export function MarkAttendanceTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeRoster.map((student) => {
-                  const draft = drafts[student.id] ?? { status: "PRESENT", remarks: "" };
-                  return (
-                    <TableRow key={student.id}>
-                      <TableCell>{student.admissionNo}</TableCell>
-                      <TableCell className="font-medium">
-                        {student.user.firstName} {student.user.lastName}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          items={STATUS_ITEMS}
-                          value={draft.status}
-                          onValueChange={(v) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [student.id]: { ...draft, status: v ?? draft.status },
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUSES.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {s.replace("_", " ")}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={draft.remarks}
-                          placeholder="Optional"
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [student.id]: { ...draft, remarks: e.target.value },
-                            }))
-                          }
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {activeRoster.map((student) => (
+                  <AttendanceRow
+                    key={student.id}
+                    student={student}
+                    draft={drafts[student.id] ?? { status: "PRESENT", remarks: "" }}
+                    onStatusChange={handleStatusChange}
+                    onRemarksChange={handleRemarksChange}
+                  />
+                ))}
               </TableBody>
             </Table>
           </Card>

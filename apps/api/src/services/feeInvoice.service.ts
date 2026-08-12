@@ -5,6 +5,13 @@ import { studentGuardianService } from "./studentGuardian.service";
 import { inAppNotificationService } from "./inAppNotification.service";
 import { generateInvoicePdf } from "../lib/invoicePdf";
 import { roundMoney, ledgerFor, statusFor, creditPoolFor } from "../lib/feeLedger";
+import { getOrSet } from "../lib/cache";
+
+// Not real pagination (the fee list page filters by class/status/overdue,
+// no consumer paginates) — a backstop against an unbounded payload on a
+// school whose invoice history has grown large after years of manual
+// invoicing.
+const LIST_SAFETY_CAP = 2000;
 
 type TxClient = PrismaTransactionClient;
 
@@ -198,8 +205,35 @@ export const feeInvoiceService = {
       },
       include: invoiceInclude,
       orderBy: { dueDate: "asc" },
+      take: LIST_SAFETY_CAP,
     });
     return invoices.map(withLedger);
+  },
+
+  // Unapplied credit is computed school-wide, independent of any list/period
+  // filter a caller applies — a student's overpayment doesn't stop being a
+  // real liability just because a report is scoped elsewhere. It used to be
+  // a full unfiltered table scan re-run on every single summary() call
+  // regardless of filters; since the value itself doesn't depend on
+  // filters, it's cached per-school instead of recomputed every time.
+  async schoolWideUnappliedCredit(schoolId: string) {
+    return getOrSet(`fee-invoice:unapplied-credit:${schoolId}`, 60, async () => {
+      const allInvoices = await prisma.feeInvoice.findMany({
+        where: { schoolId },
+        select: { studentId: true, ...creditPoolInclude },
+      });
+      const byStudent = new Map<string, typeof allInvoices>();
+      for (const invoice of allInvoices) {
+        const list = byStudent.get(invoice.studentId) ?? [];
+        list.push(invoice);
+        byStudent.set(invoice.studentId, list);
+      }
+      let totalUnappliedCredit = 0;
+      for (const studentInvoices of byStudent.values()) {
+        totalUnappliedCredit += Math.max(0, creditPoolFor(studentInvoices));
+      }
+      return roundMoney(totalUnappliedCredit);
+    });
   },
 
   async summary(schoolId: string, filters: { classId?: string; period?: string } = {}) {
@@ -228,30 +262,14 @@ export const feeInvoiceService = {
       countByStatus[invoice.status] += 1;
     }
 
-    // Unapplied credit is computed school-wide, independent of this
-    // summary's class/period filter — a student's overpayment doesn't stop
-    // being a real liability just because this report is scoped elsewhere.
-    const allInvoices = await prisma.feeInvoice.findMany({
-      where: { schoolId },
-      select: { studentId: true, ...creditPoolInclude },
-    });
-    const byStudent = new Map<string, typeof allInvoices>();
-    for (const invoice of allInvoices) {
-      const list = byStudent.get(invoice.studentId) ?? [];
-      list.push(invoice);
-      byStudent.set(invoice.studentId, list);
-    }
-    let totalUnappliedCredit = 0;
-    for (const studentInvoices of byStudent.values()) {
-      totalUnappliedCredit += Math.max(0, creditPoolFor(studentInvoices));
-    }
+    const totalUnappliedCredit = await this.schoolWideUnappliedCredit(schoolId);
 
     return {
       invoiceCount: invoices.length,
       totalInvoiced: roundMoney(totalInvoiced),
       totalCollected: roundMoney(totalCollected),
       totalOutstanding: roundMoney(totalOutstanding),
-      totalUnappliedCredit: roundMoney(totalUnappliedCredit),
+      totalUnappliedCredit,
       countByStatus,
     };
   },

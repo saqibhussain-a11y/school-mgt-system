@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +18,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { DatesheetGrid } from "@/components/exams/datesheet-grid";
 import type { ExamSummary } from "@/components/exams/types";
+
+// @dnd-kit is only needed once an exam actually has a datesheet to drag —
+// deferred out of the initial bundle for every visitor to this page,
+// including ones who never open this tab.
+const DatesheetGrid = dynamic(
+  () => import("@/components/exams/datesheet-grid").then((m) => m.DatesheetGrid),
+  { ssr: false, loading: () => <Skeleton className="h-96 rounded-xl" /> },
+);
 
 function GenerateDatesheetDialog({
   examId,

@@ -45,6 +45,34 @@ interface GenerateResult {
   unscheduledPeriodCount: number;
 }
 
+interface JobStatus {
+  state: "waiting" | "active" | "completed" | "failed" | "delayed";
+  result?: GenerateResult;
+  error?: string;
+}
+
+const JOB_POLL_INTERVAL_MS = 1500;
+const JOB_POLL_TIMEOUT_MS = 120_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Generation now runs as a background job (see the reliability/performance
+// hardening pass) instead of blocking the request — the button polls a
+// status endpoint until the job finishes rather than getting a result back
+// from the original POST.
+async function pollJobUntilDone(jobId: string): Promise<GenerateResult> {
+  const deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const status = await apiFetch<JobStatus>(`/api/timetable/generate/${jobId}`);
+    if (status.state === "completed" && status.result) return status.result;
+    if (status.state === "failed") throw new Error(status.error ?? "Timetable generation failed");
+    await sleep(JOB_POLL_INTERVAL_MS);
+  }
+  throw new Error("Timetable generation is taking longer than expected — check back shortly.");
+}
+
 function GenerateTimetableButton({
   classId,
   onGenerated,
@@ -60,15 +88,16 @@ function GenerateTimetableButton({
     setResult(null);
     try {
       const body = classId ? { classId } : {};
-      const data = await apiFetch<GenerateResult>("/api/timetable/generate", {
+      const { jobId } = await apiFetch<{ jobId: string }>("/api/timetable/generate", {
         method: "POST",
         body: JSON.stringify(body),
       });
+      const data = await pollJobUntilDone(jobId);
       setResult(data);
       toast.success(`Generated ${data.createdCount} timetable slot${data.createdCount === 1 ? "" : "s"}`);
       onGenerated();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to generate timetable");
+      toast.error(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to generate timetable");
     } finally {
       setSubmitting(false);
     }

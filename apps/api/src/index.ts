@@ -8,6 +8,7 @@
 // every DB call in the process with "database `dev` does not exist".
 import "dotenv/config";
 import http from "node:http";
+import compression from "compression";
 import cors from "cors";
 import express from "express";
 import pinoHttp from "pino-http";
@@ -17,6 +18,9 @@ import { logger } from "./lib/logger";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { apiRouter } from "./routes";
 import { initSocket, closeSocket } from "./lib/socket";
+import { closeRedis } from "./lib/redis";
+import { closeQueues } from "./lib/queue";
+import { startWorkers, closeWorkers } from "./lib/worker";
 
 const app = express();
 
@@ -47,6 +51,7 @@ app.use(
   }),
 );
 
+app.use(compression());
 app.use(cors({ origin: env.corsOrigin }));
 app.use(express.json());
 
@@ -57,6 +62,7 @@ app.use(errorHandler);
 
 const httpServer = http.createServer(app);
 initSocket(httpServer);
+startWorkers();
 
 httpServer.listen(env.port, () => {
   logger.info(`API listening on http://localhost:${env.port}`);
@@ -83,7 +89,10 @@ async function shutdown(signal: string) {
 
   try {
     await closeSocket();
+    await closeWorkers();
+    await closeQueues();
     await prisma.$disconnect();
+    await closeRedis();
     clearTimeout(forceExit);
     logger.info("Shutdown complete");
     process.exit(0);

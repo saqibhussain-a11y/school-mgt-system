@@ -863,6 +863,11 @@ model FeeInvoice {
   @@unique([studentId, feeStructureId, period])
   @@index([schoolId])
   @@index([studentId])
+  // Backs the overdue filter (feeInvoice.service.ts's list()) and the
+  // fee-collection trend chart's month bucketing (reports.service.ts) —
+  // both filter/sort by dueDate scoped to a school; previously an unindexed
+  // full scan.
+  @@index([schoolId, dueDate])
 }
 
 model FeePayment {
