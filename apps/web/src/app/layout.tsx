@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { PaletteEffects } from "@/components/theme/palette-effects";
 import { AuthProvider } from "@/lib/auth-context";
 import { NotificationProvider } from "@/lib/notification-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,6 +36,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <PaletteEffects />
           <AuthProvider>
             <NotificationProvider>
               <TooltipProvider>{children}</TooltipProvider>

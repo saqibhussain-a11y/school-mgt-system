@@ -1,7 +1,105 @@
-import { Role, prisma, runAsPlatform } from "@sms/db";
+import { Role, LeaveStatus, prisma, runAsPlatform } from "@sms/db";
 import { announcementService, buildAnnouncementViewer } from "./announcement.service";
 import { attendanceService } from "./attendance.service";
 import { studentGuardianService } from "./studentGuardian.service";
+import { leaveRequestService } from "./leaveRequest.service";
+import { feeInvoiceService } from "./feeInvoice.service";
+import { bookLoanService } from "./bookLoan.service";
+
+interface NeedsAttentionItem {
+  id: string;
+  type: "leave" | "fee" | "library";
+  label: string;
+  subLabel: string;
+  daysAgo: number;
+  href: string;
+}
+
+const MS_PER_DAY = 86_400_000;
+
+function daysSince(date: Date) {
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / MS_PER_DAY));
+}
+
+// Three existing, already-authorized service calls, merged into one
+// cross-module "what needs a decision" list — no new query logic, just a
+// different lens on data these three modules already expose to
+// SCHOOL_ADMIN/PRINCIPAL individually.
+async function getNeedsAttention(schoolId: string): Promise<NeedsAttentionItem[]> {
+  const [pendingLeave, overdueFees, overdueLoans] = await Promise.all([
+    leaveRequestService.listForSchool(schoolId, { status: LeaveStatus.PENDING }),
+    feeInvoiceService.list(schoolId, { overdue: true }),
+    bookLoanService.list(schoolId, { overdue: true }),
+  ]);
+
+  const items: NeedsAttentionItem[] = [
+    ...pendingLeave.map((r) => ({
+      id: r.id,
+      type: "leave" as const,
+      label: `${r.user.firstName} ${r.user.lastName} — ${r.leaveType} leave`,
+      subLabel: "Awaiting review",
+      daysAgo: daysSince(r.createdAt),
+      href: "/dashboard/leave",
+    })),
+    ...overdueFees.map((inv) => ({
+      id: inv.id,
+      type: "fee" as const,
+      label: `${inv.student.user.firstName} ${inv.student.user.lastName} — overdue invoice`,
+      subLabel: `${inv.student.class.name} ${inv.student.section.name}`,
+      daysAgo: daysSince(inv.dueDate),
+      href: `/dashboard/fees/${inv.id}`,
+    })),
+    ...overdueLoans.map((loan) => ({
+      id: loan.id,
+      type: "library" as const,
+      label: `"${loan.book.title}" overdue`,
+      subLabel: `${loan.student.user.firstName} ${loan.student.user.lastName}`,
+      daysAgo: daysSince(loan.dueDate),
+      href: `/dashboard/library/books/${loan.book.id}`,
+    })),
+  ];
+
+  return items.sort((a, b) => b.daysAgo - a.daysAgo).slice(0, 5);
+}
+
+async function getAdmissionsThisWeek(schoolId: string) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * MS_PER_DAY);
+  const grouped = await prisma.student.groupBy({
+    by: ["classId"],
+    where: { schoolId, admissionDate: { gte: sevenDaysAgo } },
+    _count: { _all: true },
+  });
+  if (grouped.length === 0) return [];
+
+  const classes = await prisma.class.findMany({
+    where: { id: { in: grouped.map((g) => g.classId) } },
+    select: { id: true, name: true },
+  });
+  const classNameById = new Map(classes.map((c) => [c.id, c.name]));
+
+  return grouped
+    .map((g) => ({ classId: g.classId, className: classNameById.get(g.classId) ?? "—", count: g._count._all }))
+    .sort((a, b) => b.count - a.count);
+}
+
+async function getRecentFeePayments(schoolId: string) {
+  const payments = await prisma.feePayment.findMany({
+    where: { schoolId },
+    orderBy: { paymentDate: "desc" },
+    take: 5,
+    include: {
+      invoice: { select: { student: { select: { user: { select: { firstName: true, lastName: true } } } } } },
+    },
+  });
+
+  return payments.map((p) => ({
+    id: p.id,
+    studentName: `${p.invoice.student.user.firstName} ${p.invoice.student.user.lastName}`,
+    amount: p.amountPaid,
+    method: p.paymentMethod,
+    paymentDate: p.paymentDate,
+  }));
+}
 
 // SUPER_ADMIN is deliberately excluded here — it gets its own platform-wide
 // branch below instead of this school-scoped one (its own "school" is just
@@ -72,6 +170,24 @@ export const dashboardService = {
         todayAttendancePercent: todayAttendance.percentage,
         todayAttendanceMarked: todayAttendance.totalMarked,
       };
+
+      // The denser overview (breakdown/needs-attention/weekly/recent-payments
+      // panels) is deliberately scoped to just these two roles — they're the
+      // only ones with a full school-wide view; every other staff role keeps
+      // its existing simpler widget set below, unchanged.
+      if (role === Role.SCHOOL_ADMIN || role === Role.PRINCIPAL) {
+        const [needsAttention, admissionsThisWeek, recentFeePayments] = await Promise.all([
+          getNeedsAttention(schoolId),
+          getAdmissionsThisWeek(schoolId),
+          getRecentFeePayments(schoolId),
+        ]);
+        Object.assign(widgets, {
+          todayAttendanceBreakdown: todayAttendance.breakdown,
+          needsAttention,
+          admissionsThisWeek,
+          recentFeePayments,
+        });
+      }
 
       if (role === Role.LIBRARIAN) {
         const [activeLoans, overdueLoans, pendingReservations] = await Promise.all([

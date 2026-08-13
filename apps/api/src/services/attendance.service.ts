@@ -201,12 +201,14 @@ export const attendanceService = {
 
     let totalMarked = 0;
     let presentEquivalent = 0;
+    const breakdown = {} as Record<AttendanceStatus, number>;
     for (const g of groups) {
+      breakdown[g.status] = g._count._all;
       totalMarked += g._count._all;
       presentEquivalent += STATUS_WEIGHT[g.status] * g._count._all;
     }
     const percentage = totalMarked > 0 ? Math.round((presentEquivalent / totalMarked) * 10000) / 100 : 0;
 
-    return { totalMarked, percentage };
+    return { totalMarked, percentage, breakdown };
   },
 };

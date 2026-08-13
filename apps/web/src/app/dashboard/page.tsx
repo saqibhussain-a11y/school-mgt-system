@@ -14,6 +14,9 @@ import {
   Bus,
   Route as RouteIcon,
   UserCheck,
+  GraduationCap,
+  Wallet,
+  ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
@@ -29,7 +32,32 @@ import { useAuth } from "@/lib/auth-context";
 import { useApi } from "@/lib/use-api";
 import { useReportClasses } from "@/lib/use-report-classes";
 import { attendanceTone } from "@/lib/attendance-tone";
-import { formatDate, formatRole } from "@/lib/format";
+import { formatDate, formatRelativeTime, formatRole } from "@/lib/format";
+
+type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "LEAVE";
+
+interface NeedsAttentionItem {
+  id: string;
+  type: "leave" | "fee" | "library";
+  label: string;
+  subLabel: string;
+  daysAgo: number;
+  href: string;
+}
+
+interface AdmissionRow {
+  classId: string;
+  className: string;
+  count: number;
+}
+
+interface RecentFeePayment {
+  id: string;
+  studentName: string;
+  amount: number;
+  method: string;
+  paymentDate: string;
+}
 
 interface StaffWidgets {
   totalStudents: number;
@@ -37,6 +65,10 @@ interface StaffWidgets {
   totalClasses: number;
   todayAttendancePercent: number;
   todayAttendanceMarked: number;
+  todayAttendanceBreakdown: Partial<Record<AttendanceStatus, number>>;
+  needsAttention: NeedsAttentionItem[];
+  admissionsThisWeek: AdmissionRow[];
+  recentFeePayments: RecentFeePayment[];
   activeLoans: number;
   overdueLoans: number;
   pendingReservations: number;
@@ -208,6 +240,189 @@ function PlatformDashboard({ widgets }: { widgets: Partial<PlatformWidgets> }) {
   );
 }
 
+const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  HALF_DAY: "Half day",
+  LEAVE: "Leave",
+};
+
+const ATTENDANCE_STATUS_COLORS: Record<AttendanceStatus, string> = {
+  PRESENT: "var(--status-good)",
+  ABSENT: "var(--status-critical)",
+  HALF_DAY: "var(--status-warning)",
+  LEAVE: "var(--muted-foreground)",
+};
+
+const NEEDS_ATTENTION_ICON: Record<NeedsAttentionItem["type"], typeof CalendarCheck> = {
+  leave: Clock,
+  fee: Wallet,
+  library: BookMarked,
+};
+
+function BarRow({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
+  const widthPercent = max > 0 ? Math.max(4, Math.round((count / max) * 100)) : 0;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-28 shrink-0 truncate text-sm text-foreground">{label}</span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full" style={{ width: `${widthPercent}%`, backgroundColor: color }} />
+      </div>
+      <span className="w-8 shrink-0 text-right text-sm font-medium tabular-nums text-foreground">{count}</span>
+    </div>
+  );
+}
+
+function AttendanceBreakdownCard({ breakdown }: { breakdown: Partial<Record<AttendanceStatus, number>> }) {
+  const entries = (Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[]).map((status) => ({
+    status,
+    count: breakdown[status] ?? 0,
+  }));
+  const max = Math.max(...entries.map((e) => e.count), 1);
+  const totalMarked = entries.reduce((sum, e) => sum + e.count, 0);
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle className="text-base">Today&apos;s attendance</CardTitle>
+        <p className="text-xs text-muted-foreground">School-wide, today&apos;s snapshot</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {totalMarked === 0 ? (
+          <p className="text-sm text-muted-foreground">No attendance marked yet today.</p>
+        ) : (
+          entries.map((e) => (
+            <BarRow
+              key={e.status}
+              label={ATTENDANCE_STATUS_LABELS[e.status]}
+              count={e.count}
+              max={max}
+              color={ATTENDANCE_STATUS_COLORS[e.status]}
+            />
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function NeedsAttentionCard({ items }: { items: NeedsAttentionItem[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldAlert className="size-4 text-status-warning" />
+          Needs attention
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">Pending items across modules</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing needs attention right now.</p>
+        ) : (
+          items.map((item) => {
+            const Icon = NEEDS_ATTENTION_ICON[item.type];
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="flex items-start gap-2.5 rounded-lg border border-border p-2.5 transition-colors hover:bg-muted"
+              >
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                  <Icon className="size-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{item.label}</p>
+                  <p className="truncate text-xs text-muted-foreground">{item.subLabel}</p>
+                </div>
+                <Badge variant="outline" className="shrink-0 text-status-warning">
+                  {item.daysAgo}d
+                </Badge>
+              </Link>
+            );
+          })
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdmissionsThisWeekCard({ rows }: { rows: AdmissionRow[] }) {
+  const max = Math.max(...rows.map((r) => r.count), 1);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <GraduationCap className="size-4 text-primary" />
+          New admissions this week
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No new admissions this week.</p>
+        ) : (
+          rows.map((row, i) => (
+            <BarRow
+              key={row.classId}
+              label={row.className}
+              count={row.count}
+              max={max}
+              color={`var(--chart-${(i % 5) + 1})`}
+            />
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentFeePaymentsCard({ payments }: { payments: RecentFeePayment[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Wallet className="size-4 text-primary" />
+          Recent fee payments
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {payments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+        ) : (
+          payments.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{p.studentName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {p.method.replace("_", " ")} · {formatRelativeTime(p.paymentDate)}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                {p.amount.toLocaleString()}
+              </span>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdminOverviewPanels({ widgets }: { widgets: Partial<StaffWidgets> }) {
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <AttendanceBreakdownCard breakdown={widgets.todayAttendanceBreakdown ?? {}} />
+        <NeedsAttentionCard items={widgets.needsAttention ?? []} />
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <AdmissionsThisWeekCard rows={widgets.admissionsThisWeek ?? []} />
+        <RecentFeePaymentsCard payments={widgets.recentFeePayments ?? []} />
+      </div>
+    </>
+  );
+}
+
 function DashboardSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -250,6 +465,10 @@ export default function DashboardPage() {
                 tone={attendanceTone(data.widgets.todayAttendancePercent ?? 0)}
               />
             </div>
+          )}
+
+          {(data.role === "SCHOOL_ADMIN" || data.role === "PRINCIPAL") && (
+            <AdminOverviewPanels widgets={data.widgets} />
           )}
 
           {data.role === "LIBRARIAN" && (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, LogOut } from "lucide-react";
+import Link from "next/link";
+import { KeyRound, LogOut, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -30,6 +31,17 @@ export function Topbar() {
       <MobileSidebar />
       <div className="flex-1" />
       <NotificationBell />
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Appearance settings"
+        nativeButton={false}
+        render={
+          <Link href="/dashboard/settings">
+            <Palette className="size-4" />
+          </Link>
+        }
+      />
       <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger
