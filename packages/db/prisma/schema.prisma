@@ -758,6 +758,21 @@ model LeaveRequest {
   @@index([status])
 }
 
+// One row per school. Annual entitlement in days for each fixed leave type;
+// lazily upserted with these defaults on first access rather than backfilled,
+// so existing schools never need a data migration to get a row.
+model LeavePolicy {
+  id         String   @id @default(cuid())
+  schoolId   String
+  sickDays   Int      @default(10)
+  casualDays Int      @default(8)
+  otherDays  Int      @default(5)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([schoolId])
+}
+
 // In-app notification, pushed over Socket.io on creation and persisted so a
 // user still sees it after reconnecting/refreshing. type is a free-form
 // event tag (e.g. "announcement", "assignment", "grade", "leave_request",

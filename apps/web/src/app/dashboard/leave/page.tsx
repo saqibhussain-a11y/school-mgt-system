@@ -1,9 +1,11 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { ApplyLeaveDialog } from "@/components/leave/apply-leave-dialog";
 import { LeaveRequestTable, type LeaveRequestSummary } from "@/components/leave/leave-request-table";
+import { LeavePolicyTab } from "@/components/leave/leave-policy-tab";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,6 +111,11 @@ export default function LeavePage() {
     </Card>
   );
 
+  const tabs: { value: string; label: string; content: ReactNode }[] = [];
+  if (canApply) tabs.push({ value: "mine", label: "My requests", content: myTab });
+  if (canViewAll) tabs.push({ value: "all", label: "All requests", content: allTab });
+  if (canReview) tabs.push({ value: "policy", label: "Policy", content: <LeavePolicyTab /> });
+
   return (
     <div>
       <PageHeader
@@ -129,19 +136,23 @@ export default function LeavePage() {
         }
       />
 
-      {canApply && canViewAll ? (
-        <Tabs defaultValue="mine">
+      {tabs.length > 1 ? (
+        <Tabs defaultValue={tabs[0].value}>
           <TabsList>
-            <TabsTrigger value="mine">My requests</TabsTrigger>
-            <TabsTrigger value="all">All requests</TabsTrigger>
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
-          <TabsContent value="mine">{myTab}</TabsContent>
-          <TabsContent value="all">{allTab}</TabsContent>
+          {tabs.map((tab) => (
+            <TabsContent key={tab.value} value={tab.value}>
+              {tab.content}
+            </TabsContent>
+          ))}
         </Tabs>
-      ) : canViewAll ? (
-        allTab
       ) : (
-        myTab
+        (tabs[0]?.content ?? null)
       )}
     </div>
   );

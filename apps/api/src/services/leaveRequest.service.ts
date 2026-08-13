@@ -2,6 +2,7 @@ import { prisma, Role, LeaveStatus, AttendanceStatus, type PrismaTransactionClie
 import { HttpError } from "../middleware/errorHandler";
 import { staffService } from "./staff.service";
 import { inAppNotificationService } from "./inAppNotification.service";
+import { leavePolicyService } from "./leavePolicy.service";
 import { LEAVE_TYPES } from "../validation/leaveRequest.schema";
 
 type TxClient = PrismaTransactionClient;
@@ -10,14 +11,12 @@ type TxClient = PrismaTransactionClient;
 // here (not imported) since routes shouldn't be a dependency of services.
 const REVIEWER_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
-// No leave-policy admin UI yet — a fixed annual entitlement per type, same
-// for every staff member, is the simplest thing that satisfies the master
-// doc's "balance tracking" requirement without building a whole policy
-// module. Revisit if a school needs per-role/per-staff entitlements.
-const DEFAULT_ANNUAL_ENTITLEMENT: Record<(typeof LEAVE_TYPES)[number], number> = {
-  sick: 10,
-  casual: 8,
-  other: 5,
+// Maps each LEAVE_TYPES entry to its LeavePolicy field — entitlement is now
+// per-school (see leavePolicy.service.ts), not a fixed global constant.
+const POLICY_FIELD: Record<(typeof LEAVE_TYPES)[number], "sickDays" | "casualDays" | "otherDays"> = {
+  sick: "sickDays",
+  casual: "casualDays",
+  other: "otherDays",
 };
 
 const leaveRequestInclude = {
@@ -184,6 +183,8 @@ export const leaveRequestService = {
     const staff = await staffService.getByUserId(schoolId, userId);
     if (!staff) return null;
 
+    const policy = await leavePolicyService.getOrCreate(schoolId);
+
     const yearStart = new Date(Date.UTC(year, 0, 1));
     const yearEnd = new Date(Date.UTC(year, 11, 31));
 
@@ -204,7 +205,7 @@ export const leaveRequestService = {
     }
 
     return LEAVE_TYPES.map((leaveType) => {
-      const totalDays = DEFAULT_ANNUAL_ENTITLEMENT[leaveType];
+      const totalDays = policy[POLICY_FIELD[leaveType]];
       const usedDays = usedByType[leaveType] ?? 0;
       return { leaveType, totalDays, usedDays, remainingDays: Math.max(0, totalDays - usedDays) };
     });
