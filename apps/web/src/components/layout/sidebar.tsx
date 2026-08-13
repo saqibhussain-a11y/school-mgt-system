@@ -34,36 +34,34 @@ export function Sidebar() {
     >
       <div
         className={cn(
-          "flex h-16 items-center gap-2 border-b border-sidebar-border px-5",
-          collapsed && "justify-center px-0",
+          "flex h-16 items-center border-b border-sidebar-border px-5",
+          collapsed ? "justify-center px-0" : "justify-between",
         )}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- a static
-            public-folder brand asset, not an optimizable content image (see
-            the same call made in login/page.tsx). */}
-        <img src="/Logo.png" alt="" className="size-9 shrink-0 rounded-full object-cover" />
-        {!collapsed && <span className="font-semibold text-sidebar-foreground">SMS</span>}
-      </div>
-      <div className="flex-1 overflow-y-auto p-3">
-        <NavList items={visibleNavItems(user.role)} collapsed={collapsed} />
-      </div>
-      <div className="border-t border-sidebar-border p-3">
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a static
+                public-folder brand asset, not an optimizable content image (see
+                the same call made in login/page.tsx). */}
+            <img src="/Logo.png" alt="" className="size-9 shrink-0 rounded-full object-cover" />
+            <span className="font-semibold text-sidebar-foreground">SMS</span>
+          </div>
+        )}
         <button
           type="button"
           onClick={toggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            collapsed && "justify-center px-0",
-          )}
+          className="flex shrink-0 items-center justify-center rounded-md p-1.5 text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           {collapsed ? (
             <PanelLeftOpen className="size-4 shrink-0" />
           ) : (
             <PanelLeftClose className="size-4 shrink-0" />
           )}
-          {!collapsed && "Collapse sidebar"}
         </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        <NavList items={visibleNavItems(user.role)} collapsed={collapsed} />
       </div>
     </aside>
   );
