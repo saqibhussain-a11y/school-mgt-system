@@ -26,13 +26,13 @@ export function MobileSidebar() {
       >
         <Menu className="size-5" />
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
+      <SheetContent side="left" className="w-72 bg-sidebar p-0 text-sidebar-foreground">
         <SheetHeader className="flex-row items-center gap-2 border-b border-sidebar-border px-5 py-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- a static
               public-folder brand asset, not an optimizable content image (see
               the same call made in login/page.tsx). */}
           <img src="/Logo.png" alt="" className="size-9 shrink-0 rounded-full object-cover" />
-          <SheetTitle>School Management System</SheetTitle>
+          <SheetTitle className="text-sidebar-foreground">School Management System</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-3">
           <NavList items={visibleNavItems(user.role)} onNavigate={() => setOpen(false)} />

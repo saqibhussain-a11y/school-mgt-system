@@ -41,14 +41,11 @@ function scopedVars(c: PaletteColors): CSSProperties {
     "--accent-foreground": c.accentForeground,
     "--border": c.border,
     "--ring": c.ring,
-    "--sidebar": c.sidebar,
-    "--sidebar-foreground": c.foreground,
+    // Sidebar surface is fixed (see globals.css) and deliberately not
+    // overridden here — the preview inherits the real fixed value from the
+    // cascade. Only the active-nav-item color still tracks the palette.
     "--sidebar-primary": c.primary,
     "--sidebar-primary-foreground": c.primaryForeground,
-    "--sidebar-accent": c.accent,
-    "--sidebar-accent-foreground": c.accentForeground,
-    "--sidebar-border": c.border,
-    "--sidebar-ring": c.ring,
   } as CSSProperties;
 }
 

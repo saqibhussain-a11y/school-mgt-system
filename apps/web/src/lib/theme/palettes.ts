@@ -3,10 +3,13 @@
 // touched — status/chart/destructive stay untouched everywhere, matching
 // the rule already documented in globals.css for the shipped default
 // palette ("academic-core" here, byte-identical to :root/.dark today).
-// sidebar-*/popover*/card-foreground are deliberately NOT stored — every
-// existing palette in globals.css already just mirrors background/
-// foreground/primary/accent/border/ring for those, so they're derived at
-// apply time instead of duplicated here.
+// popover*/card-foreground are deliberately NOT stored — every existing
+// palette in globals.css already just mirrors background/foreground/
+// primary/accent/border/ring for those, so they're derived at apply time
+// instead of duplicated here. The sidebar's own surface (--sidebar,
+// -foreground, -accent, -accent-foreground, -border, -ring) is fixed in
+// globals.css and NOT part of this model at all — only --sidebar-primary/
+// -primary-foreground (below) still track the chosen palette.
 export interface PaletteColors {
   background: string;
   foreground: string;
@@ -24,7 +27,6 @@ export interface PaletteColors {
   border: string;
   input: string;
   ring: string;
-  sidebar: string;
 }
 
 export interface ThemePalette {
@@ -59,7 +61,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(11, 11, 11, 0.1)",
       input: "rgba(11, 11, 11, 0.14)",
       ring: "#1e40af",
-      sidebar: "#ffffff",
     },
     dark: {
       background: "#07080a",
@@ -78,7 +79,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(255, 255, 255, 0.14)",
       input: "rgba(255, 255, 255, 0.2)",
       ring: "#3b6fe0",
-      sidebar: "#0d0f13",
     },
   },
   {
@@ -102,7 +102,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(15, 23, 42, 0.1)",
       input: "rgba(15, 23, 42, 0.14)",
       ring: "#334155",
-      sidebar: "#ffffff",
     },
     dark: {
       background: "#070a0f",
@@ -121,7 +120,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(255, 255, 255, 0.14)",
       input: "rgba(255, 255, 255, 0.2)",
       ring: "#6b81a0",
-      sidebar: "#0c0f15",
     },
   },
   {
@@ -145,7 +143,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(11, 26, 15, 0.1)",
       input: "rgba(11, 26, 15, 0.14)",
       ring: "#047857",
-      sidebar: "#ffffff",
     },
     dark: {
       background: "#070a08",
@@ -164,7 +161,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(255, 255, 255, 0.14)",
       input: "rgba(255, 255, 255, 0.2)",
       ring: "#34d399",
-      sidebar: "#0b0f0d",
     },
   },
   {
@@ -188,7 +184,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(26, 18, 6, 0.1)",
       input: "rgba(26, 18, 6, 0.14)",
       ring: "#b45309",
-      sidebar: "#ffffff",
     },
     dark: {
       background: "#0a0806",
@@ -207,7 +202,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(255, 255, 255, 0.14)",
       input: "rgba(255, 255, 255, 0.2)",
       ring: "#fbbf24",
-      sidebar: "#0e0b08",
     },
   },
   {
@@ -231,7 +225,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(22, 15, 34, 0.1)",
       input: "rgba(22, 15, 34, 0.14)",
       ring: "#6d28d9",
-      sidebar: "#ffffff",
     },
     dark: {
       background: "#09070c",
@@ -250,7 +243,6 @@ export const PALETTES: ThemePalette[] = [
       border: "rgba(255, 255, 255, 0.14)",
       input: "rgba(255, 255, 255, 0.2)",
       ring: "#a78bfa",
-      sidebar: "#0d0a13",
     },
   },
 ];
@@ -304,12 +296,8 @@ export function applyPalette(id: string, mode?: "light" | "dark") {
   root.setProperty("--border", c.border);
   root.setProperty("--input", c.input);
   root.setProperty("--ring", c.ring);
-  root.setProperty("--sidebar", c.sidebar);
-  root.setProperty("--sidebar-foreground", c.foreground);
+  // Sidebar surface tokens are fixed in globals.css, not part of this
+  // palette model — only the active-nav-item color still tracks it.
   root.setProperty("--sidebar-primary", c.primary);
   root.setProperty("--sidebar-primary-foreground", c.primaryForeground);
-  root.setProperty("--sidebar-accent", c.accent);
-  root.setProperty("--sidebar-accent-foreground", c.accentForeground);
-  root.setProperty("--sidebar-border", c.border);
-  root.setProperty("--sidebar-ring", c.ring);
 }

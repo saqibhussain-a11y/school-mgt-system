@@ -94,14 +94,19 @@
   --chart-4: #4a3aa7;
   --chart-5: #eb6834;
   --radius: 0.625rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0b0b0b;
+  /* Sidebar surface is a fixed dark rail, deliberately NOT swapped by
+     light/dark mode or the appearance palette — same values as .dark below.
+     Only --sidebar-primary/-primary-foreground still track the current
+     palette, so the active nav item is the one place the picker still
+     reaches into the sidebar. */
+  --sidebar: #12141a;
+  --sidebar-foreground: #e5e7eb;
   --sidebar-primary: #1e40af;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eaf1fb;
-  --sidebar-accent-foreground: #184f95;
-  --sidebar-border: rgba(11, 11, 11, 0.1);
-  --sidebar-ring: #1e40af;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: rgba(255, 255, 255, 0.35);
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
@@ -142,14 +147,16 @@
   --chart-3: #c98500;
   --chart-4: #9085e9;
   --chart-5: #d95926;
-  --sidebar: #0d0f13;
-  --sidebar-foreground: #ffffff;
+  /* Same fixed sidebar rail as :root — intentionally identical in both
+     modes, see the comment there. */
+  --sidebar: #12141a;
+  --sidebar-foreground: #e5e7eb;
   --sidebar-primary: #3b6fe0;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #16283d;
-  --sidebar-accent-foreground: #9ec5f4;
-  --sidebar-border: rgba(255, 255, 255, 0.14);
-  --sidebar-ring: #3b6fe0;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: rgba(255, 255, 255, 0.35);
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
