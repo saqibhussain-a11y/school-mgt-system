@@ -3,6 +3,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { studentService } from "./student.service";
 import { studentGuardianService } from "./studentGuardian.service";
 import { inAppNotificationService } from "./inAppNotification.service";
+import { computeScholarshipDiscount } from "./scholarship.service";
 import { generateInvoicePdf } from "../lib/invoicePdf";
 import { roundMoney, ledgerFor, statusFor, creditPoolFor } from "../lib/feeLedger";
 import { getOrSet } from "../lib/cache";
@@ -97,6 +98,14 @@ export const feeInvoiceService = {
       throw new HttpError(400, "All matching students already have an invoice for this fee structure and period");
     }
 
+    // Scholarships auto-apply here, at generation time, same
+    // snapshot-at-generation philosophy as `amount` above — a scholarship
+    // granted/edited later only affects invoices generated after that.
+    const scholarships = await prisma.scholarship.findMany({
+      where: { schoolId, category: structure.category, studentId: { in: toInvoice.map((s) => s.id) } },
+    });
+    const scholarshipByStudent = new Map(scholarships.map((s) => [s.studentId, s]));
+
     // createMany + skipDuplicates, not an array of individual creates inside
     // one all-or-nothing $transaction — that form meant a single student
     // who got invoiced by a concurrent request in the gap between the check
@@ -104,16 +113,21 @@ export const feeInvoiceService = {
     // student in the same batch too. skipDuplicates lets Postgres silently
     // no-op just the genuinely-conflicting row(s) instead of the whole batch.
     const result = await prisma.feeInvoice.createMany({
-      data: toInvoice.map((s) => ({
-        schoolId,
-        studentId: s.id,
-        feeStructureId: input.feeStructureId,
-        period: input.period,
-        amount: structure.amount,
-        netAmount: structure.amount,
-        dueDate: input.dueDate,
-        createdByUserId: input.createdByUserId,
-      })),
+      data: toInvoice.map((s) => {
+        const scholarship = scholarshipByStudent.get(s.id);
+        const discountAmount = scholarship ? computeScholarshipDiscount(scholarship, structure.amount) : 0;
+        return {
+          schoolId,
+          studentId: s.id,
+          feeStructureId: input.feeStructureId,
+          period: input.period,
+          amount: structure.amount,
+          discountAmount,
+          netAmount: roundMoney(structure.amount - discountAmount),
+          dueDate: input.dueDate,
+          createdByUserId: input.createdByUserId,
+        };
+      }),
       skipDuplicates: true,
     });
 

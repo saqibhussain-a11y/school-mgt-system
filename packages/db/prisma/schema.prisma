@@ -61,6 +61,7 @@ model User {
   feeInvoicesCreated  FeeInvoice[]       @relation("FeeInvoiceCreatedBy")
   feePaymentsRecorded FeePayment[]       @relation("FeePaymentRecordedBy")
   feeRefundsRecorded  FeeRefund[]        @relation("FeeRefundRecordedBy")
+  scholarshipsCreated Scholarship[]      @relation("ScholarshipCreatedBy")
   documentsIssued     IssuedDocument[]   @relation("DocumentIssuedBy")
   bookLoansIssued     BookLoan[]         @relation("BookLoanIssuedBy")
 
@@ -578,6 +579,7 @@ model Student {
   marks               Mark[]
   submissions         Submission[]
   feeInvoices         FeeInvoice[]
+  scholarships        Scholarship[]
   issuedDocuments     IssuedDocument[]
   bookLoans           BookLoan[]
   bookReservations    BookReservation[]
@@ -900,8 +902,8 @@ model FeePayment {
   // creating a second one. Null for payment rows created any other way
   // (applyCredit, seed data) — Postgres treats each NULL as distinct, so
   // those never collide with each other or with a real key.
-  idempotencyKey String?
-  createdAt      DateTime @default(now())
+  idempotencyKey   String?
+  createdAt        DateTime         @default(now())
 
   invoice    FeeInvoice  @relation(fields: [invoiceId], references: [id])
   recordedBy User        @relation("FeePaymentRecordedBy", fields: [recordedByUserId], references: [id])
@@ -930,6 +932,38 @@ model FeeRefund {
 
   @@index([schoolId])
   @@index([paymentId])
+}
+
+enum ScholarshipDiscountType {
+  PERCENTAGE
+  FLAT
+}
+
+// A standing per-student discount policy, not a money-movement event (unlike
+// FeeRefund, which is deliberately append-only) — a scholarship is an
+// editable-in-place rate, the same "admin edits a policy row" shape as
+// LeavePolicy. Scoped to one fee category (matching FeeStructure.category,
+// e.g. "tuition") rather than a nullable applies-to-everything wildcard.
+// feeInvoiceService.generate() auto-computes FeeInvoice.discountAmount from
+// this when it generates an invoice in the matching category for this
+// student — applies going forward only, matching FeeStructure's existing
+// snapshot-at-generation-time philosophy (master doc §8.5).
+model Scholarship {
+  id              String                  @id @default(cuid())
+  schoolId        String
+  studentId       String
+  category        String
+  discountType    ScholarshipDiscountType
+  discountValue   Float
+  createdByUserId String
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  student   Student @relation(fields: [studentId], references: [id])
+  createdBy User    @relation("ScholarshipCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([studentId, category])
+  @@index([schoolId])
 }
 
 // An audit record of an issued certificate, not just a generated file —

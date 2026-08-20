@@ -44,3 +44,22 @@ export const recordRefundSchema = z.object({
   amount: z.number().positive(),
   reason: z.string().min(1),
 });
+
+const scholarshipDiscount = z
+  .object({
+    discountType: z.enum(["PERCENTAGE", "FLAT"]),
+    discountValue: z.number().positive(),
+  })
+  .refine((v) => v.discountType !== "PERCENTAGE" || v.discountValue <= 100, {
+    message: "A percentage discount cannot exceed 100",
+    path: ["discountValue"],
+  });
+
+export const createScholarshipSchema = z
+  .object({
+    studentId: z.string().min(1),
+    category: z.enum(FEE_CATEGORIES),
+  })
+  .and(scholarshipDiscount);
+
+export const updateScholarshipSchema = scholarshipDiscount;

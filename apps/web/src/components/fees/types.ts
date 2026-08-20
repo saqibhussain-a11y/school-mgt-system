@@ -48,6 +48,23 @@ export interface FeeInvoice {
   payments: FeePayment[];
 }
 
+export type ScholarshipDiscountType = "PERCENTAGE" | "FLAT";
+
+export interface Scholarship {
+  id: string;
+  studentId: string;
+  student: {
+    id: string;
+    admissionNo: string;
+    user: { firstName: string; lastName: string };
+    class: { id: string; name: string };
+  };
+  category: FeeCategory;
+  discountType: ScholarshipDiscountType;
+  discountValue: number;
+  createdAt: string;
+}
+
 export interface FeeSummary {
   invoiceCount: number;
   totalInvoiced: number;

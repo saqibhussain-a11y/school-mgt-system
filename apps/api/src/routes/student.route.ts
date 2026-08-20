@@ -20,9 +20,9 @@ import {
 // SCHOOL_ADMIN is the only one who creates/manages students now — SUPER_ADMIN
 // keeps read access for oversight (VIEW_ROLES below) but no longer writes.
 const ADMIN_ROLES = [Role.SCHOOL_ADMIN];
-// LIBRARIAN and TRANSPORT_MANAGER need unrestricted read access to look up
-// which student to issue a book / assign a route to — same as PRINCIPAL, no
-// section-scoping applies.
+// LIBRARIAN, TRANSPORT_MANAGER, and ACCOUNTANT need unrestricted read access
+// to look up which student to issue a book / assign a route / grant a
+// scholarship to — same as PRINCIPAL, no section-scoping applies.
 const VIEW_ROLES = [
   Role.SUPER_ADMIN,
   Role.SCHOOL_ADMIN,
@@ -30,6 +30,7 @@ const VIEW_ROLES = [
   Role.TEACHER,
   Role.LIBRARIAN,
   Role.TRANSPORT_MANAGER,
+  Role.ACCOUNTANT,
 ];
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });

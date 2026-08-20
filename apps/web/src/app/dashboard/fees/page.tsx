@@ -3,6 +3,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { FeeStructuresTab } from "@/components/fees/fee-structures-tab";
 import { FeeInvoicesTab } from "@/components/fees/fee-invoices-tab";
+import { ScholarshipsTab } from "@/components/fees/scholarships-tab";
 import { MyFeesView } from "@/components/fees/my-fees-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
@@ -21,12 +22,16 @@ export default function FeesPage() {
           <TabsList>
             <TabsTrigger value="invoices">Invoices & reports</TabsTrigger>
             <TabsTrigger value="structures">Fee structures</TabsTrigger>
+            <TabsTrigger value="scholarships">Scholarships</TabsTrigger>
           </TabsList>
           <TabsContent value="invoices">
             <FeeInvoicesTab />
           </TabsContent>
           <TabsContent value="structures">
             <FeeStructuresTab />
+          </TabsContent>
+          <TabsContent value="scholarships">
+            <ScholarshipsTab />
           </TabsContent>
         </Tabs>
       </div>
