@@ -60,6 +60,32 @@ function overallFor(entries: { marksObtained: number | null; isAbsent: boolean; 
   return { percentage, grade: gradeFor(percentage) };
 }
 
+// Competition ranking (ties share a rank, the next rank skips ahead by the
+// tie size — 1, 1, 3, 4) — the convention schools expect on a result sheet.
+// A student with no marks entered at all (overallPercentage null) gets no
+// rank rather than sorting to the bottom as if they scored zero.
+function withRanks<T extends { overallPercentage: number | null }>(rows: T[]): (T & { rank: number | null })[] {
+  const ranked = rows
+    .map((row, index) => ({ row, index }))
+    .filter((r) => r.row.overallPercentage !== null)
+    .sort((a, b) => b.row.overallPercentage! - a.row.overallPercentage!);
+
+  const rankByIndex = new Map<number, number>();
+  let rank = 0;
+  let seen = 0;
+  let previousPercentage: number | null = null;
+  for (const { row, index } of ranked) {
+    seen += 1;
+    if (row.overallPercentage !== previousPercentage) {
+      rank = seen;
+      previousPercentage = row.overallPercentage;
+    }
+    rankByIndex.set(index, rank);
+  }
+
+  return rows.map((row, index) => ({ ...row, rank: rankByIndex.get(index) ?? null }));
+}
+
 export const examService = {
   getExamSubjectContext(schoolId: string, examSubjectId: string) {
     return prisma.examSubject.findFirst({
@@ -316,5 +342,80 @@ export const examService = {
         overallGrade: overall.grade,
       };
     });
+  },
+
+  // Class-wide marks grid (every student x every subject) plus rank —
+  // getClassOverview above only ever exposes missingSubjects + one rolled-up
+  // percentage, never the actual per-subject marks. Reuses the same
+  // per-subject percentage/grade math as getReportCard, just computed for
+  // the whole class in one pass instead of one student at a time.
+  async getClassResultSheet(schoolId: string, examId: string) {
+    const exam = await prisma.exam.findFirst({ where: { id: examId, schoolId }, include: examInclude });
+    if (!exam) throw new HttpError(404, "Exam not found");
+
+    const [students, marks] = await Promise.all([
+      prisma.student.findMany({
+        where: { schoolId, classId: exam.classId, status: "ACTIVE" },
+        include: { user: { select: { firstName: true, lastName: true } } },
+        orderBy: { admissionNo: "asc" },
+      }),
+      prisma.mark.findMany({
+        where: { schoolId, examSubjectId: { in: exam.examSubjects.map((es) => es.id) } },
+      }),
+    ]);
+
+    const marksByStudent = new Map<string, typeof marks>();
+    for (const mark of marks) {
+      const list = marksByStudent.get(mark.studentId) ?? [];
+      list.push(mark);
+      marksByStudent.set(mark.studentId, list);
+    }
+
+    const rows = students.map((student) => {
+      const studentMarks = marksByStudent.get(student.id) ?? [];
+      const markByExamSubjectId = new Map(studentMarks.map((m) => [m.examSubjectId, m]));
+
+      const subjectMarks = exam.examSubjects.map((es) => {
+        const mark = markByExamSubjectId.get(es.id);
+        const percentage =
+          mark && !mark.isAbsent && mark.marksObtained !== null
+            ? Math.round((mark.marksObtained / es.maxMarks) * 10000) / 100
+            : null;
+        return {
+          subjectId: es.subject.id,
+          marksObtained: mark?.marksObtained ?? null,
+          isAbsent: mark?.isAbsent ?? false,
+          percentage,
+          grade: percentage !== null ? gradeFor(percentage) : null,
+        };
+      });
+
+      const overall = overallFor(
+        exam.examSubjects.map((es) => {
+          const mark = markByExamSubjectId.get(es.id);
+          return {
+            marksObtained: mark?.marksObtained ?? null,
+            isAbsent: mark?.isAbsent ?? false,
+            maxMarks: es.maxMarks,
+          };
+        }),
+      );
+
+      return {
+        studentId: student.id,
+        admissionNo: student.admissionNo,
+        firstName: student.user.firstName,
+        lastName: student.user.lastName,
+        subjectMarks,
+        overallPercentage: overall.percentage,
+        overallGrade: overall.grade,
+      };
+    });
+
+    return {
+      exam: { id: exam.id, name: exam.name, classId: exam.classId, className: exam.class.name },
+      subjects: exam.examSubjects.map((es) => ({ subjectId: es.subject.id, subjectName: es.subject.name, maxMarks: es.maxMarks })),
+      students: withRanks(rows),
+    };
   },
 };

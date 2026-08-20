@@ -4,6 +4,8 @@ import { examService } from "../services/exam.service";
 import { examDatesheetService } from "../services/examDatesheet.service";
 import { examSeatingService } from "../services/examSeating.service";
 import { buildAdmitCardsPdf } from "../lib/examAdmitCardPdf";
+import { generateReportPdf } from "../lib/reportPdf";
+import { reportsService } from "../services/reports.service";
 import { studentService } from "../services/student.service";
 import { studentGuardianService } from "../services/studentGuardian.service";
 import { getAssignedClassIdsForUser } from "../services/teacherAssignment.service";
@@ -277,6 +279,66 @@ examRouter.get("/:id/overview", async (req, res, next) => {
     if (!exam) throw new HttpError(404, "Exam not found");
     await assertCanManageExamClass(schoolId, req.user!, exam.classId);
     res.json(await examService.getClassOverview(schoolId, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+examRouter.get("/:id/result-sheet", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const exam = await examService.getById(schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    await assertCanManageExamClass(schoolId, req.user!, exam.classId);
+    res.json(await examService.getClassResultSheet(schoolId, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Subject columns share the leftover page width evenly (28pt floor) —
+// drawTable has no auto-fit, so this is the caller's job; typical class
+// sizes (a handful of subjects) get a comfortable width, a class with many
+// subjects degrades gracefully to tighter columns rather than erroring.
+const RESULT_SHEET_PAGE_WIDTH = 475;
+const RESULT_SHEET_FIXED_COLUMNS_WIDTH = 100 + 65 + 55 + 45 + 40; // student + admNo + overall% + grade + rank
+
+examRouter.get("/:id/result-sheet/pdf", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const exam = await examService.getById(schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    await assertCanManageExamClass(schoolId, req.user!, exam.classId);
+    const sheet = await examService.getClassResultSheet(schoolId, req.params.id);
+
+    const subjectColWidth = Math.max(28, Math.floor((RESULT_SHEET_PAGE_WIDTH - RESULT_SHEET_FIXED_COLUMNS_WIDTH) / Math.max(1, sheet.subjects.length)));
+    const columns = [
+      { key: "student", label: "Student", width: 100 },
+      { key: "admissionNo", label: "Adm. No.", width: 65 },
+      ...sheet.subjects.map((s) => ({ key: s.subjectId, label: s.subjectName, width: subjectColWidth })),
+      { key: "overall", label: "Overall %", width: 55 },
+      { key: "grade", label: "Grade", width: 45 },
+      { key: "rank", label: "Rank", width: 40 },
+    ];
+    const rows = sheet.students.map((student) => {
+      const row: Record<string, unknown> = {
+        student: `${student.firstName} ${student.lastName}`,
+        admissionNo: student.admissionNo,
+        overall: student.overallPercentage ?? "—",
+        grade: student.overallGrade ?? "—",
+        rank: student.rank ?? "—",
+      };
+      for (const sm of student.subjectMarks) {
+        row[sm.subjectId] = sm.isAbsent ? "Absent" : sm.marksObtained ?? "—";
+      }
+      return row;
+    });
+
+    const schoolName = await reportsService.getSchoolName(schoolId);
+    const pdf = await generateReportPdf(schoolName, `${exam.name} — Class Result Sheet`, columns, rows);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="class-result-sheet.pdf"');
+    res.send(pdf);
   } catch (err) {
     next(err);
   }

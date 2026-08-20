@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EditExamDialog } from "@/components/exams/edit-exam-dialog";
 import { MarksEntryTab } from "@/components/exams/marks-entry-tab";
 import { ExamOverviewTab } from "@/components/exams/exam-overview-tab";
+import { ClassResultSheetTab } from "@/components/exams/class-result-sheet-tab";
 import { DatesheetTab } from "@/components/exams/datesheet-tab";
 import { ClassSeatingTab } from "@/components/exams/class-seating-tab";
 import { ClassInvigilationTab } from "@/components/exams/class-invigilation-tab";
@@ -112,6 +113,7 @@ export default function ExamDetailPage() {
           <TabsList>
             <TabsTrigger value="marks">Marks entry</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="result-sheet">Result sheet</TabsTrigger>
             <TabsTrigger value="datesheet">Datesheet</TabsTrigger>
             <TabsTrigger value="seating">Seating</TabsTrigger>
             <TabsTrigger value="invigilation">Invigilation</TabsTrigger>
@@ -122,6 +124,9 @@ export default function ExamDetailPage() {
           </TabsContent>
           <TabsContent value="overview" className="mt-4">
             <ExamOverviewTab examId={exam.id} />
+          </TabsContent>
+          <TabsContent value="result-sheet" className="mt-4">
+            <ClassResultSheetTab examId={exam.id} />
           </TabsContent>
           <TabsContent value="datesheet" className="mt-4">
             <DatesheetTab exam={exam} onChanged={refetch} />
