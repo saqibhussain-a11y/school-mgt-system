@@ -20,7 +20,8 @@ import {
 } from "../validation/examDatesheet.schema";
 import { generateSeatingSchema } from "../validation/examSeating.schema";
 
-const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+export const EXAM_ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES = EXAM_ADMIN_ROLES;
 
 export const examRouter = Router();
 export const examSubjectRouter = Router();
@@ -350,7 +351,45 @@ examRouter.get("/:id/students/:studentId/report-card", async (req, res, next) =>
     const exam = await examService.getById(schoolId, req.params.id);
     if (!exam) throw new HttpError(404, "Exam not found");
     await assertCanViewReportCard(schoolId, req.user!, exam.classId, req.params.studentId);
+    // Only the STUDENT/PARENT-facing read is gated by publish status —
+    // TEACHER/SCHOOL_ADMIN/PRINCIPAL keep seeing raw marks unconditionally,
+    // since assertCanViewReportCard already let them through above.
+    if ((req.user!.role === Role.STUDENT || req.user!.role === Role.PARENT) && exam.status !== "PUBLISHED") {
+      throw new HttpError(403, "Results for this exam have not been published yet");
+    }
     res.json(await examService.getReportCard(schoolId, req.params.id, req.params.studentId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+examRouter.post("/:id/publish", authorize(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    const exam = await examService.publish(req.user!.schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    res.json(exam);
+  } catch (err) {
+    next(err);
+  }
+});
+
+examRouter.post("/:id/unpublish", authorize(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    const exam = await examService.unpublish(req.user!.schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    res.json(exam);
+  } catch (err) {
+    next(err);
+  }
+});
+
+examRouter.get("/:id/completeness", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const exam = await examService.getById(schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    await assertCanManageExamClass(schoolId, req.user!, exam.classId);
+    res.json(await examService.getCompletenessSummary(schoolId, req.params.id));
   } catch (err) {
     next(err);
   }

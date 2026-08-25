@@ -1,6 +1,6 @@
 "use client";
 
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Lock } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,18 +26,41 @@ interface ReportCardSubject {
   grade: string | null;
 }
 
+interface PreviousTerm {
+  termId: string;
+  termName: string;
+  examName: string;
+  subjects: { subjectId: string; percentage: number | null; grade: string | null }[];
+}
+
 interface ReportCard {
   exam: { name: string };
   subjects: ReportCardSubject[];
   overall: { percentage: number | null; grade: string | null };
+  previousTerms?: PreviousTerm[];
 }
 
 export function ReportCardView({ examId, studentId }: { examId: string; studentId: string }) {
-  const { data, loading } = useApi<ReportCard>(
+  const { data, loading, error } = useApi<ReportCard>(
     `/api/exams/${examId}/students/${studentId}/report-card`,
   );
 
-  if (loading || !data) return <Skeleton className="h-64 rounded-xl" />;
+  if (loading) return <Skeleton className="h-64 rounded-xl" />;
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
+          <Lock className="size-5" />
+          {error}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) return null;
+
+  const previousTerms = data.previousTerms ?? [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,6 +79,11 @@ export function ReportCardView({ examId, studentId }: { examId: string; studentI
           <TableHeader>
             <TableRow>
               <TableHead>Subject</TableHead>
+              {previousTerms.map((t) => (
+                <TableHead key={t.termId} className="text-center text-muted-foreground">
+                  {t.termName}
+                </TableHead>
+              ))}
               <TableHead>Max marks</TableHead>
               <TableHead>Marks obtained</TableHead>
               <TableHead>%</TableHead>
@@ -66,6 +94,16 @@ export function ReportCardView({ examId, studentId }: { examId: string; studentI
             {data.subjects.map((s) => (
               <TableRow key={s.subjectId}>
                 <TableCell className="font-medium">{s.subjectName}</TableCell>
+                {previousTerms.map((t) => {
+                  const prior = t.subjects.find((ps) => ps.subjectId === s.subjectId);
+                  return (
+                    <TableCell key={t.termId} className="text-center text-muted-foreground">
+                      {prior?.percentage !== null && prior?.percentage !== undefined
+                        ? `${prior.percentage}% (${prior.grade})`
+                        : "—"}
+                    </TableCell>
+                  );
+                })}
                 <TableCell>{s.maxMarks}</TableCell>
                 <TableCell>
                   {s.isAbsent ? (
@@ -83,6 +121,11 @@ export function ReportCardView({ examId, studentId }: { examId: string; studentI
           </TableBody>
         </Table>
       </Card>
+      {previousTerms.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Earlier terms are shown for reference only — this is not a combined/weighted score.
+        </p>
+      )}
     </div>
   );
 }

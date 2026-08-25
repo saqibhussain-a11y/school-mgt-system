@@ -38,7 +38,7 @@ type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "LEAVE";
 
 interface NeedsAttentionItem {
   id: string;
-  type: "leave" | "fee" | "library";
+  type: "leave" | "fee" | "library" | "exam";
   label: string;
   subLabel: string;
   daysAgo: number;
@@ -258,6 +258,7 @@ const NEEDS_ATTENTION_ICON: Record<NeedsAttentionItem["type"], typeof CalendarCh
   leave: Clock,
   fee: Wallet,
   library: BookMarked,
+  exam: GraduationCap,
 };
 
 function BarRow({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {

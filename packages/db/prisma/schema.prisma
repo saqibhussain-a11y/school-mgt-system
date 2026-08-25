@@ -116,8 +116,29 @@ model AcademicSession {
   classes      Class[]
   exams        Exam[]
   examSessions ExamSession[]
+  examTerms    ExamTerm[]
 
   @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+// Groups exams into a sequence within an academic session (Term 1 → Term 2
+// → Final) so a later exam can optionally show earlier terms' marks
+// side-by-side (see Exam.includePreviousTerms) — a school-wide sequence,
+// not per-class; each class's own exam for that term links to the same row.
+model ExamTerm {
+  id                String   @id @default(cuid())
+  schoolId          String
+  academicSessionId String
+  name              String
+  order             Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  exams           Exam[]
+
+  @@unique([academicSessionId, order])
   @@index([schoolId])
 }
 
@@ -215,24 +236,44 @@ model ExamSession {
   @@index([academicSessionId])
 }
 
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+}
+
 // Percentage-only grading for this pass (master doc's GPA/custom-rubric
 // options deferred — a school-configurable grading system is a bigger
 // project on its own). See lib/grading.ts for the fixed letter-grade bands.
 model Exam {
-  id                String   @id @default(cuid())
-  schoolId          String
-  classId           String
-  academicSessionId String
-  examSessionId     String?
-  name              String
-  startDate         DateTime @db.Date
-  endDate           DateTime @db.Date
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                   String     @id @default(cuid())
+  schoolId             String
+  classId              String
+  academicSessionId    String
+  examSessionId        String?
+  name                 String
+  startDate            DateTime   @db.Date
+  endDate              DateTime   @db.Date
+  // Gates the STUDENT/PARENT-facing report card only — TEACHER/SCHOOL_ADMIN/
+  // PRINCIPAL always see raw marks regardless of status (see exam.route.ts's
+  // assertCanViewReportCard vs. the extra STUDENT/PARENT-only status check).
+  status               ExamStatus @default(DRAFT)
+  // Informational deadline for teachers to finish entering marks — surfaced
+  // on the admin dashboard's Needs Attention panel when overdue and
+  // incomplete, never enforced as a hard block on late entry.
+  marksDeadline        DateTime?  @db.Date
+  examTermId           String?
+  // Only meaningful when examTermId is set — shows earlier terms in this
+  // sequence side-by-side on this exam's report card (see
+  // exam.service.ts's getReportCard). No weighted/combined score, reference
+  // only (master doc scenario notes: schools didn't agree on one formula).
+  includePreviousTerms Boolean    @default(false)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   class           Class           @relation(fields: [classId], references: [id])
   academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
   examSession     ExamSession?    @relation(fields: [examSessionId], references: [id])
+  examTerm        ExamTerm?       @relation(fields: [examTermId], references: [id])
   examSubjects    ExamSubject[]
 
   // Postgres treats multiple NULLs as distinct, so this only enforces "one
@@ -242,6 +283,7 @@ model Exam {
   @@index([schoolId])
   @@index([classId])
   @@index([examSessionId])
+  @@index([examTermId])
 }
 
 // Which subjects are covered by an exam, and each one's max marks — set

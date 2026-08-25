@@ -1,9 +1,10 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
 import { EditExamDialog } from "@/components/exams/edit-exam-dialog";
 import { MarksEntryTab } from "@/components/exams/marks-entry-tab";
 import { ExamOverviewTab } from "@/components/exams/exam-overview-tab";
@@ -51,6 +52,22 @@ export default function ExamDetailPage() {
     }
   }
 
+  async function handleTogglePublish() {
+    if (!exam) return;
+    try {
+      if (exam.status === "PUBLISHED") {
+        await apiFetch(`/api/exams/${exam.id}/unpublish`, { method: "POST" });
+        toast.success("Results hidden from students/parents");
+      } else {
+        await apiFetch(`/api/exams/${exam.id}/publish`, { method: "POST" });
+        toast.success("Results published to students/parents");
+      }
+      refetch();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update publish status");
+    }
+  }
+
   if (loading || !exam) {
     return (
       <div>
@@ -75,11 +92,31 @@ export default function ExamDetailPage() {
         Back to exams
       </Button>
       <PageHeader
-        title={exam.name}
+        title={
+          <div className="flex items-center gap-2">
+            {exam.name}
+            <Badge variant={exam.status === "PUBLISHED" ? "default" : "secondary"}>
+              {exam.status === "PUBLISHED" ? "Published" : "Draft"}
+            </Badge>
+          </div>
+        }
         description={`${exam.class.name} · ${exam.academicSession.name} · ${formatDate(exam.startDate)} – ${formatDate(exam.endDate)}`}
         action={
           isAdmin && (
             <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={handleTogglePublish}>
+                {exam.status === "PUBLISHED" ? (
+                  <>
+                    <EyeOff className="size-4" />
+                    Unpublish
+                  </>
+                ) : (
+                  <>
+                    <Eye className="size-4" />
+                    Publish results
+                  </>
+                )}
+              </Button>
               <EditExamDialog
                 exam={exam}
                 onSaved={refetch}

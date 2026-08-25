@@ -8,6 +8,9 @@ export const createExamSchema = z
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
     examSessionId: z.string().min(1).nullable().optional(),
+    examTermId: z.string().min(1).nullable().optional(),
+    marksDeadline: z.coerce.date().nullable().optional(),
+    includePreviousTerms: z.boolean().optional(),
     subjects: z
       .array(
         z.object({
@@ -27,6 +30,9 @@ export const updateExamSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   examSessionId: z.string().min(1).nullable().optional(),
+  examTermId: z.string().min(1).nullable().optional(),
+  marksDeadline: z.coerce.date().nullable().optional(),
+  includePreviousTerms: z.boolean().optional(),
 });
 
 export const saveMarksSchema = z.object({

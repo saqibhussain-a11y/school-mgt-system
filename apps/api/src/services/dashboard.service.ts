@@ -5,10 +5,11 @@ import { studentGuardianService } from "./studentGuardian.service";
 import { leaveRequestService } from "./leaveRequest.service";
 import { feeInvoiceService } from "./feeInvoice.service";
 import { bookLoanService } from "./bookLoan.service";
+import { examService } from "./exam.service";
 
 interface NeedsAttentionItem {
   id: string;
-  type: "leave" | "fee" | "library";
+  type: "leave" | "fee" | "library" | "exam";
   label: string;
   subLabel: string;
   daysAgo: number;
@@ -26,10 +27,11 @@ function daysSince(date: Date) {
 // different lens on data these three modules already expose to
 // SCHOOL_ADMIN/PRINCIPAL individually.
 async function getNeedsAttention(schoolId: string): Promise<NeedsAttentionItem[]> {
-  const [pendingLeave, overdueFees, overdueLoans] = await Promise.all([
+  const [pendingLeave, overdueFees, overdueLoans, overdueMarksEntry] = await Promise.all([
     leaveRequestService.listForSchool(schoolId, { status: LeaveStatus.PENDING }),
     feeInvoiceService.list(schoolId, { overdue: true }),
     bookLoanService.list(schoolId, { overdue: true }),
+    examService.listOverdueMarksEntry(schoolId),
   ]);
 
   const items: NeedsAttentionItem[] = [
@@ -56,6 +58,14 @@ async function getNeedsAttention(schoolId: string): Promise<NeedsAttentionItem[]
       subLabel: `${loan.student.user.firstName} ${loan.student.user.lastName}`,
       daysAgo: daysSince(loan.dueDate),
       href: `/dashboard/library/books/${loan.book.id}`,
+    })),
+    ...overdueMarksEntry.map((item) => ({
+      id: item.examId,
+      type: "exam" as const,
+      label: `${item.examName} — marks entry overdue`,
+      subLabel: `${item.entered} of ${item.expected} entered · ${item.className}`,
+      daysAgo: daysSince(item.marksDeadline),
+      href: `/dashboard/exams/${item.examId}`,
     })),
   ];
 

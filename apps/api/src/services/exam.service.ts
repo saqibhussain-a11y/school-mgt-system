@@ -11,6 +11,9 @@ export interface CreateExamInput {
   startDate: Date;
   endDate: Date;
   examSessionId?: string | null;
+  examTermId?: string | null;
+  marksDeadline?: Date | null;
+  includePreviousTerms?: boolean;
   subjects: { subjectId: string; maxMarks: number }[];
 }
 
@@ -39,6 +42,7 @@ const examInclude = {
   // exam's datesheet page can disclose which sibling classes share this
   // session's dates, without a separate endpoint.
   examSession: { include: { exams: { select: { id: true, classId: true, class: { select: { name: true } } } } } },
+  examTerm: true,
   examSubjects: { include: { subject: true } },
 };
 
@@ -123,6 +127,9 @@ export const examService = {
           startDate: input.startDate,
           endDate: input.endDate,
           examSessionId: input.examSessionId ?? null,
+          examTermId: input.examTermId ?? null,
+          marksDeadline: input.marksDeadline ?? null,
+          includePreviousTerms: input.includePreviousTerms ?? false,
         },
       });
       await tx.examSubject.createMany({
@@ -140,7 +147,15 @@ export const examService = {
   async update(
     schoolId: string,
     id: string,
-    data: Partial<{ name: string; startDate: Date; endDate: Date; examSessionId: string | null }>,
+    data: Partial<{
+      name: string;
+      startDate: Date;
+      endDate: Date;
+      examSessionId: string | null;
+      examTermId: string | null;
+      marksDeadline: Date | null;
+      includePreviousTerms: boolean;
+    }>,
   ) {
     const existing = await prisma.exam.findFirst({ where: { id, schoolId } });
     if (!existing) return null;
@@ -148,6 +163,74 @@ export const examService = {
       await assertExamSessionValid(schoolId, data.examSessionId, existing.classId, id);
     }
     return prisma.exam.update({ where: { id }, data, include: examInclude });
+  },
+
+  // Publishing/hiding only ever affects the STUDENT/PARENT-facing report
+  // card read (see exam.route.ts) — TEACHER/SCHOOL_ADMIN/PRINCIPAL always
+  // see raw marks regardless, so there's nothing else to gate here.
+  async publish(schoolId: string, id: string) {
+    const existing = await prisma.exam.findFirst({ where: { id, schoolId } });
+    if (!existing) return null;
+    return prisma.exam.update({ where: { id }, data: { status: "PUBLISHED" }, include: examInclude });
+  },
+
+  async unpublish(schoolId: string, id: string) {
+    const existing = await prisma.exam.findFirst({ where: { id, schoolId } });
+    if (!existing) return null;
+    return prisma.exam.update({ where: { id }, data: { status: "DRAFT" }, include: examInclude });
+  },
+
+  // "142 of 150 expected marks entered" — same "a Mark row exists" notion
+  // of entered/missing as getClassOverview's missingSubjects (a saved-blank
+  // row counts as entered; only a genuinely absent row is missing), so this
+  // reads consistently with what admins already see per-student.
+  async getCompletenessSummary(schoolId: string, examId: string) {
+    const exam = await prisma.exam.findFirst({ where: { id: examId, schoolId }, include: { examSubjects: true } });
+    if (!exam) throw new HttpError(404, "Exam not found");
+
+    const [activeStudentCount, enteredCount] = await Promise.all([
+      prisma.student.count({ where: { schoolId, classId: exam.classId, status: "ACTIVE" } }),
+      prisma.mark.count({ where: { schoolId, examSubjectId: { in: exam.examSubjects.map((es) => es.id) } } }),
+    ]);
+
+    const expected = activeStudentCount * exam.examSubjects.length;
+    return { expected, entered: Math.min(enteredCount, expected) };
+  },
+
+  // Feeds the admin dashboard's Needs Attention panel — same
+  // "already-computed data, different lens" shape as its other sources
+  // (leave/fee/library). Deliberately informational only: a passed
+  // deadline never blocks marks entry, it just surfaces here.
+  async listOverdueMarksEntry(schoolId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exams = await prisma.exam.findMany({
+      where: { schoolId, marksDeadline: { lt: today } },
+      include: { class: { select: { name: true } }, examSubjects: true },
+    });
+    if (exams.length === 0) return [];
+
+    const overdue = await Promise.all(
+      exams.map(async (exam) => {
+        const [activeStudentCount, enteredCount] = await Promise.all([
+          prisma.student.count({ where: { schoolId, classId: exam.classId, status: "ACTIVE" } }),
+          prisma.mark.count({ where: { schoolId, examSubjectId: { in: exam.examSubjects.map((es) => es.id) } } }),
+        ]);
+        const expected = activeStudentCount * exam.examSubjects.length;
+        return { exam, expected, entered: Math.min(enteredCount, expected) };
+      }),
+    );
+
+    return overdue
+      .filter(({ expected, entered }) => entered < expected)
+      .map(({ exam, expected, entered }) => ({
+        examId: exam.id,
+        examName: exam.name,
+        className: exam.class.name,
+        marksDeadline: exam.marksDeadline!,
+        expected,
+        entered,
+      }));
   },
 
   async remove(schoolId: string, id: string) {
@@ -291,7 +374,55 @@ export const examService = {
       }),
     );
 
-    return { exam, subjects, overall };
+    // Side-by-side reference only (no weighted/combined score — see the
+    // Exam.includePreviousTerms comment) — rows are always this exam's own
+    // subject list; a prior term missing a subject just shows "—" for it.
+    let previousTerms:
+      | { termId: string; termName: string; examId: string; examName: string; subjects: { subjectId: string; percentage: number | null; grade: string | null }[] }[]
+      | undefined;
+
+    if (exam.examTermId && exam.includePreviousTerms && exam.examTerm) {
+      const priorExams = await prisma.exam.findMany({
+        where: {
+          schoolId,
+          classId: exam.classId,
+          academicSessionId: exam.academicSessionId,
+          examTerm: { order: { lt: exam.examTerm.order } },
+        },
+        include: { examTerm: true, examSubjects: { include: { subject: true } } },
+        orderBy: { examTerm: { order: "asc" } },
+      });
+
+      if (priorExams.length > 0) {
+        const priorMarks = await prisma.mark.findMany({
+          where: {
+            schoolId,
+            studentId,
+            examSubjectId: { in: priorExams.flatMap((e) => e.examSubjects.map((es) => es.id)) },
+          },
+        });
+        const priorMarkByExamSubjectId = new Map(priorMarks.map((m) => [m.examSubjectId, m]));
+
+        previousTerms = priorExams.map((priorExam) => ({
+          termId: priorExam.examTerm!.id,
+          termName: priorExam.examTerm!.name,
+          examId: priorExam.id,
+          examName: priorExam.name,
+          subjects: subjects.map((s) => {
+            const priorEs = priorExam.examSubjects.find((es) => es.subject.id === s.subjectId);
+            if (!priorEs) return { subjectId: s.subjectId, percentage: null, grade: null };
+            const mark = priorMarkByExamSubjectId.get(priorEs.id);
+            const percentage =
+              mark && !mark.isAbsent && mark.marksObtained !== null
+                ? Math.round((mark.marksObtained / priorEs.maxMarks) * 10000) / 100
+                : null;
+            return { subjectId: s.subjectId, percentage, grade: percentage !== null ? gradeFor(percentage) : null };
+          }),
+        }));
+      }
+    }
+
+    return { exam, subjects, overall, previousTerms };
   },
 
   async getClassOverview(schoolId: string, examId: string) {

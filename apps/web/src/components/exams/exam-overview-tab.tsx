@@ -36,6 +36,7 @@ const TONE_TEXT: Record<ReturnType<typeof attendanceTone>, string> = {
 
 export function ExamOverviewTab({ examId }: { examId: string }) {
   const { data: rows, loading } = useApi<OverviewRow[]>(`/api/exams/${examId}/overview`);
+  const { data: completeness } = useApi<{ expected: number; entered: number }>(`/api/exams/${examId}/completeness`);
 
   if (loading) return <Skeleton className="h-64 rounded-xl" />;
   if (!rows || rows.length === 0) {
@@ -49,62 +50,72 @@ export function ExamOverviewTab({ examId }: { examId: string }) {
   }
 
   return (
-    <Card>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Admission no.</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Missing subjects</TableHead>
-            <TableHead>Overall</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.studentId}>
-              <TableCell>{r.admissionNo}</TableCell>
-              <TableCell className="font-medium">
-                {r.firstName} {r.lastName}
-              </TableCell>
-              <TableCell>
-                {r.missingSubjects.length === 0 ? (
-                  <span className="text-muted-foreground">None</span>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {r.missingSubjects.map((s) => (
-                      <Badge key={s} variant="secondary">
-                        {s}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>
-                {r.overallPercentage !== null ? (
-                  <span className={cn("font-medium", TONE_TEXT[attendanceTone(r.overallPercentage)])}>
-                    {r.overallPercentage}% ({r.overallGrade})
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Pending</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <ReportCardDialog
-                  examId={examId}
-                  studentId={r.studentId}
-                  studentName={`${r.firstName} ${r.lastName}`}
-                  trigger={
-                    <Button size="sm" variant="ghost" title="View report card">
-                      <Eye className="size-3.5" />
-                    </Button>
-                  }
-                />
-              </TableCell>
+    <div className="flex flex-col gap-4">
+      {completeness && (
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {completeness.entered} of {completeness.expected}
+          </span>{" "}
+          expected marks entered. Publishing is still allowed before this reaches 100% — this is informational only.
+        </p>
+      )}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Admission no.</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Missing subjects</TableHead>
+              <TableHead>Overall</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.studentId}>
+                <TableCell>{r.admissionNo}</TableCell>
+                <TableCell className="font-medium">
+                  {r.firstName} {r.lastName}
+                </TableCell>
+                <TableCell>
+                  {r.missingSubjects.length === 0 ? (
+                    <span className="text-muted-foreground">None</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {r.missingSubjects.map((s) => (
+                        <Badge key={s} variant="secondary">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {r.overallPercentage !== null ? (
+                    <span className={cn("font-medium", TONE_TEXT[attendanceTone(r.overallPercentage)])}>
+                      {r.overallPercentage}% ({r.overallGrade})
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Pending</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <ReportCardDialog
+                    examId={examId}
+                    studentId={r.studentId}
+                    studentName={`${r.firstName} ${r.lastName}`}
+                    trigger={
+                      <Button size="sm" variant="ghost" title="View report card">
+                        <Eye className="size-3.5" />
+                      </Button>
+                    }
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
   );
 }

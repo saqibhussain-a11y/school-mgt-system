@@ -21,6 +21,10 @@ export interface ExamSummary {
   examSessionId: string | null;
   startDate: string;
   endDate: string;
+  status: "DRAFT" | "PUBLISHED";
+  marksDeadline: string | null;
+  examTermId: string | null;
+  includePreviousTerms: boolean;
   class: { id: string; name: string };
   academicSession: { id: string; name: string };
   examSubjects: DatesheetExamSubjectSummary[];
@@ -31,4 +35,5 @@ export interface ExamSummary {
     endDate: string;
     exams: { id: string; classId: string; class: { name: string } }[];
   } | null;
+  examTerm: { id: string; name: string; order: number } | null;
 }

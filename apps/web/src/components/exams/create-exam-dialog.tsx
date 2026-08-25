@@ -21,11 +21,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { AcademicSession } from "@/components/academics/sessions-tab";
 import type { SchoolClass } from "@/components/academics/classes-tab";
 import type { ExamSessionSummary } from "@/components/exam-sessions/exam-session-types";
+import type { ExamTermSummary } from "./exam-term-types";
+import { ManageExamTermsDialog } from "./manage-exam-terms-dialog";
 
 interface SubjectOption {
   id: string;
@@ -51,6 +54,9 @@ export function CreateExamDialog({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [examSessionId, setExamSessionId] = useState("");
+  const [examTermId, setExamTermId] = useState("");
+  const [marksDeadline, setMarksDeadline] = useState("");
+  const [includePreviousTerms, setIncludePreviousTerms] = useState(false);
   const [rows, setRows] = useState<SubjectRow[]>([{ subjectId: "", maxMarks: "100" }]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -62,6 +68,9 @@ export function CreateExamDialog({
     open && classId ? `/api/subjects?classId=${classId}` : null,
   );
   const { data: examSessions } = useApi<ExamSessionSummary[]>(open ? "/api/exam-sessions" : null);
+  const { data: examTerms, refetch: refetchExamTerms } = useApi<ExamTermSummary[]>(
+    open && academicSessionId ? `/api/exam-terms?academicSessionId=${academicSessionId}` : null,
+  );
 
   useEffect(() => {
     if (open && !academicSessionId && sessions && sessions.length > 0) {
@@ -82,6 +91,9 @@ export function CreateExamDialog({
     setStartDate("");
     setEndDate("");
     setExamSessionId("");
+    setExamTermId("");
+    setMarksDeadline("");
+    setIncludePreviousTerms(false);
     setRows([{ subjectId: "", maxMarks: "100" }]);
   }
 
@@ -104,6 +116,9 @@ export function CreateExamDialog({
           startDate,
           endDate,
           examSessionId: examSessionId || null,
+          examTermId: examTermId || null,
+          marksDeadline: marksDeadline || null,
+          includePreviousTerms,
           subjects: validRows.map((r) => ({ subjectId: r.subjectId, maxMarks: Number(r.maxMarks) })),
         }),
       });
@@ -230,6 +245,64 @@ export function CreateExamDialog({
               standalone unless you specifically need that.
             </p>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label>Term</Label>
+                {academicSessionId && (
+                  <ManageExamTermsDialog
+                    academicSessionId={academicSessionId}
+                    onChanged={refetchExamTerms}
+                    trigger={
+                      <button type="button" className="text-xs text-muted-foreground underline">
+                        Manage terms
+                      </button>
+                    }
+                  />
+                )}
+              </div>
+              <Select
+                items={[
+                  { value: "", label: "None" },
+                  ...(examTerms ?? []).map((t) => ({ value: t.id, label: t.name })),
+                ]}
+                value={examTermId}
+                onValueChange={(v) => setExamTermId(v ?? "")}
+                disabled={!academicSessionId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {(examTerms ?? []).map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="exam-marks-deadline">Marks entry deadline (optional)</Label>
+              <Input
+                id="exam-marks-deadline"
+                type="date"
+                value={marksDeadline}
+                onChange={(e) => setMarksDeadline(e.target.value)}
+              />
+            </div>
+          </div>
+          {examTermId && (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={includePreviousTerms}
+                onCheckedChange={(v) => setIncludePreviousTerms(v === true)}
+              />
+              Show earlier terms side-by-side on this exam&apos;s report card
+            </label>
+          )}
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
