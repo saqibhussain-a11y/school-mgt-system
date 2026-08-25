@@ -7,6 +7,7 @@ import { studentService } from "../services/student.service";
 import { teacherAssignmentService } from "../services/teacherAssignment.service";
 import { timetableSlotService } from "../services/timetableSlot.service";
 import { examInvigilationService } from "../services/examInvigilation.service";
+import { syllabusService } from "../services/syllabus.service";
 import { HttpError } from "../middleware/errorHandler";
 
 export const meRouter = Router();
@@ -62,6 +63,20 @@ meRouter.get("/timetable", authenticate, async (req, res, next) => {
       return;
     }
     res.json([]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// A teacher's own pacing plans, scoped by subject-teaching capability
+// (TeacherSubjectAssignment), not the class/section-scoped TeacherAssignment.
+meRouter.get("/syllabus", authenticate, async (req, res, next) => {
+  try {
+    if (req.user!.role !== Role.TEACHER) {
+      res.json([]);
+      return;
+    }
+    res.json(await syllabusService.mySyllabus(req.user!.schoolId, req.user!.sub));
   } catch (err) {
     next(err);
   }

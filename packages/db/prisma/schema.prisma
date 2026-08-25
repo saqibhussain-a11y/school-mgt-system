@@ -124,6 +124,7 @@ model AcademicSession {
   exams        Exam[]
   examSessions ExamSession[]
   examTerms    ExamTerm[]
+  syllabuses   Syllabus[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -170,6 +171,7 @@ model Class {
   exams              Exam[]
   assignments        Assignment[]
   feeStructures      FeeStructure[]
+  syllabuses         Syllabus[]
 
   @@unique([academicSessionId, name])
   @@index([schoolId])
@@ -210,6 +212,7 @@ model Subject {
   examSubjects       ExamSubject[]
   assignments        Assignment[]
   teacherAssignments TeacherSubjectAssignment[]
+  syllabuses         Syllabus[]
 
   @@unique([classId, name])
   @@index([schoolId])
@@ -480,6 +483,62 @@ model TeacherSubjectAssignment {
   @@index([schoolId])
   @@index([staffId])
   @@index([subjectId])
+}
+
+// Curriculum pacing plan: admin lays out which chapter a class+subject covers
+// and when, for a given academic session. One row per Class+Subject+Session —
+// Subject is already class-scoped, but classId is kept explicit here for the
+// same query-shape symmetry Exam/TimetableSlot use elsewhere in this schema.
+model Syllabus {
+  id                String   @id @default(cuid())
+  schoolId          String
+  classId           String
+  subjectId         String
+  academicSessionId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  class           Class           @relation(fields: [classId], references: [id])
+  subject         Subject         @relation(fields: [subjectId], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  chapters        Chapter[]
+
+  @@unique([classId, subjectId, academicSessionId])
+  @@index([schoolId])
+}
+
+model Chapter {
+  id         String   @id @default(cuid())
+  schoolId   String
+  syllabusId String
+  title      String
+  order      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  syllabus        Syllabus        @relation(fields: [syllabusId], references: [id], onDelete: Cascade)
+  scheduleEntries ScheduleEntry[]
+
+  @@unique([syllabusId, order])
+  @@index([schoolId])
+}
+
+// Deliberately one flexible shape for both a single-day plan and a
+// week/month-long whole-chapter plan — the difference is only how wide the
+// admin sets the date range, never a separate model or a school-level mode flag.
+model ScheduleEntry {
+  id        String   @id @default(cuid())
+  schoolId  String
+  chapterId String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([chapterId])
 }
 
 enum TimetableSlotSource {
