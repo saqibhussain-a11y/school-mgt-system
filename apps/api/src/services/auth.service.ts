@@ -32,6 +32,15 @@ export const authService = {
     ) {
       throw new HttpError(401, "Invalid email or password");
     }
+    // Belt-and-suspenders alongside the unusable placeholder passwordHash a
+    // not-yet-activated student/etc. gets at creation (see
+    // student.service.ts) — that alone would already fail verifyPassword
+    // above, but this gives a clearer, more correct error than a generic
+    // "invalid password" for the legitimate case of a real account that
+    // simply hasn't had credentials issued yet.
+    if (!user.isActivated) {
+      throw new HttpError(403, "This account hasn't been activated yet — ask your school to issue your login credentials.");
+    }
     return issueTokenPair(user);
   },
 
@@ -91,8 +100,12 @@ export const authService = {
 
   async requestPasswordReset(schoolId: string, email: string) {
     const user = await userService.findByEmail(schoolId, email);
-    if (!user) {
-      // Do not reveal whether the email exists.
+    // Same "don't reveal" non-response for a not-yet-activated account as
+    // for a nonexistent one — otherwise the public forgot-password form
+    // would let a student self-activate before an admin has ever chosen to
+    // issue them credentials, defeating the whole point of decoupling
+    // admission from credential issuance (see student.service.ts).
+    if (!user || !user.isActivated) {
       return;
     }
     const otp = generateOtp();

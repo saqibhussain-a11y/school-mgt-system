@@ -8,7 +8,7 @@ export interface StudentSummary {
   sectionId: string;
   previousSchool: string | null;
   medicalInfo: string | null;
-  user: { id: string; email: string; firstName: string; lastName: string; role: string };
+  user: { id: string; email: string; firstName: string; lastName: string; role: string; isActivated: boolean };
   class: { id: string; name: string };
   section: { id: string; name: string };
 }

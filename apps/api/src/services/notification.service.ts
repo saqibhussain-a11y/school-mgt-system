@@ -1,9 +1,14 @@
 import { sendMail } from "../lib/mailer";
 import { logger } from "../lib/logger";
-import { otpEmail, welcomeEmail, passwordChangedEmail } from "../lib/emailTemplates";
+import { otpEmail, welcomeEmail, passwordChangedEmail, accountInviteEmail } from "../lib/emailTemplates";
 
 function loginUrl() {
   return `${process.env.WEB_APP_URL ?? "http://localhost:3000"}/login`;
+}
+
+function claimAccountUrl(email: string) {
+  const base = process.env.WEB_APP_URL ?? "http://localhost:3000";
+  return `${base}/forgot-password?email=${encodeURIComponent(email)}`;
 }
 
 export const notificationService = {
@@ -20,6 +25,17 @@ export const notificationService = {
       await sendMail(email, subject, html);
     } catch (err) {
       logger.error({ err, email }, "Failed to send welcome email");
+    }
+  },
+
+  // Best-effort, same as notifyNewAccount — a failed send shouldn't block
+  // the admin's "send invite" action.
+  async notifyAccountInvite(email: string, firstName: string, otp: string) {
+    try {
+      const { subject, html } = accountInviteEmail(firstName, otp, claimAccountUrl(email));
+      await sendMail(email, subject, html);
+    } catch (err) {
+      logger.error({ err, email }, "Failed to send account invite email");
     }
   },
 

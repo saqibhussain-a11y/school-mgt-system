@@ -28,8 +28,12 @@ export const userService = {
     return prisma.user.create({ data });
   },
 
+  // Also activates the account — a real password only ever gets set here
+  // once someone (admin or the user via OTP) has legitimately claimed it, so
+  // this is always the correct moment to lift isActivated, including for
+  // already-active users where it's a harmless no-op overwrite.
   async updatePassword(schoolId: string, id: string, passwordHash: string) {
-    await prisma.user.updateMany({ where: { id, schoolId }, data: { passwordHash } });
+    await prisma.user.updateMany({ where: { id, schoolId }, data: { passwordHash, isActivated: true } });
   },
 
   listByRole(schoolId: string, role: Role) {

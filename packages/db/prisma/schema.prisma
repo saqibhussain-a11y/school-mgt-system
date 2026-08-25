@@ -41,6 +41,13 @@ model User {
   role         Role
   firstName    String   @default("")
   lastName     String   @default("")
+  // Defaults true for every existing flow (staff, guardians, admin-created
+  // accounts) — only student admission sets this false at creation, with an
+  // unusable placeholder passwordHash, so login is rejected until an admin
+  // explicitly issues credentials (see student.service.ts's
+  // generateCredentials). Flipped true whenever a real password is actually
+  // set (admin-issued or self-service OTP claim).
+  isActivated  Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -610,6 +617,11 @@ model Student {
   previousSchool String?
   medicalInfo    String?
   status         StudentStatus @default(ACTIVE)
+  // Free-form school-defined fields captured from bulk-import columns that
+  // don't map to a known field (e.g. a legacy system's own custom column) —
+  // keyed by the original CSV header. Not integrated into search/reports,
+  // just preserved so nothing from the source file is silently dropped.
+  extraInfo      Json?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -632,6 +644,40 @@ model Student {
   @@index([schoolId])
   @@index([classId])
   @@index([sectionId])
+}
+
+// Per-school admission-number pattern, so a school migrating from a legacy
+// system can continue its own numbering instead of getting our fixed
+// ADM-{year}-{seq} scheme. Lazy-upserted on first read, same pattern as
+// LeavePolicy. nextNumber is a plain counter (no year-rollover) — a school
+// that wants year segments just edits the prefix themselves; this only
+// auto-advances forward (see student.service.ts's advanceIfNeeded), never
+// resets.
+model AdmissionNumberFormat {
+  id         String   @id @default(cuid())
+  schoolId   String   @unique
+  prefix     String   @default("ADM-")
+  nextNumber Int      @default(1)
+  padWidth   Int      @default(4)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
+// Remembers how this school last mapped their CSV's column headers to our
+// known student fields, so a repeat bulk import from the same legacy export
+// doesn't need to be re-mapped by hand every time. One row per school,
+// overwritten on every import.
+model StudentImportMapping {
+  id        String   @id @default(cuid())
+  schoolId  String   @unique
+  // { csvHeader: targetField | null } — null means "keep in extraInfo".
+  mapping   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
 }
 
 // Deactivate, never delete — historical grading/attendance entries must

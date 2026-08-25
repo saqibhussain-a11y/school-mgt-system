@@ -1,19 +1,23 @@
+import { randomUUID } from "crypto";
 import { prisma, type PrismaTransactionClient, Role, StudentStatus } from "@sms/db";
 import { hashPassword } from "../lib/password";
+import { generateTempPassword } from "../lib/tempPassword";
+import { generateOtp } from "../lib/otp";
 import { HttpError } from "../middleware/errorHandler";
 import { creditPoolFor, roundMoney } from "../lib/feeLedger";
+import { admissionNumberFormatService } from "./admissionNumberFormat.service";
+import { passwordResetService } from "./passwordReset.service";
 
 type TxClient = PrismaTransactionClient;
 
 export interface CreateStudentInput {
   email: string;
-  password: string;
   firstName: string;
   lastName: string;
-  // Left undefined for normal admissions — the school shouldn't have to invent
-  // and remember a number by hand (risk of reusing one already assigned).
-  // Only bulk-import supplies it, to preserve numbers carried over from a
-  // school's existing records.
+  // Left undefined for a normal admission where the admin accepts the
+  // suggested next number from admissionNumberFormatService — explicitly
+  // supplied for a manual override, or when migrating numbers from a
+  // school's existing records via bulk import.
   admissionNo?: string;
   classId: string;
   sectionId: string;
@@ -21,10 +25,12 @@ export interface CreateStudentInput {
   admissionDate?: Date;
   previousSchool?: string;
   medicalInfo?: string;
+  // Free-form bulk-import columns that didn't map to a known field.
+  extraInfo?: Record<string, string>;
 }
 
 const studentInclude = {
-  user: { select: { id: true, email: true, firstName: true, lastName: true, role: true } },
+  user: { select: { id: true, email: true, firstName: true, lastName: true, role: true, isActivated: true } },
   class: true,
   section: true,
   guardians: {
@@ -43,7 +49,7 @@ const studentInclude = {
 // pure over-fetch on every roster load, worst-case the whole school's
 // students at once when no classId/sectionId filter is applied.
 const studentListInclude = {
-  user: { select: { id: true, email: true, firstName: true, lastName: true, role: true } },
+  user: { select: { id: true, email: true, firstName: true, lastName: true, role: true, isActivated: true } },
   class: true,
   section: true,
 };
@@ -53,31 +59,27 @@ const studentListInclude = {
 // return an unbounded payload. Comfortably above any real school's size.
 const LIST_SAFETY_CAP = 2000;
 
-async function generateAdmissionNo(tx: TxClient, schoolId: string) {
-  // Locks auto-numbering for this school so two concurrent admissions can't
-  // both count() before either has inserted and compute the identical next
-  // number (that race was previously caught only by the unique constraint,
-  // failing one of the two legitimate concurrent admissions outright rather
-  // than giving it the next number) — same UPDATE-as-lock technique as fee
-  // credit-carry's lockStudentRow. Only taken here, so an explicit
-  // caller-supplied admissionNo (bulk CSV import) never triggers this lock.
-  await tx.school.update({ where: { id: schoolId }, data: { updatedAt: new Date() } });
-  const prefix = `ADM-${new Date().getFullYear()}-`;
-  const count = await tx.student.count({
-    where: { schoolId, admissionNo: { startsWith: prefix } },
-  });
-  return `${prefix}${String(count + 1).padStart(4, "0")}`;
-}
-
 async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInput) {
-  const passwordHash = await hashPassword(input.password);
-  const admissionNo = input.admissionNo || (await generateAdmissionNo(tx, schoolId));
+  let admissionNo = input.admissionNo;
+  if (admissionNo) {
+    await admissionNumberFormatService.advanceIfNeeded(tx, schoolId, admissionNo);
+  } else {
+    admissionNo = await admissionNumberFormatService.consumeNext(tx, schoolId);
+  }
+
+  // No usable password at admission time — portal access is a separate,
+  // explicitly-triggered action (see generateCredentialsAdminSet/Invite
+  // below). A random, never-disclosed hash avoids a schema change
+  // (passwordHash stays non-null) while being unguessable and unable to
+  // verify against anything a real login attempt would type.
+  const passwordHash = await hashPassword(randomUUID());
 
   const user = await tx.user.create({
     data: {
       schoolId,
       email: input.email,
       passwordHash,
+      isActivated: false,
       role: Role.STUDENT,
       firstName: input.firstName,
       lastName: input.lastName,
@@ -95,6 +97,7 @@ async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInp
       admissionDate: input.admissionDate,
       previousSchool: input.previousSchool,
       medicalInfo: input.medicalInfo,
+      extraInfo: input.extraInfo,
     },
     include: studentInclude,
   });
@@ -196,5 +199,30 @@ export const studentService = {
       where: { schoolId, classId, status: StudentStatus.ACTIVE },
       select: { id: true, userId: true },
     });
+  },
+
+  // "Admin sets it" mode — issues a temporary password directly, same
+  // mechanism as the existing generic reset-password action, just usable
+  // for a student who has never had credentials at all yet (not only a
+  // password change for an already-active account).
+  async generateCredentialsAdminSet(schoolId: string, studentId: string) {
+    const student = await prisma.student.findFirst({ where: { id: studentId, schoolId }, include: studentInclude });
+    if (!student) return null;
+    const password = generateTempPassword();
+    const passwordHash = await hashPassword(password);
+    await prisma.user.update({ where: { id: student.userId }, data: { passwordHash, isActivated: true } });
+    return { email: student.user.email, firstName: student.user.firstName, password };
+  },
+
+  // "Student sets their own" mode — an OTP-based invite reusing the exact
+  // same mechanism as forgot-password (passwordResetService + POST
+  // /auth/reset-password); isActivated only flips true once the student
+  // actually claims it (see userService.updatePassword), not at send time.
+  async generateCredentialsInvite(schoolId: string, studentId: string) {
+    const student = await prisma.student.findFirst({ where: { id: studentId, schoolId }, include: studentInclude });
+    if (!student) return null;
+    const otp = generateOtp();
+    await passwordResetService.create(schoolId, student.userId, otp);
+    return { email: student.user.email, firstName: student.user.firstName, otp };
   },
 };

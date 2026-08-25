@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ResetPasswordButton } from "@/components/shared/reset-password-button";
 import { EditStudentDialog } from "@/components/students/edit-student-dialog";
+import { GenerateCredentialsDialog } from "@/components/students/generate-credentials-dialog";
 import { LinkGuardianDialog } from "@/components/students/link-guardian-dialog";
 import { AttendanceHistoryView } from "@/components/attendance/attendance-history-view";
 import { GenerateCertificateDialog } from "@/components/documents/generate-certificate-dialog";
@@ -27,6 +28,9 @@ const ADMIN_ROLES = ["SCHOOL_ADMIN"];
 // Broader than ADMIN_ROLES above (which only gates edit/withdraw) — matches
 // the backend's document-issuance permission (SUPER_ADMIN/SCHOOL_ADMIN/PRINCIPAL).
 const DOCUMENT_ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+// Matches the backend's /generate-credentials gate — deliberately includes
+// PRINCIPAL, unlike ADMIN_ROLES above.
+const CREDENTIAL_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function StudentDetailPage() {
   const params = useParams<{ id: string }>();
@@ -38,6 +42,7 @@ export default function StudentDetailPage() {
     `/api/students/${params.id}`,
   );
   const canManageDocuments = !!user && DOCUMENT_ADMIN_ROLES.includes(user.role);
+  const canManageCredentials = !!user && CREDENTIAL_ROLES.includes(user.role);
   const [documentsVersion, setDocumentsVersion] = useState(0);
 
   async function handleWithdraw() {
@@ -93,7 +98,13 @@ export default function StudentDetailPage() {
               canManage && (
                 <div className="flex gap-2">
                   <EditStudentDialog student={student} onSaved={refetch} />
-                  <ResetPasswordButton userId={student.user.id} />
+                  {student.user.isActivated ? (
+                    <ResetPasswordButton userId={student.user.id} />
+                  ) : (
+                    canManageCredentials && (
+                      <GenerateCredentialsDialog studentId={student.id} onIssued={refetch} />
+                    )
+                  )}
                   <ConfirmDialog
                     trigger={
                       <Button size="sm" variant="destructive" disabled={student.status === "WITHDRAWN"}>
@@ -120,6 +131,14 @@ export default function StudentDetailPage() {
               <CardContent className="grid grid-cols-2 gap-4 text-sm">
                 <Field label="Email" value={student.user.email} />
                 <Field label="Status" value={<StatusBadge status={student.status} />} />
+                <Field
+                  label="Login access"
+                  value={
+                    <Badge variant={student.user.isActivated ? "secondary" : "outline"}>
+                      {student.user.isActivated ? "Active" : "Not activated"}
+                    </Badge>
+                  }
+                />
                 <Field label="Class" value={student.class.name} />
                 <Field label="Section" value={student.section.name} />
                 <Field label="Date of birth" value={formatDate(student.dob)} />

@@ -28,6 +28,18 @@ export function welcomeEmail(firstName: string, email: string, password: string,
   };
 }
 
+export function accountInviteEmail(firstName: string, otp: string, claimUrl: string) {
+  return {
+    subject: "Set up your School Management System account",
+    html: wrapper(
+      `<p>Hi ${firstName},</p>
+       <p>Your school has set up a portal account for you. Use this code to set your own password:</p>
+       <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px;">${otp}</p>
+       <p>This code expires in 10 minutes. Go to <a href="${claimUrl}">${claimUrl}</a> and enter it along with your email to choose your password.</p>`,
+    ),
+  };
+}
+
 export function passwordChangedEmail(reason: "admin_reset" | "otp_reset") {
   const explanation =
     reason === "admin_reset"
