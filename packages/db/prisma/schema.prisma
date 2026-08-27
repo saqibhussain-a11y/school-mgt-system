@@ -1190,6 +1190,33 @@ model IssuedDocument {
   @@index([studentId])
 }
 
+// One reusable calibration per school, not per class — a school's physical
+// pre-printed result card is the same stock across every class, subject
+// names already printed on it. markers is a flat, order-independent array of
+// { id, fieldKey, xRatio, yRatio, fontSize? }, positions stored as 0-1
+// ratios (resolution-independent) — fieldKey is one of the fixed keys
+// ("studentName", "admissionNo", "classSection", "overallPercentage",
+// "overallGrade", "rank") or a slot-indexed subject key
+// ("subjectObtained:1", "subjectTotal:1", "subjectObtained:2", ...). Slots
+// are positional, not tied to a real Subject/subjectId, precisely because
+// the same template is reused across classes with different subject lists —
+// see resultCardPdf.ts for how a specific exam's ordered subject list maps
+// onto however many slots the admin calibrated. Deliberately NOT reusing
+// IssuedDocument.fields — that column snapshots values typed into one
+// already-generated document, this is a reusable layout definition many
+// students' cards are later rendered from.
+model ResultCardTemplate {
+  id            String   @id @default(cuid())
+  schoolId      String   @unique
+  imageKey      String
+  imageFilename String
+  markers       Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
 // availableCopies is decremented/incremented directly on issue/return
 // (never derived at read-time) so catalog list queries stay cheap — same
 // persisted-counter pattern as FeeInvoice.status.

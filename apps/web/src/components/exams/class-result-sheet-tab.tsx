@@ -58,6 +58,19 @@ async function downloadPdf(examId: string) {
   }
 }
 
+async function downloadResultCards(examId: string, mode: "OVERLAY" | "FULL") {
+  try {
+    const blob = await apiFetchBlob(`/api/exams/${examId}/result-cards/pdf?mode=${mode}`);
+    downloadBlob(blob, "result-cards.pdf");
+  } catch (err) {
+    toast.error(
+      err instanceof ApiError
+        ? err.message
+        : "Failed to download result cards",
+    );
+  }
+}
+
 export function ClassResultSheetTab({ examId }: { examId: string }) {
   const { data: sheet, loading } = useApi<ResultSheet>(`/api/exams/${examId}/result-sheet`);
 
@@ -74,10 +87,18 @@ export function ClassResultSheetTab({ examId }: { examId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button size="sm" onClick={() => downloadPdf(examId)}>
           <Download className="size-4" />
           Download PDF
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => downloadResultCards(examId, "OVERLAY")}>
+          <Download className="size-4" />
+          Result cards (overlay)
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => downloadResultCards(examId, "FULL")}>
+          <Download className="size-4" />
+          Result cards (full)
         </Button>
       </div>
       <Card>

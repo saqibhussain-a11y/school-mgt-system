@@ -4,6 +4,7 @@ import { examService } from "../services/exam.service";
 import { examDatesheetService } from "../services/examDatesheet.service";
 import { examSeatingService } from "../services/examSeating.service";
 import { buildAdmitCardsPdf } from "../lib/examAdmitCardPdf";
+import { buildResultCardsPdf } from "../lib/resultCardPdf";
 import { generateReportPdf } from "../lib/reportPdf";
 import { reportsService } from "../services/reports.service";
 import { studentService } from "../services/student.service";
@@ -339,6 +340,22 @@ examRouter.get("/:id/result-sheet/pdf", async (req, res, next) => {
     const pdf = await generateReportPdf(schoolName, `${exam.name} — Class Result Sheet`, columns, rows);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="class-result-sheet.pdf"');
+    res.send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
+examRouter.get("/:id/result-cards/pdf", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const exam = await examService.getById(schoolId, req.params.id);
+    if (!exam) throw new HttpError(404, "Exam not found");
+    await assertCanManageExamClass(schoolId, req.user!, exam.classId);
+    const mode = req.query.mode === "FULL" ? "FULL" : "OVERLAY";
+    const pdf = await buildResultCardsPdf(schoolId, req.params.id, mode);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="result-cards.pdf"');
     res.send(pdf);
   } catch (err) {
     next(err);

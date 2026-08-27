@@ -96,6 +96,19 @@ export async function getDownloadUrl(key: string, options: { forceDownload?: boo
   return `${API_BASE_URL}/api/uploads/local?key=${encodeURIComponent(key)}&exp=${expiresAt}&sig=${sig}${dl}`;
 }
 
+// For embedding a stored file's actual bytes into a server-generated PDF
+// (e.g. drawing a template image as a page background) — getDownloadUrl's
+// presigned URL is for the browser, not for the API process to fetch its
+// own upload back over HTTP.
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  if (client) {
+    const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const bytes = await res.Body!.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+  return fs.readFile(path.join(LOCAL_DIR, key));
+}
+
 export async function deleteObject(key: string) {
   if (client) {
     await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));

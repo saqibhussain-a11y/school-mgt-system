@@ -7,6 +7,7 @@ import { CreateExamDialog } from "@/components/exams/create-exam-dialog";
 import { MyExamsView } from "@/components/exams/my-exams-view";
 import { ExamSessionsTab } from "@/components/exam-sessions/exam-sessions-tab";
 import { MyInvigilationDutiesView } from "@/components/exams/my-invigilation-duties-view";
+import { ResultCardTemplateTab } from "@/components/exams/result-card-template-tab";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -104,6 +105,7 @@ function StaffExamsPage() {
           <TabsTrigger value="exams">Exams</TabsTrigger>
           <TabsTrigger value="sessions">Exam Sessions</TabsTrigger>
           <TabsTrigger value="duties">My Duties</TabsTrigger>
+          {canManage && <TabsTrigger value="result-card-template">Result Card Template</TabsTrigger>}
         </TabsList>
         <TabsContent value="exams" className="mt-4">
           <ExamsListTab />
@@ -114,6 +116,11 @@ function StaffExamsPage() {
         <TabsContent value="duties" className="mt-4">
           <MyInvigilationDutiesView />
         </TabsContent>
+        {canManage && (
+          <TabsContent value="result-card-template" className="mt-4">
+            <ResultCardTemplateTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
