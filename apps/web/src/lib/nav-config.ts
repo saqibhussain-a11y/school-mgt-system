@@ -11,6 +11,7 @@ import {
   GraduationCap,
   NotebookPen,
   ListTree,
+  Camera,
   ShieldCheck,
   Wallet,
   FileText,
@@ -64,6 +65,12 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"],
   },
   { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
+  {
+    label: "Staff Attendance",
+    href: "/dashboard/staff-attendance",
+    icon: Camera,
+    roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "ACCOUNTANT", "LIBRARIAN", "TRANSPORT_MANAGER"],
+  },
   { label: "Leave", href: "/dashboard/leave", icon: CalendarClock, roles: LEAVE_ROLES },
   {
     label: "Exams",

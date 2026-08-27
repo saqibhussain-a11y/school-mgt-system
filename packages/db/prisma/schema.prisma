@@ -813,8 +813,63 @@ model Staff {
   subjectAssignments TeacherSubjectAssignment[]
   timetableSlots     TimetableSlot[]
   examInvigilations  ExamInvigilation[]
+  attendances        StaffAttendance[]
 
   @@index([schoolId])
+}
+
+// One row per school — office coordinates the geofence check compares
+// against, and optional HH:mm windows the check-in/out buttons are only
+// active within. Both are nullable: an unconfigured office location means
+// nothing is ever flagged (nothing to compare against), an unconfigured
+// window means check-in/out is allowed any time — same lazy-upsert,
+// safe-until-configured shape as LeavePolicy.
+model StaffAttendanceSettings {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  officeLat           Float?
+  officeLng           Float?
+  radiusMeters        Int      @default(200)
+  checkInWindowStart  String?
+  checkInWindowEnd    String?
+  checkOutWindowStart String?
+  checkOutWindowEnd   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([schoolId])
+}
+
+// One row per staff member per day — check-in and check-out are two
+// independent timestamped events on the SAME row (not two rows), since
+// they're always paired for one person's one day. Flagged is set
+// independently per event (a teacher could check in on-site but check out
+// remotely, or vice versa) — "outside geofence" is recorded, never blocked,
+// per the confirmed design (GPS drifts 50-100m+ indoors; a hard block risks
+// locking out a legitimately-present teacher).
+model StaffAttendance {
+  id               String    @id @default(cuid())
+  schoolId         String
+  staffId          String
+  date             DateTime  @db.Date
+  checkInAt        DateTime?
+  checkInLat       Float?
+  checkInLng       Float?
+  checkInPhotoKey  String?
+  checkInFlagged   Boolean   @default(false)
+  checkOutAt       DateTime?
+  checkOutLat      Float?
+  checkOutLng      Float?
+  checkOutPhotoKey String?
+  checkOutFlagged  Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, date])
+  @@index([schoolId])
+  @@index([schoolId, date])
 }
 
 // Which class+section a teacher is assigned to teach — scopes their view of
