@@ -11,7 +11,11 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createExamSessionSchema, updateExamSessionSchema } from "../validation/examSession.schema";
-import { generateSeatingSchema, assignSeatSchema } from "../validation/examSeating.schema";
+import {
+  generateSeatingSchema,
+  assignSeatSchema,
+  assignColumnBlockSchema,
+} from "../validation/examSeating.schema";
 import { generateInvigilationSchema, assignInvigilationSchema } from "../validation/examInvigilation.schema";
 
 const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
@@ -107,6 +111,24 @@ examSessionRouter.post(
         roomIds: req.body.roomIds,
       });
       res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+examSessionRouter.post(
+  "/:id/seating/column-block",
+  authorize(...ADMIN_ROLES),
+  validateBody(assignColumnBlockSchema),
+  async (req, res, next) => {
+    try {
+      const allocations = await examSeatingService.assignColumnBlock(
+        req.user!.schoolId,
+        req.params.id,
+        req.body,
+      );
+      res.status(201).json(allocations);
     } catch (err) {
       next(err);
     }

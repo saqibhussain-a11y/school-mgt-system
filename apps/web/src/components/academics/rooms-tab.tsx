@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Columns3, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { RoomDialog } from "./room-dialog";
+import { ManageRoomColumnsDialog } from "./manage-room-columns-dialog";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { Room } from "./room-types";
@@ -73,6 +74,15 @@ export function RoomsTab({ canManage }: { canManage: boolean }) {
                   {canManage && (
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <ManageRoomColumnsDialog
+                          roomId={r.id}
+                          roomName={r.name}
+                          trigger={
+                            <Button size="sm" variant="ghost" title="Manage columns">
+                              <Columns3 className="size-3.5" />
+                            </Button>
+                          }
+                        />
                         <RoomDialog
                           room={r}
                           onSaved={refetch}

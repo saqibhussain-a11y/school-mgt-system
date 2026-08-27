@@ -1,4 +1,4 @@
-import { prisma, ExamAssignmentSource } from "@sms/db";
+import { prisma, ExamAssignmentSource, SeatingStrategy } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 
 interface StudentRow {
@@ -78,6 +78,7 @@ function interleaveByGroup(students: StudentRow[]): StudentRow[] {
 const seatingInclude = {
   student: { include: { user: { select: { firstName: true, lastName: true } } } },
   room: true,
+  column: true,
 };
 
 export const examSeatingService = {
@@ -86,6 +87,17 @@ export const examSeatingService = {
     params: { examId?: string; examSessionId?: string; roomIds?: string[] },
   ) {
     const examSessionId = await resolveExamSessionId(schoolId, params);
+
+    // COLUMN_BLOCKED is 100% manual by design (phase 1 — see memory) — the
+    // round-robin auto-fill below has no concept of columns at all, so it
+    // must never run against a session that expects manually-placed blocks.
+    const session = await prisma.examSession.findFirst({ where: { id: examSessionId, schoolId } });
+    if (session?.seatingStrategy === SeatingStrategy.COLUMN_BLOCKED) {
+      throw new HttpError(
+        400,
+        "This session uses column-blocked seating — assign seat-range blocks manually instead of generating.",
+      );
+    }
 
     const linkedExams = await prisma.exam.findMany({
       where: { examSessionId, schoolId },
@@ -209,7 +221,7 @@ export const examSeatingService = {
     return prisma.examSeatAllocation.findMany({
       where: { schoolId, examSessionId },
       include: seatingInclude,
-      orderBy: [{ roomId: "asc" }, { seatNumber: "asc" }],
+      orderBy: [{ roomId: "asc" }, { columnId: "asc" }, { seatNumber: "asc" }],
     });
   },
 
@@ -261,6 +273,108 @@ export const examSeatingService = {
       update: { roomId: data.roomId, seatNumber: data.seatNumber, source: ExamAssignmentSource.MANUAL },
       include: seatingInclude,
     });
+  },
+
+  // COLUMN_BLOCKED's entire manual workflow: admin picks a room+column+seat
+  // range and a class (optionally narrowed to one section), and every ACTIVE
+  // student in that class/section is packed into the range in admission-
+  // number order. Fewer students than the range is fine — the leftover
+  // seats simply stay open for a later block (a different class backfilling
+  // the same column), per the confirmed design. More students than the
+  // range is a real error — the admin must widen the range or narrow the
+  // class/section instead of silently dropping students.
+  async assignColumnBlock(
+    schoolId: string,
+    examSessionId: string,
+    data: {
+      roomId: string;
+      columnId: string;
+      seatFrom: number;
+      seatTo: number;
+      classId: string;
+      sectionId?: string;
+    },
+  ) {
+    const session = await prisma.examSession.findFirst({ where: { id: examSessionId, schoolId } });
+    if (!session) throw new HttpError(404, "Exam session not found");
+    if (session.seatingStrategy !== SeatingStrategy.COLUMN_BLOCKED) {
+      throw new HttpError(400, "This session isn't using column-blocked seating");
+    }
+
+    const column = await prisma.roomColumn.findFirst({
+      where: { id: data.columnId, schoolId, roomId: data.roomId },
+    });
+    if (!column) throw new HttpError(400, "Column not found for this room");
+    if (data.seatTo > column.seatCapacity) {
+      throw new HttpError(
+        400,
+        `Seat ${data.seatTo} exceeds this column's capacity of ${column.seatCapacity}`,
+      );
+    }
+
+    const students = await prisma.student.findMany({
+      where: {
+        schoolId,
+        classId: data.classId,
+        status: "ACTIVE",
+        ...(data.sectionId ? { sectionId: data.sectionId } : {}),
+      },
+      orderBy: { admissionNo: "asc" },
+    });
+    if (students.length === 0) {
+      throw new HttpError(400, "No active students found for this class/section");
+    }
+
+    const rangeSize = data.seatTo - data.seatFrom + 1;
+    if (students.length > rangeSize) {
+      throw new HttpError(
+        400,
+        `${students.length} student(s) don't fit in ${rangeSize} seat(s) — widen the range or narrow the class/section`,
+      );
+    }
+
+    const seatNumbers = students.map((_, i) => data.seatFrom + i);
+    const occupied = await prisma.examSeatAllocation.findMany({
+      where: {
+        examSessionId,
+        roomId: data.roomId,
+        columnId: data.columnId,
+        seatNumber: { in: seatNumbers },
+        studentId: { notIn: students.map((s) => s.id) },
+      },
+    });
+    if (occupied.length > 0) {
+      throw new HttpError(
+        409,
+        `Seat(s) ${occupied.map((o) => o.seatNumber).join(", ")} in this column are already assigned to another student`,
+      );
+    }
+
+    return prisma.$transaction(
+      students.map((student, i) =>
+        prisma.examSeatAllocation.upsert({
+          where: { examSessionId_studentId: { examSessionId, studentId: student.id } },
+          create: {
+            schoolId,
+            examSessionId,
+            studentId: student.id,
+            classId: student.classId,
+            sectionId: student.sectionId,
+            roomId: data.roomId,
+            columnId: data.columnId,
+            seatNumber: seatNumbers[i],
+            source: ExamAssignmentSource.MANUAL,
+          },
+          update: {
+            roomId: data.roomId,
+            columnId: data.columnId,
+            seatNumber: seatNumbers[i],
+            source: ExamAssignmentSource.MANUAL,
+          },
+          include: seatingInclude,
+        }),
+      ),
+    );
   },
 
   async unassignSeat(schoolId: string, examSessionId: string, studentId: string) {

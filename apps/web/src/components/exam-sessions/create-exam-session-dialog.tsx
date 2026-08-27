@@ -23,6 +23,7 @@ import {
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { AcademicSession } from "@/components/academics/sessions-tab";
+import type { SeatingStrategy } from "./exam-session-types";
 
 export function CreateExamSessionDialog({
   trigger,
@@ -36,6 +37,7 @@ export function CreateExamSessionDialog({
   const [academicSessionId, setAcademicSessionId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [seatingStrategy, setSeatingStrategy] = useState<SeatingStrategy>("INTERLEAVED");
   const [submitting, setSubmitting] = useState(false);
 
   const { data: sessions } = useApi<AcademicSession[]>(open ? "/api/academic-sessions" : null);
@@ -50,6 +52,7 @@ export function CreateExamSessionDialog({
     setName("");
     setStartDate("");
     setEndDate("");
+    setSeatingStrategy("INTERLEAVED");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -58,7 +61,7 @@ export function CreateExamSessionDialog({
     try {
       await apiFetch("/api/exam-sessions", {
         method: "POST",
-        body: JSON.stringify({ name, academicSessionId, startDate, endDate }),
+        body: JSON.stringify({ name, academicSessionId, startDate, endDate, seatingStrategy }),
       });
       toast.success("Exam session created");
       setOpen(false);
@@ -130,6 +133,28 @@ export function CreateExamSessionDialog({
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Seating strategy</Label>
+            <Select
+              items={[
+                { value: "INTERLEAVED", label: "Interleaved (auto-generated, mixed by seat)" },
+                { value: "COLUMN_BLOCKED", label: "Column-blocked (manual, one class per column)" },
+              ]}
+              value={seatingStrategy}
+              onValueChange={(v) => setSeatingStrategy((v as SeatingStrategy) ?? "INTERLEAVED")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="INTERLEAVED">Interleaved (auto-generated, mixed by seat)</SelectItem>
+                <SelectItem value="COLUMN_BLOCKED">Column-blocked (manual, one class per column)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Can&apos;t be changed once seats have been assigned.
+            </p>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={submitting}>

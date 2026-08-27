@@ -74,11 +74,14 @@ export async function buildAdmitCardsPdf(
 
   const examSubjectsByClass = new Map(scope.exams.map((e) => [e.classId, e.examSubjects]));
 
-  const seatByStudentId = new Map<string, { room: { name: string }; seatNumber: number }>();
+  const seatByStudentId = new Map<
+    string,
+    { room: { name: string }; column: { columnNumber: number } | null; seatNumber: number }
+  >();
   if (scope.examSessionId) {
     const seats = await prisma.examSeatAllocation.findMany({
       where: { schoolId, examSessionId: scope.examSessionId, studentId: { in: students.map((s) => s.id) } },
-      include: { room: true },
+      include: { room: true, column: true },
     });
     for (const seat of seats) seatByStudentId.set(seat.studentId, seat);
   }
@@ -121,10 +124,10 @@ export async function buildAdmitCardsPdf(
 
     doc.y = afterTableY + 10;
     const seat = seatByStudentId.get(student.id);
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(10)
-      .text(seat ? `Room: ${seat.room.name}    Seat No: ${seat.seatNumber}` : "Room/Seat: Not yet assigned");
+    const seatText = seat
+      ? `Room: ${seat.room.name}${seat.column ? `    Column: ${seat.column.columnNumber}` : ""}    Seat No: ${seat.seatNumber}`
+      : "Room/Seat: Not yet assigned";
+    doc.font("Helvetica-Bold").fontSize(10).text(seatText);
 
     drawSignatureFooter(doc, new Date(), "Principal / Invigilator");
   });
