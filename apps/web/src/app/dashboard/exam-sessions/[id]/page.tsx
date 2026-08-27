@@ -1,9 +1,10 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Sparkles } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Download, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -237,7 +238,6 @@ function SeatingStrategySwitcher({ session, onChanged }: { session: ExamSessionS
 
 export default function ExamSessionDetailPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const { user } = useAuth();
   const isAdmin = !!user && ADMIN_ROLES.includes(user.role);
 
@@ -248,10 +248,13 @@ export default function ExamSessionDetailPage() {
   if (loading || !session) {
     return (
       <div>
-        <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/exams")}>
-          <ArrowLeft className="size-4" />
-          Back to exams
-        </Button>
+        <Breadcrumbs
+          items={[
+            { label: "Exams", href: "/dashboard/exams" },
+            { label: "Exam Sessions", href: "/dashboard/exams/sessions" },
+            { label: "…" },
+          ]}
+        />
         <Skeleton className="mt-4 h-64 rounded-xl" />
       </div>
     );
@@ -263,10 +266,13 @@ export default function ExamSessionDetailPage() {
 
   return (
     <div>
-      <Button variant="ghost" size="sm" className="mb-2" onClick={() => router.push("/dashboard/exams")}>
-        <ArrowLeft className="size-4" />
-        Back to exams
-      </Button>
+      <Breadcrumbs
+        items={[
+          { label: "Exams", href: "/dashboard/exams" },
+          { label: "Exam Sessions", href: "/dashboard/exams/sessions" },
+          { label: session.name },
+        ]}
+      />
       <PageHeader
         title={session.name}
         description={`${formatDate(session.startDate)} – ${formatDate(session.endDate)} · ${session.exams.map((e) => e.class.name).join(", ") || "No classes linked yet"}`}

@@ -1,9 +1,10 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { EditExamDialog } from "@/components/exams/edit-exam-dialog";
 import { MarksEntryTab } from "@/components/exams/marks-entry-tab";
@@ -71,10 +72,7 @@ export default function ExamDetailPage() {
   if (loading || !exam) {
     return (
       <div>
-        <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/exams")}>
-          <ArrowLeft className="size-4" />
-          Back to exams
-        </Button>
+        <Breadcrumbs items={[{ label: "Exams", href: "/dashboard/exams" }, { label: "…" }]} />
         <Skeleton className="mt-4 h-64 rounded-xl" />
       </div>
     );
@@ -82,15 +80,7 @@ export default function ExamDetailPage() {
 
   return (
     <div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-2"
-        onClick={() => router.push("/dashboard/exams")}
-      >
-        <ArrowLeft className="size-4" />
-        Back to exams
-      </Button>
+      <Breadcrumbs items={[{ label: "Exams", href: "/dashboard/exams" }, { label: exam.name }]} />
       <PageHeader
         title={
           <div className="flex items-center gap-2">

@@ -28,12 +28,11 @@ export interface NavItem {
   href: string;
   icon: LucideIcon;
   roles?: UserRole[];
+  children?: NavItem[];
 }
 
 const STAFF_ROLES: UserRole[] = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
 const ADMIN_ROLES: UserRole[] = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
-// Everyone who can either apply for or review leave — PARENT is excluded,
-// since parent-submitted leave-on-behalf-of-a-child isn't built yet.
 const LEAVE_ROLES: UserRole[] = [
   "SUPER_ADMIN",
   "SCHOOL_ADMIN",
@@ -51,7 +50,19 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Students", href: "/dashboard/students", icon: Users, roles: STAFF_ROLES },
   { label: "Staff", href: "/dashboard/staff", icon: UserCog, roles: ADMIN_ROLES },
   { label: "Guardians", href: "/dashboard/guardians", icon: UsersRound, roles: STAFF_ROLES },
-  { label: "Academics", href: "/dashboard/academics", icon: BookOpen },
+  {
+    label: "Academics",
+    href: "/dashboard/academics/sessions",
+    icon: BookOpen,
+    children: [
+      { label: "Sessions", href: "/dashboard/academics/sessions", icon: BookOpen },
+      { label: "Classes", href: "/dashboard/academics/classes", icon: BookOpen },
+      { label: "Sections", href: "/dashboard/academics/sections", icon: BookOpen },
+      { label: "Subjects", href: "/dashboard/academics/subjects", icon: BookOpen },
+      { label: "Rooms", href: "/dashboard/academics/rooms", icon: BookOpen },
+      { label: "Periods", href: "/dashboard/academics/periods", icon: BookOpen },
+    ],
+  },
   {
     label: "Timetable",
     href: "/dashboard/timetable",
@@ -77,6 +88,16 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/exams",
     icon: GraduationCap,
     roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "STUDENT", "PARENT"],
+    children: [
+      { label: "Exam Sessions", href: "/dashboard/exams/sessions", icon: GraduationCap, roles: STAFF_ROLES },
+      { label: "My Duties", href: "/dashboard/exams/duties", icon: GraduationCap, roles: STAFF_ROLES },
+      {
+        label: "Result Card Template",
+        href: "/dashboard/exams/template",
+        icon: GraduationCap,
+        roles: ADMIN_ROLES,
+      },
+    ],
   },
   {
     label: "Assignments",
@@ -129,5 +150,9 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export function visibleNavItems(role: UserRole): NavItem[] {
-  return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
+  return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role)).map((item) => {
+    if (!item.children) return item;
+    const children = item.children.filter((child) => !child.roles || child.roles.includes(role));
+    return children.length > 0 ? { ...item, children } : { ...item, children: undefined };
+  });
 }
