@@ -25,6 +25,7 @@ meRouter.get("/", authenticate, async (req, res, next) => {
       schoolId: user.schoolId,
       firstName: user.firstName,
       lastName: user.lastName,
+      impersonatedBy: req.user!.impersonatedBy ?? null,
     });
   } catch (err) {
     next(err);

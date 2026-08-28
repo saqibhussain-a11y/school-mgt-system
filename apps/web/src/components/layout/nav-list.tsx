@@ -24,7 +24,10 @@ function sectionRoot(item: NavItem) {
 }
 
 function isActive(pathname: string, href: string) {
-  if (href === "/dashboard") return pathname === href;
+  // A single-segment root (e.g. "/dashboard", "/platform") is a prefix of
+  // every route beneath it, so it needs an exact match — anything with a
+  // real sub-path (e.g. "/dashboard/students") is fine to prefix-match.
+  if (href.split("/").filter(Boolean).length <= 1) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

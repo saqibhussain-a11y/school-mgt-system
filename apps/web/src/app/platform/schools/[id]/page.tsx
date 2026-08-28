@@ -7,9 +7,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { SubscriptionStatusSelect } from "@/components/platform/subscription-status-select";
+import { PlanSelect } from "@/components/platform/plan-select";
 import { ManageSchoolAdmins } from "@/components/platform/manage-school-admins";
+import { SchoolUsageCard } from "@/components/platform/school-usage-card";
+import { ImpersonateButton } from "@/components/platform/impersonate-button";
 import { usePlatformApi } from "@/lib/use-platform-api";
 import { formatDate } from "@/lib/format";
 import type { PlatformSchool } from "@/components/platform/types";
@@ -43,16 +45,18 @@ export default function PlatformSchoolDetailPage() {
         <ArrowLeft className="size-4" />
         Back to schools
       </Button>
-      <PageHeader title={school.name} description={school.subdomain} />
+      <PageHeader
+        title={school.name}
+        description={school.subdomain}
+        action={<ImpersonateButton schoolId={school.id} schoolName={school.name} />}
+      />
 
       <div className="flex flex-col gap-6">
         <Card>
           <CardContent className="flex flex-wrap items-center gap-6">
             <div className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">Plan</span>
-              <Badge variant="outline" className="w-fit">
-                {school.subscriptionPlan}
-              </Badge>
+              <PlanSelect schoolId={school.id} plan={school.subscriptionPlan} onChanged={refetch} />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">Status</span>
@@ -68,6 +72,8 @@ export default function PlatformSchoolDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        <SchoolUsageCard schoolId={school.id} />
 
         <ManageSchoolAdmins schoolId={school.id} />
       </div>

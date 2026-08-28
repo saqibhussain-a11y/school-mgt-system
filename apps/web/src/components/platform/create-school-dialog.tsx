@@ -14,10 +14,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import { ApiError } from "@/lib/api-client";
+import { PLAN_LABELS, type PlanKey } from "./types";
 
-const EMPTY_FORM = { name: "", subdomain: "", adminEmail: "", adminFirstName: "", adminLastName: "" };
+const PLAN_KEYS = Object.keys(PLAN_LABELS) as PlanKey[];
+
+const EMPTY_FORM = {
+  name: "",
+  subdomain: "",
+  adminEmail: "",
+  adminFirstName: "",
+  adminLastName: "",
+  subscriptionPlan: "STARTER" as PlanKey,
+};
 
 export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
@@ -153,6 +164,25 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
                 value={form.adminEmail}
                 onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
               />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="sch-plan">Plan</Label>
+              <Select
+                items={PLAN_KEYS.map((key) => ({ value: key, label: PLAN_LABELS[key] }))}
+                value={form.subscriptionPlan}
+                onValueChange={(next) => next && setForm({ ...form, subscriptionPlan: next as PlanKey })}
+              >
+                <SelectTrigger id="sch-plan">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLAN_KEYS.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {PLAN_LABELS[key]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={submitting}>

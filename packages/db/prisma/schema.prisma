@@ -9,14 +9,18 @@ datasource db {
 // One row today ("School #1"), but every tenant-scoped table below already
 // carries schoolId — see the SaaS conversion plan in the master doc (Section 5/8.7).
 model School {
-  id                 String    @id @default(cuid())
-  name               String
-  subdomain          String    @unique
-  subscriptionPlan   String    @default("single_tenant")
-  subscriptionStatus String    @default("active")
-  trialEndsAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                          String    @id @default(cuid())
+  name                        String
+  subdomain                   String    @unique
+  subscriptionPlan            String    @default("STARTER")
+  subscriptionStatus          String    @default("active")
+  // Set whenever subscriptionStatus actually changes (not on every update
+  // call) — powers the "past-due for N days" Needs Attention alert, which
+  // otherwise has no way to know how long a school has been in that state.
+  subscriptionStatusChangedAt DateTime?
+  trialEndsAt                 DateTime?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
   users User[]
 }
@@ -47,6 +51,7 @@ model PlatformAdmin {
   updatedAt    DateTime @updatedAt
 
   refreshTokens PlatformRefreshToken[]
+  auditLogs     PlatformAuditLog[]
 }
 
 model PlatformRefreshToken {
@@ -60,6 +65,25 @@ model PlatformRefreshToken {
   platformAdmin PlatformAdmin @relation(fields: [platformAdminId], references: [id])
 
   @@index([platformAdminId])
+}
+
+// Every sensitive platform-admin action (school create, subscription edit,
+// admin create/reset, impersonation) writes one row here, in the same
+// transaction as the action itself so the two can never desync. No
+// schoolId column — see TENANT_EXEMPT_MODELS in packages/db/src/client.ts.
+model PlatformAuditLog {
+  id              String   @id @default(cuid())
+  platformAdminId String
+  action          String
+  targetType      String
+  targetId        String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  platformAdmin PlatformAdmin @relation(fields: [platformAdminId], references: [id])
+
+  @@index([platformAdminId])
+  @@index([targetType, targetId])
 }
 
 model User {
@@ -77,6 +101,7 @@ model User {
   // generateCredentials). Flipped true whenever a real password is actually
   // set (admin-issued or self-service OTP claim).
   isActivated  Boolean  @default(true)
+  lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -17,7 +17,6 @@ interface AuthContextValue {
   user: MeDto | null;
   loading: boolean;
   login: (schoolId: string, email: string, password: string) => Promise<void>;
-  platformLogin: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -64,20 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadUser, router],
   );
 
-  const platformLogin = useCallback(
-    async (email: string, password: string) => {
-      const tokens = await apiFetch<{ accessToken: string; refreshToken: string; schoolId: string }>(
-        "/api/auth/platform-login",
-        { method: "POST", body: JSON.stringify({ email, password }) },
-      );
-      clearApiCache();
-      tokenStorage.set(tokens.accessToken, tokens.refreshToken, tokens.schoolId);
-      await loadUser();
-      router.push("/dashboard");
-    },
-    [loadUser, router],
-  );
-
   const logout = useCallback(async () => {
     const tokens = tokenStorage.get();
     if (tokens) {
@@ -93,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, platformLogin, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

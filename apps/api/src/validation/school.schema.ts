@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PLAN_KEYS } from "../config/plans";
 
 export const createSchoolSchema = z.object({
   name: z.string().min(1),
@@ -9,13 +10,14 @@ export const createSchoolSchema = z.object({
   adminEmail: z.string().email(),
   adminFirstName: z.string().min(1),
   adminLastName: z.string().min(1),
+  subscriptionPlan: z.enum(PLAN_KEYS).optional(),
 });
 
 export const SUBSCRIPTION_STATUSES = ["active", "past_due", "suspended"] as const;
 
 export const updateSubscriptionSchema = z.object({
   subscriptionStatus: z.enum(SUBSCRIPTION_STATUSES).optional(),
-  subscriptionPlan: z.string().min(1).optional(),
+  subscriptionPlan: z.enum(PLAN_KEYS).optional(),
 });
 
 export const createSchoolAdminSchema = z.object({

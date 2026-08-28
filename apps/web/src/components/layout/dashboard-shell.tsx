@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { ImpersonationBanner } from "./impersonation-banner";
 import { useAuth } from "@/lib/auth-context";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
@@ -29,6 +30,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh overflow-hidden bg-background">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <ImpersonationBanner />
         <Topbar />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>

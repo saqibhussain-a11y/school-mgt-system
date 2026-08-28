@@ -1,4 +1,4 @@
-import { Role } from "@sms/db";
+import { prisma, Role } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { hashPassword, verifyPassword } from "../lib/password";
 import {
@@ -31,6 +31,21 @@ async function issuePlatformTokenPair(admin: { id: string }) {
   return { accessToken, refreshToken };
 }
 
+// No refresh token — an impersonation session is meant to be short-lived
+// (the access token's own 15m expiry is the only lifetime control) rather
+// than a real login with its own revocable session.
+function issueImpersonationToken(
+  platformAdminId: string,
+  targetUser: { id: string; schoolId: string; role: Role },
+) {
+  return signAccessToken({
+    sub: targetUser.id,
+    schoolId: targetUser.schoolId,
+    role: targetUser.role,
+    impersonatedBy: platformAdminId,
+  });
+}
+
 export const authService = {
   async login(schoolId: string, email: string, password: string) {
     const user = await userService.findByEmail(schoolId, email);
@@ -40,8 +55,11 @@ export const authService = {
     if (!user.isActivated) {
       throw new HttpError(403, "This account hasn't been activated yet — ask your school to issue your login credentials.");
     }
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     return issueTokenPair(user);
   },
+
+  issueImpersonationToken,
 
   async platformLogin(email: string, password: string) {
     const admin = await platformAdminService.findByEmail(email);

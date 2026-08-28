@@ -40,3 +40,15 @@ export const clientErrorReportLimiter = rateLimit({
   legacyHeaders: false,
   message,
 });
+
+// Mints a real login-equivalent credential, so it gets login's own
+// treatment — keyed per platform admin (authenticated already) rather than
+// IP, since a shared office IP shouldn't throttle a different admin.
+export const platformImpersonationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message,
+  keyGenerator: (req) => req.platformAdmin?.sub ?? req.ip ?? "unknown",
+});
