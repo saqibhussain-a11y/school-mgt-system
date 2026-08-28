@@ -3,6 +3,8 @@ import { schoolService } from "../services/school.service";
 import { platformAdminService } from "../services/platformAdmin.service";
 import { platformDashboardService } from "../services/platformDashboard.service";
 import { platformAuditLogService } from "../services/platformAuditLog.service";
+import { platformReportsService } from "../services/platformReports.service";
+import { systemHealthService } from "../services/systemHealth.service";
 import { authService } from "../services/auth.service";
 import { authenticatePlatform } from "../middleware/auth.middleware";
 import { platformImpersonationLimiter } from "../middleware/rateLimit";
@@ -40,6 +42,22 @@ platformRouter.get("/audit-log", async (req, res, next) => {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
     res.json(await platformAuditLogService.list(limit, cursor));
+  } catch (err) {
+    next(err);
+  }
+});
+
+platformRouter.get("/reports", async (_req, res, next) => {
+  try {
+    res.json(await platformReportsService.getAll());
+  } catch (err) {
+    next(err);
+  }
+});
+
+platformRouter.get("/system-health", async (_req, res, next) => {
+  try {
+    res.json(await systemHealthService.getStatus());
   } catch (err) {
     next(err);
   }

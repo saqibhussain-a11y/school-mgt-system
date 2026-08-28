@@ -21,6 +21,12 @@ export function toDateInputValue(value: string | Date) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+export function formatCurrency(value: number) {
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
+    value,
+  );
+}
+
 export function formatRelativeTime(value: string | Date) {
   const diffMs = Date.now() - new Date(value).getTime();
   const minutes = Math.round(diffMs / 60_000);

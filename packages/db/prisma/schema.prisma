@@ -84,6 +84,7 @@ model PlatformAuditLog {
 
   @@index([platformAdminId])
   @@index([targetType, targetId])
+  @@index([action, createdAt])
 }
 
 model User {

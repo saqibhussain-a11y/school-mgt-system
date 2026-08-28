@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 // Keyed by IP (express-rate-limit's default) — proportionate to this app's
 // scale. A distributed attacker rotating IPs defeats this; that's what the
@@ -50,5 +50,9 @@ export const platformImpersonationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message,
-  keyGenerator: (req) => req.platformAdmin?.sub ?? req.ip ?? "unknown",
+  // Falls back to a normalized IP key (not raw req.ip) only for the
+  // unreachable case where this runs before authenticatePlatform sets
+  // req.platformAdmin — express-rate-limit requires IPv6 addresses go
+  // through its own normalizer or they can bypass per-key limits.
+  keyGenerator: (req) => req.platformAdmin?.sub ?? ipKeyGenerator(req.ip ?? "unknown"),
 });

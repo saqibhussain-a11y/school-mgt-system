@@ -21,6 +21,7 @@ import { initSocket, closeSocket } from "./lib/socket";
 import { closeRedis } from "./lib/redis";
 import { closeQueues } from "./lib/queue";
 import { startWorkers, closeWorkers } from "./lib/worker";
+import { metricsMiddleware } from "./lib/metrics";
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use(
   }),
 );
 
+app.use(metricsMiddleware);
 app.use(compression());
 app.use(cors({ origin: env.corsOrigin }));
 app.use(express.json());
