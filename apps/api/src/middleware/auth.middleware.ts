@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { Role, runWithTenant } from "@sms/db";
-import { verifyAccessToken } from "../lib/jwt";
+import { Role, runWithTenant, runAsPlatform } from "@sms/db";
+import { verifyAccessToken, verifyPlatformAccessToken } from "../lib/jwt";
 import { HttpError } from "./errorHandler";
 
 export function authenticate(req: Request, _res: Response, next: NextFunction) {
@@ -15,10 +15,22 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
     throw new HttpError(401, "Invalid or expired access token");
   }
 
-  // Everything downstream of authenticate runs inside this tenant's
-  // AsyncLocalStorage context, so the Prisma client extension can
-  // auto-scope by schoolId without every service needing to know about it.
   runWithTenant(req.user.schoolId, next);
+}
+
+export function authenticatePlatform(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    throw new HttpError(401, "Missing bearer token");
+  }
+
+  try {
+    req.platformAdmin = verifyPlatformAccessToken(header.slice("Bearer ".length));
+  } catch {
+    throw new HttpError(401, "Invalid or expired access token");
+  }
+
+  runAsPlatform(next);
 }
 
 export function authorize(...roles: Role[]) {

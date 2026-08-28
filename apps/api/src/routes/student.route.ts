@@ -20,14 +20,9 @@ import {
   bulkImportRowSchema,
 } from "../validation/student.schema";
 
-// SCHOOL_ADMIN is the only one who creates/manages students now — SUPER_ADMIN
-// keeps read access for oversight (VIEW_ROLES below) but no longer writes.
+
 const ADMIN_ROLES = [Role.SCHOOL_ADMIN];
-// LIBRARIAN, TRANSPORT_MANAGER, and ACCOUNTANT need unrestricted read access
-// to look up which student to issue a book / assign a route / grant a
-// scholarship to — same as PRINCIPAL, no section-scoping applies.
 const VIEW_ROLES = [
-  Role.SUPER_ADMIN,
   Role.SCHOOL_ADMIN,
   Role.PRINCIPAL,
   Role.TEACHER,
@@ -50,8 +45,7 @@ studentRouter.get("/", authorize(...VIEW_ROLES), async (req, res, next) => {
     if (req.user!.role === Role.TEACHER) {
       const assignedSectionIds = await getAssignedSectionIdsForUser(schoolId, req.user!.sub);
       if (sectionId) {
-        // Asking for a section they're not assigned to should read as "no results,"
-        // not a 403 — the same as any other filter that happens to match nothing.
+
         const inScope = assignedSectionIds.includes(sectionId);
         res.json(inScope ? await studentService.list(schoolId, { classId, sectionId }) : []);
         return;
@@ -91,8 +85,6 @@ studentRouter.post(
   validateBody(createStudentSchema),
   async (req, res, next) => {
     try {
-      // No credentials issued here — portal access is a separate,
-      // explicitly-triggered action (see /:id/generate-credentials below).
       const student = await studentService.create(req.user!.schoolId, req.body);
       res.status(201).json(student);
     } catch (err) {
@@ -101,9 +93,6 @@ studentRouter.post(
   },
 );
 
-// Gated to SCHOOL_ADMIN/PRINCIPAL specifically — broader than ADMIN_ROLES
-// above (SCHOOL_ADMIN-only for the rest of student CRUD), matching how this
-// one action was scoped when designed.
 const CREDENTIAL_ROLES = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 studentRouter.post(
@@ -203,10 +192,6 @@ studentRouter.delete(
   },
 );
 
-// The common core fields most schools' exports already have some version
-// of — anything a header doesn't map to one of these lands in extraInfo
-// instead of being dropped. className/sectionName (not raw IDs) since a
-// human-typed/legacy-system CSV can't be expected to know our internal ids.
 const KNOWN_FIELDS = [
   "email",
   "firstName",
@@ -220,10 +205,6 @@ const KNOWN_FIELDS = [
 ] as const;
 type KnownField = (typeof KNOWN_FIELDS)[number];
 
-// Matches a CSV header to a known field on a normalized (lowercased,
-// alphanumeric-only) basis, with a few common aliases — a first-pass
-// automatic guess only, always shown to the admin to confirm/correct
-// before anything is imported.
 const HEADER_ALIASES: Record<string, KnownField> = {
   email: "email",
   emailaddress: "email",

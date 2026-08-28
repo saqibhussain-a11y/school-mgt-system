@@ -12,7 +12,7 @@ import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import type { SyllabusSummary } from "@/components/curriculum/types";
 
-const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function CurriculumPage() {
   const { user } = useAuth();

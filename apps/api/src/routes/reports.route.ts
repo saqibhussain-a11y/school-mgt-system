@@ -9,18 +9,10 @@ import { generateReportPdf } from "../lib/reportPdf";
 import { getOrSet } from "../lib/cache";
 import { FEE_MANAGE_ROLES } from "./feeStructure.route";
 
-// Short TTL, not event-based invalidation — these trend charts recompute
-// from attendance/marks/fee tables that change throughout the day, but a
-// dashboard chart being up to a minute stale is an acceptable trade for not
-// scattering cache-invalidation calls across every write path that touches
-// attendance, marks, or fee payments.
 const REPORT_CACHE_TTL_SECONDS = 60;
 
-const ACADEMIC_REPORT_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
+const ACADEMIC_REPORT_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
 
-// A TEACHER may only pull reports for a class they're actually assigned to —
-// same class-scoping rule used everywhere else a teacher touches
-// cross-student data (Exams, Assignments). Admins/principals are unrestricted.
 async function resolveClassIdForAcademicReport(schoolId: string, user: { sub: string; role: string }, requestedClassId?: string) {
   if (user.role !== Role.TEACHER) return requestedClassId;
   const assignedClassIds = await getAssignedClassIdsForUser(schoolId, user.sub);

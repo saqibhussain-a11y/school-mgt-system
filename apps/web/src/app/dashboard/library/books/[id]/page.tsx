@@ -19,7 +19,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
 import type { Book, BookLoan, BookReservation } from "@/components/library/types";
 
-const LIBRARY_MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "LIBRARIAN"];
+const LIBRARY_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "LIBRARIAN"];
 
 export default function BookDetailPage() {
   const params = useParams<{ id: string }>();

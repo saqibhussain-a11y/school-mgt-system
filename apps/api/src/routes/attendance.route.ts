@@ -9,14 +9,12 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { markAttendanceSchema, dateRangeQuerySchema } from "../validation/attendance.schema";
 
-const MARK_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
+const MARK_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
 
 export const attendanceRouter = Router();
 
 attendanceRouter.use(authenticate);
 
-// A teacher can only mark/view attendance for a section they're assigned to
-// teach — admins/principal are unrestricted.
 async function assertCanAccessSection(
   schoolId: string,
   user: { sub: string; role: string },
@@ -100,7 +98,7 @@ async function assertCanAccessStudent(
   user: { sub: string; role: string },
   studentId: string,
 ) {
-  if (user.role === Role.SUPER_ADMIN || user.role === Role.SCHOOL_ADMIN || user.role === Role.PRINCIPAL) {
+  if (user.role === Role.SCHOOL_ADMIN || user.role === Role.PRINCIPAL) {
     return;
   }
   if (user.role === Role.TEACHER) {

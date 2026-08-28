@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { platformApiFetch } from "@/lib/platform-api-client";
+import { ApiError } from "@/lib/api-client";
 
 const EMPTY_FORM = { name: "", subdomain: "", adminEmail: "", adminFirstName: "", adminLastName: "" };
 
@@ -33,7 +34,7 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const school = await apiFetch<{ adminEmail: string; adminTemporaryPassword: string }>(
+      const school = await platformApiFetch<{ adminEmail: string; adminTemporaryPassword: string }>(
         "/api/platform/schools",
         { method: "POST", body: JSON.stringify(form) },
       );

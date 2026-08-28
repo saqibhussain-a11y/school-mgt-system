@@ -19,7 +19,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
 import type { AssignmentSummary, SubmissionDetail } from "@/components/assignments/types";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 interface Assignment {
   classId: string;

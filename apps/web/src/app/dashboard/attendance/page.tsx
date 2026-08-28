@@ -8,8 +8,8 @@ import { HolidaysTab } from "@/components/attendance/holidays-tab";
 import { MyAttendanceView } from "@/components/attendance/my-attendance-view";
 import { useAuth } from "@/lib/auth-context";
 
-const MARK_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
-const HOLIDAY_MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const MARK_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
+const HOLIDAY_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function AttendancePage() {
   const { user } = useAuth();

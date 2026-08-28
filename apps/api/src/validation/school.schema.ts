@@ -17,3 +17,9 @@ export const updateSubscriptionSchema = z.object({
   subscriptionStatus: z.enum(SUBSCRIPTION_STATUSES).optional(),
   subscriptionPlan: z.string().min(1).optional(),
 });
+
+export const createSchoolAdminSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+});

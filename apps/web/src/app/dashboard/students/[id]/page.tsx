@@ -25,11 +25,8 @@ import { formatDate } from "@/lib/format";
 import type { StudentDetail } from "@/components/students/types";
 
 const ADMIN_ROLES = ["SCHOOL_ADMIN"];
-// Broader than ADMIN_ROLES above (which only gates edit/withdraw) — matches
-// the backend's document-issuance permission (SUPER_ADMIN/SCHOOL_ADMIN/PRINCIPAL).
-const DOCUMENT_ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
-// Matches the backend's /generate-credentials gate — deliberately includes
-// PRINCIPAL, unlike ADMIN_ROLES above.
+
+const DOCUMENT_ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 const CREDENTIAL_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function StudentDetailPage() {
@@ -65,14 +62,6 @@ export default function StudentDetailPage() {
     }
   }
 
-  // Attendance/Documents below only ever need the route's studentId, which
-  // is already known from params.id before the /api/students/:id fetch even
-  // starts — they used to wait on `student` to resolve anyway (nested inside
-  // the same loading gate as the profile/guardian cards, which genuinely do
-  // need the full student record), turning one independent fetch into a
-  // needless second leg of a waterfall. They're rendered unconditionally
-  // below instead, using params.id directly, with their own already-existing
-  // internal loading states.
   const studentId = params.id;
 
   return (

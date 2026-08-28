@@ -21,8 +21,8 @@ import { useAuth } from "@/lib/auth-context";
 import { formatDate } from "@/lib/format";
 import type { ExamSummary } from "@/components/exams/types";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
-const STAFF_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
+const STAFF_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
 
 function ExamsListTab() {
   const { user } = useAuth();

@@ -5,10 +5,15 @@ import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
+  signPlatformAccessToken,
+  signPlatformRefreshToken,
+  verifyPlatformRefreshToken,
 } from "../lib/jwt";
 import { generateOtp } from "../lib/otp";
 import { userService } from "./user.service";
 import { authTokenService } from "./authToken.service";
+import { platformAdminService } from "./platformAdmin.service";
+import { platformAuthTokenService } from "./platformAuthToken.service";
 import { passwordResetService } from "./passwordReset.service";
 import { notificationService } from "./notification.service";
 
@@ -19,25 +24,19 @@ async function issueTokenPair(user: { id: string; schoolId: string; role: Role }
   return { accessToken, refreshToken };
 }
 
+async function issuePlatformTokenPair(admin: { id: string }) {
+  const accessToken = signPlatformAccessToken({ sub: admin.id });
+  const { token: refreshToken } = signPlatformRefreshToken({ sub: admin.id });
+  await platformAuthTokenService.store(admin.id, refreshToken);
+  return { accessToken, refreshToken };
+}
+
 export const authService = {
   async login(schoolId: string, email: string, password: string) {
     const user = await userService.findByEmail(schoolId, email);
-    // SUPER_ADMIN can only authenticate via /platform-login — enforced here,
-    // not just by hiding a school from the picker, so it holds regardless of
-    // which school happens to contain that account.
-    if (
-      !user ||
-      user.role === Role.SUPER_ADMIN ||
-      !(await verifyPassword(password, user.passwordHash))
-    ) {
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
       throw new HttpError(401, "Invalid email or password");
     }
-    // Belt-and-suspenders alongside the unusable placeholder passwordHash a
-    // not-yet-activated student/etc. gets at creation (see
-    // student.service.ts) — that alone would already fail verifyPassword
-    // above, but this gives a clearer, more correct error than a generic
-    // "invalid password" for the legitimate case of a real account that
-    // simply hasn't had credentials issued yet.
     if (!user.isActivated) {
       throw new HttpError(403, "This account hasn't been activated yet — ask your school to issue your login credentials.");
     }
@@ -45,12 +44,40 @@ export const authService = {
   },
 
   async platformLogin(email: string, password: string) {
-    const user = await userService.findSuperAdminByEmail(email);
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    const admin = await platformAdminService.findByEmail(email);
+    if (!admin || !(await verifyPassword(password, admin.passwordHash))) {
       throw new HttpError(401, "Invalid email or password");
     }
-    const tokens = await issueTokenPair(user);
-    return { ...tokens, schoolId: user.schoolId };
+    return issuePlatformTokenPair(admin);
+  },
+
+  async platformRefresh(rawToken: string) {
+    let payload;
+    try {
+      payload = verifyPlatformRefreshToken(rawToken);
+    } catch {
+      throw new HttpError(401, "Invalid or expired refresh token");
+    }
+
+    const stored = await platformAuthTokenService.findActiveByRawToken(rawToken);
+    if (!stored) {
+      throw new HttpError(401, "Refresh token has been revoked or reused");
+    }
+
+    const admin = await platformAdminService.getById(payload.sub);
+    if (!admin) {
+      throw new HttpError(401, "Platform admin no longer exists");
+    }
+
+    await platformAuthTokenService.revoke(stored.id);
+    return issuePlatformTokenPair(admin);
+  },
+
+  async platformLogout(rawToken: string) {
+    const stored = await platformAuthTokenService.findActiveByRawToken(rawToken);
+    if (stored) {
+      await platformAuthTokenService.revoke(stored.id);
+    }
   },
 
   async refresh(rawToken: string) {
@@ -82,29 +109,8 @@ export const authService = {
     }
   },
 
-  async register(
-    schoolId: string,
-    email: string,
-    password: string,
-    role: Role,
-    firstName: string,
-    lastName: string,
-  ) {
-    const existing = await userService.findByEmail(schoolId, email);
-    if (existing) {
-      throw new HttpError(409, "A user with this email already exists");
-    }
-    const passwordHash = await hashPassword(password);
-    return userService.create({ schoolId, email, passwordHash, role, firstName, lastName });
-  },
-
   async requestPasswordReset(schoolId: string, email: string) {
     const user = await userService.findByEmail(schoolId, email);
-    // Same "don't reveal" non-response for a not-yet-activated account as
-    // for a nonexistent one — otherwise the public forgot-password form
-    // would let a student self-activate before an admin has ever chosen to
-    // issue them credentials, defeating the whole point of decoupling
-    // admission from credential issuance (see student.service.ts).
     if (!user || !user.isActivated) {
       return;
     }

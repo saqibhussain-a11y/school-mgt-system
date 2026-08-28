@@ -6,7 +6,7 @@ import { MyDocumentsView } from "@/components/documents/my-documents-view";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function DocumentsPage() {
   const { user } = useAuth();

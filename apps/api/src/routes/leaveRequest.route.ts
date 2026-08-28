@@ -6,8 +6,6 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createLeaveRequestSchema, reviewLeaveRequestSchema } from "../validation/leaveRequest.schema";
 
-// Students and every non-admin staff role can apply for their own leave.
-// SCHOOL_ADMIN/SUPER_ADMIN don't — they're the reviewers here, not applicants.
 const APPLICANT_ROLES: Role[] = [
   Role.PRINCIPAL,
   Role.TEACHER,
@@ -16,9 +14,7 @@ const APPLICANT_ROLES: Role[] = [
   Role.TRANSPORT_MANAGER,
   Role.STUDENT,
 ];
-const VIEW_ALL_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
-// SUPER_ADMIN keeps view-only oversight, same pattern as staff/student/guardian —
-// only SCHOOL_ADMIN and PRINCIPAL can actually approve/reject.
+const VIEW_ALL_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 const REVIEW_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const leaveRequestRouter = Router();

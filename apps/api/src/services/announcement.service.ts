@@ -10,7 +10,6 @@ export interface AnnouncementViewer {
 }
 
 const STAFF_ROLES: Role[] = [
-  Role.SUPER_ADMIN,
   Role.SCHOOL_ADMIN,
   Role.PRINCIPAL,
   Role.TEACHER,
@@ -53,12 +52,6 @@ function visibilityWhere(viewer: AnnouncementViewer) {
   };
 }
 
-// Mirrors visibilityWhere's logic in reverse (which users would see this
-// announcement) so notification recipients exactly match who'd find it on
-// their announcements list. Staff always see every announcement regardless
-// of targetRole/targetClassId (see buildAnnouncementViewer), so they're
-// always notified; students/parents are notified only if the target
-// filters admit them.
 async function resolveRecipientUserIds(schoolId: string, targetRole?: Role | null, targetClassId?: string | null) {
   const staffUsers = await prisma.user.findMany({
     where: { schoolId, role: { in: STAFF_ROLES } },

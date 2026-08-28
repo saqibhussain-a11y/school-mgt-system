@@ -8,7 +8,7 @@ import { MyFeesView } from "@/components/fees/my-fees-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 
-const FEE_MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
+const FEE_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
 
 export default function FeesPage() {
   const { user } = useAuth();

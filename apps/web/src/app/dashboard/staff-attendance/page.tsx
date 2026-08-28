@@ -7,7 +7,7 @@ import { StaffAttendanceSettingsTab } from "@/components/staff-attendance/staff-
 import { MyCheckInView } from "@/components/staff-attendance/my-checkin-view";
 import { useAuth } from "@/lib/auth-context";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function StaffAttendancePage() {
   const { user } = useAuth();

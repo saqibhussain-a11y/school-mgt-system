@@ -17,10 +17,8 @@ import {
   bulkSubjectAssignmentSchema,
 } from "../validation/staff.schema";
 
-// SCHOOL_ADMIN is the only one who creates/manages staff now — SUPER_ADMIN
-// keeps read access for oversight (VIEW_ROLES below) but no longer writes.
 const ADMIN_ROLES = [Role.SCHOOL_ADMIN];
-const VIEW_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const VIEW_ROLES = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const staffRouter = Router();
 
@@ -90,8 +88,6 @@ staffRouter.delete("/:id", authorize(...ADMIN_ROLES), async (req, res, next) => 
   }
 });
 
-// Which class+section a teacher is assigned to teach — scopes their view of
-// students and their attendance-marking to just those sections.
 staffRouter.get("/:id/assignments", authorize(...ADMIN_ROLES), async (req, res, next) => {
   try {
     res.json(await teacherAssignmentService.listForStaff(req.user!.schoolId, req.params.id));
@@ -143,8 +139,6 @@ staffRouter.delete(
   },
 );
 
-// Which subjects this teacher is qualified to teach — feeds the timetable
-// generator, deliberately separate from the attendance-scoping assignments above.
 staffRouter.get("/:id/subject-assignments", authorize(...ADMIN_ROLES), async (req, res, next) => {
   try {
     res.json(await teacherSubjectAssignmentService.listForStaff(req.user!.schoolId, req.params.id));
@@ -189,7 +183,6 @@ staffRouter.delete(
   },
 );
 
-// Timetable-generation availability — flat weekly values, see Staff model comment.
 staffRouter.patch(
   "/:id/availability",
   authorize(...ADMIN_ROLES),

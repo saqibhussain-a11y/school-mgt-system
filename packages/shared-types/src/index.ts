@@ -1,5 +1,4 @@
 export type UserRole =
-  | "SUPER_ADMIN"
   | "SCHOOL_ADMIN"
   | "PRINCIPAL"
   | "TEACHER"
@@ -9,9 +8,6 @@ export type UserRole =
   | "LIBRARIAN"
   | "TRANSPORT_MANAGER";
 
-// GET /api/schools (unauthenticated, login-page picker) — deliberately
-// trimmed, no subdomain/subscription data. See PlatformSchoolDto for the
-// full shape used by the SUPER_ADMIN-only platform panel.
 export interface SchoolDto {
   id: string;
   name: string;

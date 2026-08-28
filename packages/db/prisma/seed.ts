@@ -1,6 +1,6 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { prisma, Role } from "../src";
+import { prisma } from "../src";
 
 const SCHOOL_SUBDOMAIN = "default";
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@school.test";
@@ -16,23 +16,22 @@ async function main() {
     },
   });
 
+  console.log(`Seeded school "${school.name}" (id: ${school.id})`);
+
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
-  const admin = await prisma.user.upsert({
-    where: { schoolId_email: { schoolId: school.id, email: ADMIN_EMAIL } },
-    update: { firstName: "Super", lastName: "Admin" },
+  const admin = await prisma.platformAdmin.upsert({
+    where: { email: ADMIN_EMAIL },
+    update: { firstName: "Platform", lastName: "Admin" },
     create: {
-      schoolId: school.id,
       email: ADMIN_EMAIL,
       passwordHash,
-      role: Role.SUPER_ADMIN,
-      firstName: "Super",
+      firstName: "Platform",
       lastName: "Admin",
     },
   });
 
-  console.log(`Seeded school "${school.name}" (id: ${school.id})`);
-  console.log(`Seeded super admin: ${admin.email} / ${ADMIN_PASSWORD}`);
+  console.log(`Seeded platform admin: ${admin.email} / ${ADMIN_PASSWORD}`);
 }
 
 main()

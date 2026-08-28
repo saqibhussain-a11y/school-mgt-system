@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { platformApiFetch } from "@/lib/platform-api-client";
+import { ApiError } from "@/lib/api-client";
 import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "./types";
 
 const LABELS: Record<SubscriptionStatus, string> = {
@@ -33,7 +34,7 @@ export function SubscriptionStatusSelect({
     if (!next || next === status) return;
     setSubmitting(true);
     try {
-      await apiFetch(`/api/platform/schools/${schoolId}/subscription`, {
+      await platformApiFetch(`/api/platform/schools/${schoolId}/subscription`, {
         method: "PATCH",
         body: JSON.stringify({ subscriptionStatus: next }),
       });

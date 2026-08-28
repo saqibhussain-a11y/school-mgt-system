@@ -23,7 +23,7 @@ const APPLICANT_ROLES: UserRole[] = [
   "STUDENT",
 ];
 const REVIEW_ROLES: UserRole[] = ["SCHOOL_ADMIN", "PRINCIPAL"];
-const VIEW_ALL_ROLES: UserRole[] = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const VIEW_ALL_ROLES: UserRole[] = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 interface LeaveBalance {
   leaveType: string;

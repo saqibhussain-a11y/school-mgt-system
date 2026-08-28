@@ -27,7 +27,7 @@ import { AssignColumnBlockDialog } from "@/components/exam-sessions/assign-colum
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ExamSessionSummary, SeatingStrategy } from "@/components/exam-sessions/exam-session-types";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 interface SeatAllocationRow {
   id: string;
@@ -96,10 +96,6 @@ function SeatingChart({
   return (
     <div className="flex flex-col gap-4">
       {Array.from(byRoom.entries()).map(([roomName, rows]) => {
-        // Column-blocked rooms always carry a column on every row; interleaved
-        // rooms never do — branch the whole room's table on that, not a
-        // session-level flag, so a page reload always renders what's actually
-        // in the data.
         const hasColumns = rows.some((r) => r.column);
         const byColumn = new Map<number, SeatAllocationRow[]>();
         for (const row of rows) {

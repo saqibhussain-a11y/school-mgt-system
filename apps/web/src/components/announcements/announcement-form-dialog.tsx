@@ -28,7 +28,6 @@ import type { UserRole } from "@sms/shared-types";
 import type { AnnouncementSummary } from "@/components/dashboard/announcement-card";
 
 const ROLE_OPTIONS: UserRole[] = [
-  "SUPER_ADMIN",
   "SCHOOL_ADMIN",
   "PRINCIPAL",
   "TEACHER",

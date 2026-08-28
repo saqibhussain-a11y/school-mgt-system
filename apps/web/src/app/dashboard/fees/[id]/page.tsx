@@ -21,7 +21,7 @@ import { apiFetch, apiFetchBlob, downloadBlob, ApiError } from "@/lib/api-client
 import { formatDate } from "@/lib/format";
 import type { FeeInvoice } from "@/components/fees/types";
 
-const FEE_MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
+const FEE_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
 
 export default function FeeInvoiceDetailPage() {
   const params = useParams<{ id: string }>();

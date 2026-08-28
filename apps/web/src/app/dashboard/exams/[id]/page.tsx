@@ -25,7 +25,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
 import type { ExamSummary } from "@/components/exams/types";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 interface Assignment {
   classId: string;

@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { SyllabusDetail } from "@/components/curriculum/types";
 
-const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function SyllabusDetailPage() {
   const params = useParams<{ id: string }>();

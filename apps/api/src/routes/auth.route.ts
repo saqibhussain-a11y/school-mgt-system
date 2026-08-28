@@ -1,16 +1,12 @@
 import { Router } from "express";
-import { Role } from "@sms/db";
 import { authService } from "../services/auth.service";
-import { notificationService } from "../services/notification.service";
-import { authenticate, authorize } from "../middleware/auth.middleware";
+import { authenticate } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { loginLimiter, passwordResetRequestLimiter, otpVerifyLimiter } from "../middleware/rateLimit";
-import { generateTempPassword } from "../lib/tempPassword";
 import {
   loginSchema,
   platformLoginSchema,
   refreshSchema,
-  registerSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
@@ -28,8 +24,6 @@ authRouter.post("/login", loginLimiter, validateBody(loginSchema), async (req, r
   }
 });
 
-// Separate from /login: no schoolId, not linked from the public school
-// picker — the super admin signs in at its own unlisted page.
 authRouter.post(
   "/platform-login",
   loginLimiter,
@@ -63,39 +57,23 @@ authRouter.post("/logout", validateBody(refreshSchema), async (req, res, next) =
   }
 });
 
-authRouter.post(
-  "/register",
-  authenticate,
-  authorize(Role.SUPER_ADMIN),
-  validateBody(registerSchema),
-  async (req, res, next) => {
-    try {
-      const { email, role, firstName, lastName } = req.body;
-      const password = req.body.password ?? generateTempPassword();
-      const user = await authService.register(
-        req.user!.schoolId,
-        email,
-        password,
-        role,
-        firstName,
-        lastName,
-      );
-      if (!req.body.password) {
-        await notificationService.notifyNewAccount(email, firstName, password);
-      }
-      res.status(201).json({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        temporaryPassword: req.body.password ? undefined : password,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+authRouter.post("/platform-refresh", validateBody(refreshSchema), async (req, res, next) => {
+  try {
+    const tokens = await authService.platformRefresh(req.body.refreshToken);
+    res.json(tokens);
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/platform-logout", validateBody(refreshSchema), async (req, res, next) => {
+  try {
+    await authService.platformLogout(req.body.refreshToken);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
 
 authRouter.post(
   "/forgot-password",

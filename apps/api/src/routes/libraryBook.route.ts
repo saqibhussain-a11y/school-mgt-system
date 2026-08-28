@@ -6,13 +6,11 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createBookSchema, updateBookSchema } from "../validation/library.schema";
 
-export const LIBRARY_MANAGE_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.LIBRARIAN];
+export const LIBRARY_MANAGE_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.LIBRARIAN];
 
 export const libraryBookRouter = Router();
 libraryBookRouter.use(authenticate);
 
-// Catalog browsing is open to any authenticated user (students/parents need
-// it to find and reserve a book) — only create/update/delete are gated.
 libraryBookRouter.get("/", async (req, res, next) => {
   try {
     const { query, category } = req.query as { query?: string; category?: string };

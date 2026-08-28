@@ -7,7 +7,7 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createSectionSchema, updateSectionSchema } from "../validation/academic.schema";
 
-const ADMIN_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const sectionRouter = Router();
 

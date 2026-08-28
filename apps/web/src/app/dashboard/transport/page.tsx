@@ -7,7 +7,7 @@ import { MyTransportView } from "@/components/transport/my-transport-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 
-const TRANSPORT_MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"];
+const TRANSPORT_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"];
 
 export default function TransportPage() {
   const { user } = useAuth();

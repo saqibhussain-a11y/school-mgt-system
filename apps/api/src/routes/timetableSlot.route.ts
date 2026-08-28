@@ -9,14 +9,12 @@ import {
   updateTimetableSlotSchema,
 } from "../validation/timetableSlot.schema";
 
-const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const timetableSlotRouter = Router();
 
 timetableSlotRouter.use(authenticate);
 
-// Open to any authenticated role, same as Class/Section/Subject GETs — a
-// weekly schedule isn't sensitive the way attendance/grades are.
 timetableSlotRouter.get("/", async (req, res, next) => {
   try {
     const { sectionId, staffId, roomId } = req.query as {

@@ -1,9 +1,10 @@
-import type { AccessTokenPayload } from "../lib/jwt";
+import type { AccessTokenPayload, PlatformAccessTokenPayload } from "../lib/jwt";
 
 declare global {
   namespace Express {
     interface Request {
       user?: AccessTokenPayload;
+      platformAdmin?: PlatformAccessTokenPayload;
     }
   }
 }

@@ -7,7 +7,6 @@ import { HttpError } from "../middleware/errorHandler";
 import { createVehicleSchema, updateVehicleSchema } from "../validation/transport.schema";
 
 export const TRANSPORT_MANAGE_ROLES: Role[] = [
-  Role.SUPER_ADMIN,
   Role.SCHOOL_ADMIN,
   Role.PRINCIPAL,
   Role.TRANSPORT_MANAGER,

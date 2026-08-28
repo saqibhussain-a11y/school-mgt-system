@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 import { useReportClasses } from "@/lib/use-report-classes";
 
-const ACADEMIC_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
-const FEE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
+const ACADEMIC_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
+const FEE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
 
 export default function ReportsPage() {
   const { user } = useAuth();

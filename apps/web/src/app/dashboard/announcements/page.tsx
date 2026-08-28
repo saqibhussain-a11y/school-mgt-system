@@ -13,8 +13,8 @@ import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 
-const CREATE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
-const EDIT_ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const CREATE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
+const EDIT_ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function AnnouncementsPage() {
   const { user } = useAuth();

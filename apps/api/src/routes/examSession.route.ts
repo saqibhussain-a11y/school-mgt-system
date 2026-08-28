@@ -18,14 +18,10 @@ import {
 } from "../validation/examSeating.schema";
 import { generateInvigilationSchema, assignInvigilationSchema } from "../validation/examInvigilation.schema";
 
-const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const examSessionRouter = Router();
 
-// A teacher assigned to only ONE class in a multi-class session must still
-// see the WHOLE room's seat chart — showing "your class's seats" without
-// who's sitting adjacent defeats the entire point of cross-class seating.
-// Deliberately broader than the usual per-class scoping; don't narrow this.
 export async function assertCanViewExamSession(
   schoolId: string,
   user: { sub: string; role: string },
@@ -234,11 +230,6 @@ examSessionRouter.delete(
   },
 );
 
-// Bulk, whole/partial-session admit cards. Admins get the full roster; a
-// teacher may call this too, but the class scope is always narrowed
-// server-side to their own assigned classes within the session — never
-// trusting a client-supplied classId for a document that can embed other
-// classes' seat/room data.
 examSessionRouter.get("/:id/admit-cards", async (req, res, next) => {
   try {
     const schoolId = req.user!.schoolId;

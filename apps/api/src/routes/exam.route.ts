@@ -21,7 +21,7 @@ import {
 } from "../validation/examDatesheet.schema";
 import { generateSeatingSchema } from "../validation/examSeating.schema";
 
-export const EXAM_ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+export const EXAM_ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 const ADMIN_ROLES = EXAM_ADMIN_ROLES;
 
 export const examRouter = Router();
@@ -30,9 +30,6 @@ export const examSubjectRouter = Router();
 examRouter.use(authenticate);
 examSubjectRouter.use(authenticate);
 
-// Marks/overview management is class-scoped for a teacher — same "assigned
-// to any section of this class" rule as timetable slots, since Subject (and
-// therefore exams) has no section concept. Admins/principal are unrestricted.
 async function assertCanManageExamClass(
   schoolId: string,
   user: { sub: string; role: string },
@@ -46,9 +43,6 @@ async function assertCanManageExamClass(
   throw new HttpError(403, "You do not have permission to manage marks for this class");
 }
 
-// Viewing rule for the exam schedule/subject/maxMarks listing itself — not
-// marks/scores, which stay behind assertCanViewReportCard's studentId check.
-// Same shape as assignments' assertCanViewClass.
 async function assertCanViewExam(
   schoolId: string,
   user: { sub: string; role: string },
@@ -70,8 +64,6 @@ async function assertCanViewExam(
   throw new HttpError(403, "You do not have permission to view exams for this class");
 }
 
-// For the unfiltered list (no ?classId given) — null means unrestricted
-// (admin), an array is the exact set of classes this caller may see.
 async function getViewableClassIds(
   schoolId: string,
   user: { sub: string; role: string },
@@ -242,8 +234,6 @@ examRouter.post(
   },
 );
 
-// Read-only — unlike seat generation, this does NOT lazily create a
-// session for a standalone exam; it just renders without a seat map.
 examRouter.get("/:id/admit-cards", async (req, res, next) => {
   try {
     const schoolId = req.user!.schoolId;
@@ -298,12 +288,8 @@ examRouter.get("/:id/result-sheet", async (req, res, next) => {
   }
 });
 
-// Subject columns share the leftover page width evenly (28pt floor) —
-// drawTable has no auto-fit, so this is the caller's job; typical class
-// sizes (a handful of subjects) get a comfortable width, a class with many
-// subjects degrades gracefully to tighter columns rather than erroring.
 const RESULT_SHEET_PAGE_WIDTH = 475;
-const RESULT_SHEET_FIXED_COLUMNS_WIDTH = 100 + 65 + 55 + 45 + 40; // student + admNo + overall% + grade + rank
+const RESULT_SHEET_FIXED_COLUMNS_WIDTH = 100 + 65 + 55 + 45 + 40; 
 
 examRouter.get("/:id/result-sheet/pdf", async (req, res, next) => {
   try {
@@ -368,9 +354,6 @@ examRouter.get("/:id/students/:studentId/report-card", async (req, res, next) =>
     const exam = await examService.getById(schoolId, req.params.id);
     if (!exam) throw new HttpError(404, "Exam not found");
     await assertCanViewReportCard(schoolId, req.user!, exam.classId, req.params.studentId);
-    // Only the STUDENT/PARENT-facing read is gated by publish status —
-    // TEACHER/SCHOOL_ADMIN/PRINCIPAL keep seeing raw marks unconditionally,
-    // since assertCanViewReportCard already let them through above.
     if ((req.user!.role === Role.STUDENT || req.user!.role === Role.PARENT) && exam.status !== "PUBLISHED") {
       throw new HttpError(403, "Results for this exam have not been published yet");
     }

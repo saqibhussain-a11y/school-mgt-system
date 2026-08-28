@@ -7,8 +7,8 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createAnnouncementSchema, updateAnnouncementSchema } from "../validation/announcement.schema";
 
-const CREATE_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
-const EDIT_ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const CREATE_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
+const EDIT_ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const announcementRouter = Router();
 

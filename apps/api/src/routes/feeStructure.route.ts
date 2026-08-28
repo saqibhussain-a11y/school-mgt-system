@@ -6,9 +6,7 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createFeeStructureSchema, updateFeeStructureSchema } from "../validation/fee.schema";
 
-// Financial data — deliberately narrower than most staff-facing modules.
-// No TEACHER access (privacy — fee amounts/discounts aren't academic data).
-export const FEE_MANAGE_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.ACCOUNTANT];
+export const FEE_MANAGE_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.ACCOUNTANT];
 
 export const feeStructureRouter = Router();
 feeStructureRouter.use(authenticate, authorize(...FEE_MANAGE_ROLES));

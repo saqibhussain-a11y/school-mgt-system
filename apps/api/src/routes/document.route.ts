@@ -8,10 +8,7 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { generateDocumentSchema } from "../validation/document.schema";
 
-// Official documents (transfer/character certificates carry legal weight) —
-// issuance is restricted to admin roles, narrower than most staff-facing
-// modules, same reasoning as Fees (see FEE_MANAGE_ROLES).
-const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 async function assertCanViewStudentDocs(schoolId: string, user: { sub: string; role: string }, studentId: string) {
   if (ADMIN_ROLES.includes(user.role as Role)) return;

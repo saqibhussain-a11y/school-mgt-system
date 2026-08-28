@@ -6,17 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { useAuth } from "@/lib/auth-context";
+import { PlatformAuthProvider, usePlatformAuth } from "@/lib/platform-auth-context";
 import { ApiError } from "@/lib/api-client";
 
-// Deliberately unlinked from anywhere in the app — the super admin is the
-// platform owner, not a school user, so this doesn't show a school picker
-// and isn't reachable from the public /login page's dropdown. Same
-// split-panel design as /login (see that file) so the two feel like one
-// product, not a bolted-on admin tool — only the form panel's copy and the
-// missing school picker differ.
 export default function PlatformLoginPage() {
-  const { platformLogin } = useAuth();
+  return (
+    <PlatformAuthProvider>
+      <PlatformLoginForm />
+    </PlatformAuthProvider>
+  );
+}
+
+function PlatformLoginForm() {
+  const { login } = usePlatformAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +30,7 @@ export default function PlatformLoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await platformLogin(email, password);
+      await login(email, password);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {
@@ -39,13 +41,8 @@ export default function PlatformLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted p-4">
       <div className="flex w-full max-w-4xl overflow-hidden rounded-3xl bg-card shadow-xl md:min-h-[600px]">
-        {/* Brand panel — identical to /login's, so platform sign-in still
-            feels like the same product. */}
         <div className="relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-br from-[#14306b] to-[#081226] p-10 md:flex">
           <div className="relative flex flex-1 items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element -- a
-                static public-folder brand asset, not an optimizable
-                content image */}
             <img
               src="/Logo.png"
               alt="School Management System"

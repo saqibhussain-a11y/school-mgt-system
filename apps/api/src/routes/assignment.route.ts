@@ -16,15 +16,8 @@ import {
   gradeSubmissionSchema,
 } from "../validation/assignment.schema";
 
-const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
-// Allow-list, not a deny-list — narrower than exhaustively blocking every
-// dangerous extension, and closes the actual risk: an uploaded .html/.svg
-// stored and later served back gets rendered inline by the browser instead
-// of downloaded, since nothing here validates the client-supplied mimetype
-// against the file's real content. (getDownloadUrl's forced
-// Content-Disposition: attachment, below, is the deeper defense — this
-// filter just stops the obviously-wrong file types at the door.)
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
   ".pdf",
   ".doc",
@@ -58,9 +51,6 @@ const upload = multer({
 export const assignmentRouter = Router();
 assignmentRouter.use(authenticate);
 
-// Same class-scoping rule as exams — Subject has no teacher mapping, so a
-// teacher assigned to any section of the class can manage the whole class's
-// assignments (see getAssignedClassIdsForUser).
 async function assertCanManageClass(schoolId: string, user: { sub: string; role: string }, classId: string) {
   if (ADMIN_ROLES.includes(user.role as Role)) return;
   if (user.role === Role.TEACHER) {
@@ -70,8 +60,6 @@ async function assertCanManageClass(schoolId: string, user: { sub: string; role:
   throw new HttpError(403, "You do not have permission to manage assignments for this class");
 }
 
-// Broader viewing rule — also lets a student/parent see an assignment (and
-// its attachment) if it belongs to their own/their child's class.
 async function assertCanViewClass(schoolId: string, user: { sub: string; role: string }, classId: string) {
   if (ADMIN_ROLES.includes(user.role as Role)) return;
   if (user.role === Role.TEACHER) {

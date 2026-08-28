@@ -8,7 +8,7 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { updateMarkersSchema } from "../validation/resultCardTemplate.schema";
 
-const ADMIN_ROLES: Role[] = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
@@ -24,9 +24,6 @@ const upload = multer({
   },
 });
 
-// School-level admin setup only — not consumed by any other role, so the
-// whole router is admin-gated rather than following the usual open-GET
-// pattern other admin-config routers use.
 export const resultCardTemplateRouter = Router();
 resultCardTemplateRouter.use(authenticate, authorize(...ADMIN_ROLES));
 

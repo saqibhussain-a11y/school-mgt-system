@@ -21,7 +21,7 @@ import { useAuth } from "@/lib/auth-context";
 import { formatDate } from "@/lib/format";
 import type { AssignmentSummary } from "@/components/assignments/types";
 
-const STAFF_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
+const STAFF_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
 
 function StaffAssignmentsList() {
   const router = useRouter();

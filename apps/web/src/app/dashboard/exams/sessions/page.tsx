@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { ExamSessionsTab } from "@/components/exam-sessions/exam-sessions-tab";
 import { useAuth } from "@/lib/auth-context";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function ExamSessionsPage() {
   const { user } = useAuth();

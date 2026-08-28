@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { SubjectsTab } from "@/components/academics/subjects-tab";
 import { useAuth } from "@/lib/auth-context";
 
-const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 export default function AcademicSubjectsPage() {
   const { user } = useAuth();

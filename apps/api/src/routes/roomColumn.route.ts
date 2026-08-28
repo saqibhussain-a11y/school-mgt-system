@@ -6,7 +6,7 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createRoomColumnSchema, updateRoomColumnSchema } from "../validation/roomColumn.schema";
 
-const ADMIN_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const roomColumnRouter = Router();
 roomColumnRouter.use(authenticate);

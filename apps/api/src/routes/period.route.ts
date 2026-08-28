@@ -6,7 +6,7 @@ import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { createPeriodSchema, updatePeriodSchema } from "../validation/period.schema";
 
-const ADMIN_ROLES = [Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.PRINCIPAL];
+const ADMIN_ROLES = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 export const periodRouter = Router();
 

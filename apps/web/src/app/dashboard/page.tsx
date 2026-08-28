@@ -6,8 +6,6 @@ import {
   BookOpen,
   CalendarCheck,
   Megaphone,
-  Building2,
-  ArrowRight,
   BookMarked,
   AlertCircle,
   Clock,
@@ -92,25 +90,9 @@ interface ParentChild {
   attendancePercent30d: number;
 }
 
-interface PlatformSchoolRow {
-  id: string;
-  name: string;
-  subdomain: string;
-  subscriptionStatus: string;
-  createdAt: string;
-}
-
-interface PlatformWidgets {
-  totalSchools: number;
-  activeCount: number;
-  pastDueCount: number;
-  suspendedCount: number;
-  recentSchools: PlatformSchoolRow[];
-}
-
 interface DashboardResponse {
   role: string;
-  widgets: Partial<StaffWidgets & StudentWidgets & PlatformWidgets & { children: ParentChild[] }>;
+  widgets: Partial<StaffWidgets & StudentWidgets & { children: ParentChild[] }>;
   recentAnnouncements: AnnouncementSummary[];
 }
 
@@ -118,12 +100,6 @@ const REPORT_STAFF_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "ACCOUNTANT"
 const GENERIC_STAT_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "ACCOUNTANT", "LIBRARIAN", "TRANSPORT_MANAGER"];
 const ACADEMIC_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER"];
 const FEE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
-
-const SUBSCRIPTION_TONE: Record<string, "good" | "warning" | "critical"> = {
-  active: "good",
-  past_due: "warning",
-  suspended: "critical",
-};
 
 function RecentAnnouncements({ announcements }: { announcements: AnnouncementSummary[] }) {
   return (
@@ -180,63 +156,6 @@ function ReportTabs({ role }: { role: string }) {
         </Tabs>
       </CardContent>
     </Card>
-  );
-}
-
-function PlatformDashboard({ widgets }: { widgets: Partial<PlatformWidgets> }) {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total schools" value={widgets.totalSchools ?? 0} icon={Building2} tone="primary" />
-        <StatCard label="Active" value={widgets.activeCount ?? 0} icon={Building2} tone="good" />
-        <StatCard label="Past due" value={widgets.pastDueCount ?? 0} icon={Building2} tone="warning" />
-        <StatCard label="Suspended" value={widgets.suspendedCount ?? 0} icon={Building2} tone="critical" />
-      </div>
-
-      <Card>
-        <CardHeader className="flex items-center justify-between">
-          <CardTitle className="text-base">Recently added schools</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            nativeButton={false}
-            render={
-              <Link href="/dashboard/platform">
-                View all
-                <ArrowRight className="size-3.5" />
-              </Link>
-            }
-          />
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {(widgets.recentSchools ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">No schools have been added yet.</p>
-          ) : (
-            widgets.recentSchools!.map((school) => (
-              <div
-                key={school.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
-              >
-                <div>
-                  <p className="font-medium">{school.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {school.subdomain} · added {formatDate(school.createdAt)}
-                  </p>
-                </div>
-                <Badge
-                  style={{
-                    backgroundColor: `var(--status-${SUBSCRIPTION_TONE[school.subscriptionStatus] ?? "warning"})`,
-                    color: "white",
-                  }}
-                >
-                  {school.subscriptionStatus.replace("_", " ")}
-                </Badge>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </div>
   );
 }
 
@@ -449,8 +368,6 @@ export default function DashboardPage() {
 
       {loading || !data ? (
         <DashboardSkeleton />
-      ) : data.role === "SUPER_ADMIN" ? (
-        <PlatformDashboard widgets={data.widgets} />
       ) : (
         <div className="flex flex-col gap-6">
           {GENERIC_STAT_ROLES.includes(data.role) && (

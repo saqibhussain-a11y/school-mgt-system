@@ -26,7 +26,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import type { SchoolClass } from "@/components/academics/classes-tab";
 import type { Room } from "@/components/academics/room-types";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "PRINCIPAL"];
+const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL"];
 
 interface Section {
   id: string;
@@ -58,10 +58,6 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Generation now runs as a background job (see the reliability/performance
-// hardening pass) instead of blocking the request — the button polls a
-// status endpoint until the job finishes rather than getting a result back
-// from the original POST.
 async function pollJobUntilDone(jobId: string): Promise<GenerateResult> {
   const deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {

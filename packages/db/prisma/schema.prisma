@@ -22,7 +22,6 @@ model School {
 }
 
 enum Role {
-  SUPER_ADMIN
   SCHOOL_ADMIN
   PRINCIPAL
   TEACHER
@@ -31,6 +30,36 @@ enum Role {
   ACCOUNTANT
   LIBRARIAN
   TRANSPORT_MANAGER
+}
+
+// The platform owner — deliberately not a User/Role at all. No schoolId
+// column, so it's structurally impossible for this identity to be
+// tenant-scoped; it authenticates and authorizes through a completely
+// separate path (see authenticatePlatform / platform-login), not by being a
+// member of any school. See TENANT_EXEMPT_MODELS in packages/db/src/client.ts.
+model PlatformAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String   @default("")
+  lastName     String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens PlatformRefreshToken[]
+}
+
+model PlatformRefreshToken {
+  id        String    @id @default(cuid())
+  platformAdminId String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  platformAdmin PlatformAdmin @relation(fields: [platformAdminId], references: [id])
+
+  @@index([platformAdminId])
 }
 
 model User {

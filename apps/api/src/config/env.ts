@@ -15,5 +15,7 @@ export const env = {
   redisUrl: required("REDIS_URL"),
   jwtAccessSecret: required("JWT_ACCESS_SECRET"),
   jwtRefreshSecret: required("JWT_REFRESH_SECRET"),
+  jwtPlatformAccessSecret: required("JWT_PLATFORM_ACCESS_SECRET"),
+  jwtPlatformRefreshSecret: required("JWT_PLATFORM_REFRESH_SECRET"),
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
 };
