@@ -8,6 +8,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
   ) {
     super(message);
   }
@@ -86,7 +87,17 @@ export async function apiFetch<T = unknown>(
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, body.error ?? "Request failed");
+    // A suspended school can 403 on any authenticated call, not just login —
+    // force the session out here rather than leaving every screen that
+    // ignores its error state (most of them, today) silently rendering an
+    // empty-looking page.
+    if (body.code === "SCHOOL_SUSPENDED") {
+      tokenStorage.clear();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login?suspended=1";
+      }
+    }
+    throw new ApiError(res.status, body.error ?? "Request failed", body.code);
   }
   return body as T;
 }

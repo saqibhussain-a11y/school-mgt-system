@@ -24,7 +24,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("suspended") === "1"
+      ? "This school's account has been suspended. Contact your school administrator."
+      : null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [resolvingSchools, setResolvingSchools] = useState(true);
 

@@ -6,9 +6,23 @@ import { notificationService } from "./notification.service";
 import { userService } from "./user.service";
 import { authTokenService } from "./authToken.service";
 import { platformAuditLogService } from "./platformAuditLog.service";
+import { getOrSet, invalidate } from "../lib/cache";
 import type { PlanKey } from "../config/plans";
 
 export const schoolService = {
+  // Read on every authenticated request (see auth.middleware.ts) to block a
+  // suspended school's users, so this is cached rather than hitting Postgres
+  // per-request; updateSubscription() below invalidates it on change.
+  getSubscriptionStatus(schoolId: string) {
+    return getOrSet(`school:subscription-status:${schoolId}`, 30, async () => {
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { subscriptionStatus: true },
+      });
+      return school?.subscriptionStatus ?? null;
+    });
+  },
+
   listForLogin() {
     return prisma.school.findMany({
       select: { id: true, name: true },
@@ -98,6 +112,9 @@ export const schoolService = {
           targetId: id,
           metadata: { from: existing, to: data },
         });
+        return updated;
+      }).then(async (updated) => {
+        await invalidate(`school:subscription-status:${id}`);
         return updated;
       });
     });

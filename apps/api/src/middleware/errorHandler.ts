@@ -5,6 +5,7 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
   ) {
     super(message);
   }
@@ -14,9 +15,9 @@ export function notFoundHandler(req: Request, res: Response) {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
 }
 
-function mapKnownError(err: unknown): { status: number; message: string } | null {
+function mapKnownError(err: unknown): { status: number; message: string; code?: string } | null {
   if (err instanceof HttpError) {
-    return { status: err.status, message: err.message };
+    return { status: err.status, message: err.message, code: err.code };
   }
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {
@@ -47,5 +48,5 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     req.log?.error({ err }, "Unhandled error");
   }
 
-  res.status(status).json({ error: message });
+  res.status(status).json({ error: message, ...(mapped?.code ? { code: mapped.code } : {}) });
 }

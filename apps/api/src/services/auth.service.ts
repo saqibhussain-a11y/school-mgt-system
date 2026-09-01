@@ -11,6 +11,7 @@ import {
 } from "../lib/jwt";
 import { generateOtp } from "../lib/otp";
 import { userService } from "./user.service";
+import { schoolService } from "./school.service";
 import { authTokenService } from "./authToken.service";
 import { platformAdminService } from "./platformAdmin.service";
 import { platformAuthTokenService } from "./platformAuthToken.service";
@@ -36,6 +37,13 @@ export const authService = {
     const user = await userService.findByEmail(schoolId, email);
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       throw new HttpError(401, "Invalid email or password");
+    }
+    if ((await schoolService.getSubscriptionStatus(schoolId)) === "suspended") {
+      throw new HttpError(
+        403,
+        "This school's account has been suspended. Contact your school administrator.",
+        "SCHOOL_SUSPENDED",
+      );
     }
     if (!user.isActivated) {
       throw new HttpError(403, "This account hasn't been activated yet — ask your school to issue your login credentials.");
