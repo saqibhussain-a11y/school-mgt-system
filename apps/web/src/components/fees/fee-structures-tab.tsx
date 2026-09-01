@@ -11,6 +11,7 @@ import { FeeStructureDialog } from "./fee-structure-dialog";
 import { GenerateInvoicesDialog } from "./generate-invoices-dialog";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 import type { FeeStructure } from "./types";
 
 export function FeeStructuresTab() {
@@ -63,7 +64,7 @@ export function FeeStructuresTab() {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.class.name}</TableCell>
                   <TableCell className="capitalize">{s.category}</TableCell>
-                  <TableCell>{s.amount}</TableCell>
+                  <TableCell>{formatCurrency(s.amount)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <GenerateInvoicesDialog

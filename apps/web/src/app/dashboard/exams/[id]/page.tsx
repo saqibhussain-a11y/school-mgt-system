@@ -93,7 +93,7 @@ export default function ExamDetailPage() {
         description={`${exam.class.name} · ${exam.academicSession.name} · ${formatDate(exam.startDate)} – ${formatDate(exam.endDate)}`}
         action={
           isAdmin && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={handleTogglePublish}>
                 {exam.status === "PUBLISHED" ? (
                   <>

@@ -173,8 +173,12 @@ export function AttendanceTrendChart({ isTeacher, classes }: { isTeacher: boolea
                       fontSize: 12,
                     }}
                   />
+                  {/* Straight segments, not a smoothed curve — these are
+                      discrete daily snapshots (often just a handful of
+                      points), and a smoothed spline implies continuous
+                      in-between values that were never actually recorded. */}
                   <Line
-                    type="monotone"
+                    type="linear"
                     dataKey="percentage"
                     stroke={colors.series1}
                     strokeWidth={2}

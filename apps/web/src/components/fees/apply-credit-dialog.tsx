@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 
 export function ApplyCreditDialog({
   trigger,
@@ -70,7 +71,7 @@ export function ApplyCreditDialog({
           <DialogTitle>Apply fee credit</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          This student has {creditBalance} of unapplied fee credit. Applying it here records a payment on this
+          This student has {formatCurrency(creditBalance)} of unapplied fee credit. Applying it here records a payment on this
           invoice funded from that balance, not new cash received.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

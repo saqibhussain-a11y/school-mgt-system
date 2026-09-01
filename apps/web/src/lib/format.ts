@@ -21,8 +21,11 @@ export function toDateInputValue(value: string | Date) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+// Fixed to PKR/en-PK regardless of the viewer's own browser locale — this
+// is the business's one operating currency, not something that should
+// change per visitor.
 export function formatCurrency(value: number) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
+  return new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", maximumFractionDigits: 0 }).format(
     value,
   );
 }

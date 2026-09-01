@@ -85,7 +85,7 @@ export default function StudentDetailPage() {
             description={`Admission no. ${student.admissionNo}`}
             action={
               canManage && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <EditStudentDialog student={student} onSaved={refetch} />
                   {student.user.isActivated ? (
                     <ResetPasswordButton userId={student.user.id} />

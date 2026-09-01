@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 
 export function RecordPaymentDialog({
   trigger,
@@ -82,7 +83,7 @@ export function RecordPaymentDialog({
           <DialogTitle>Record payment</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Manual entry only — record what the parent already paid via bank transfer/cash. Outstanding balance: {balance}.
+          Manual entry only — record what the parent already paid via bank transfer/cash. Outstanding balance: {formatCurrency(balance)}.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
@@ -109,12 +110,12 @@ export function RecordPaymentDialog({
           {isOverpaying && (
             <div className="flex flex-col gap-2 rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm">
               <p>
-                This exceeds the outstanding balance by {overpayAmount} — the extra will be added to the student&apos;s
+                This exceeds the outstanding balance by {formatCurrency(overpayAmount)} — the extra will be added to the student&apos;s
                 fee credit balance, usable on any of their other invoices.
               </p>
               <label className="flex items-center gap-2">
                 <Checkbox checked={confirmOverpay} onCheckedChange={(v) => setConfirmOverpay(v === true)} />
-                I confirm the extra {overpayAmount} should become fee credit
+                I confirm the extra {formatCurrency(overpayAmount)} should become fee credit
               </label>
             </div>
           )}

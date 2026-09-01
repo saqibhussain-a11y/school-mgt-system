@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FeeStatusBadge } from "./fee-status-badge";
 import { useApi } from "@/lib/use-api";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
 import type { FeeInvoice } from "./types";
 
 interface DashboardResponse {
@@ -40,7 +40,7 @@ function StudentInvoices({ studentId }: { studentId: string }) {
     <Card>
       <CardContent className="flex items-center justify-between py-4">
         <span className="text-sm text-muted-foreground">Fee credit balance</span>
-        <span className="text-lg font-semibold">{creditBalance}</span>
+        <span className="text-lg font-semibold">{formatCurrency(creditBalance)}</span>
       </CardContent>
     </Card>
   );
@@ -81,8 +81,8 @@ function StudentInvoices({ studentId }: { studentId: string }) {
                 <TableCell className="font-medium capitalize">{inv.feeStructure.category}</TableCell>
                 <TableCell>{inv.period}</TableCell>
                 <TableCell>{formatDate(inv.dueDate)}</TableCell>
-                <TableCell>{inv.netAmount}</TableCell>
-                <TableCell>{inv.balance}</TableCell>
+                <TableCell>{formatCurrency(inv.netAmount)}</TableCell>
+                <TableCell>{formatCurrency(inv.balance)}</TableCell>
                 <TableCell>
                   <FeeStatusBadge status={inv.status} />
                 </TableCell>

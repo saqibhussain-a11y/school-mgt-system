@@ -122,8 +122,11 @@ export function PerformanceTrendChart({ isTeacher, classes }: { isTeacher: boole
                       fontSize: 12,
                     }}
                   />
+                  {/* Straight segments, not a smoothed curve — each point is
+                      a distinct exam's average, and a spline would imply a
+                      continuous trend between them that isn't real. */}
                   <Line
-                    type="monotone"
+                    type="linear"
                     dataKey="averagePercentage"
                     stroke={colors.series1}
                     strokeWidth={2}

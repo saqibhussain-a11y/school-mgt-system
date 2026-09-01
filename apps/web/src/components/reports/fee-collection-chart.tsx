@@ -26,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ExportButtons } from "./export-buttons";
 import { useApi } from "@/lib/use-api";
 import { useChartColors } from "@/lib/chart-colors";
+import { formatCurrency } from "@/lib/format";
 interface ClassOption {
   id: string;
   name: string;
@@ -73,7 +74,7 @@ export function FeeCollectionChart({ classes }: { classes: ClassOption[] }) {
       </div>
 
       <div className="sm:w-64">
-        <StatCard label="Total outstanding" value={totalOutstanding} icon={Wallet} tone={totalOutstanding > 0 ? "warning" : "good"} />
+        <StatCard label="Total outstanding" value={formatCurrency(totalOutstanding)} icon={Wallet} tone={totalOutstanding > 0 ? "warning" : "good"} />
       </div>
 
       {loading ? (
@@ -101,9 +102,11 @@ export function FeeCollectionChart({ classes }: { classes: ClassOption[] }) {
                     tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                     axisLine={false}
                     tickLine={false}
-                    width={48}
+                    width={64}
+                    tickFormatter={(v) => formatCurrency(v)}
                   />
                   <Tooltip
+                    formatter={(value) => formatCurrency(Number(value))}
                     contentStyle={{
                       background: "var(--card)",
                       border: "1px solid var(--border)",
@@ -134,9 +137,9 @@ export function FeeCollectionChart({ classes }: { classes: ClassOption[] }) {
                 {data.map((row) => (
                   <TableRow key={row.month}>
                     <TableCell className="font-medium">{row.month}</TableCell>
-                    <TableCell>{row.totalInvoiced}</TableCell>
-                    <TableCell>{row.totalCollected}</TableCell>
-                    <TableCell>{row.totalOutstanding}</TableCell>
+                    <TableCell>{formatCurrency(row.totalInvoiced)}</TableCell>
+                    <TableCell>{formatCurrency(row.totalCollected)}</TableCell>
+                    <TableCell>{formatCurrency(row.totalOutstanding)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

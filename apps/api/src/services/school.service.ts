@@ -109,8 +109,13 @@ export const schoolService = {
         prisma.student.count({ where: { schoolId, status: "ACTIVE" } }),
         prisma.staff.count({ where: { schoolId, status: "ACTIVE" } }),
         prisma.class.count({ where: { schoolId } }),
+        // Filtering out nulls rather than relying on ORDER BY ... DESC to
+        // push them last — Postgres defaults nulls FIRST on a DESC sort, so
+        // a never-logged-in user would otherwise always win over a real
+        // recent login (caught live: showed "Never logged in" right after
+        // logging in as that school's admin).
         prisma.user.findFirst({
-          where: { schoolId },
+          where: { schoolId, lastLoginAt: { not: null } },
           orderBy: { lastLoginAt: "desc" },
           select: { lastLoginAt: true },
         }),

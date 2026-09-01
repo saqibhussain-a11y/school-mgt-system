@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search as SearchIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreateStudentDialog } from "@/components/students/create-student-dialog";
@@ -16,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -26,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useApi } from "@/lib/use-api";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuth } from "@/lib/auth-context";
 import type { SchoolClass } from "@/components/academics/classes-tab";
 
@@ -57,6 +60,8 @@ export default function StudentsPage() {
 
   const [classId, setClassId] = useState<string>("all");
   const [sectionId, setSectionId] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
 
   const { data: fetchedSections } = useApi<Section[]>(
     !isTeacher && classId !== "all" ? `/api/sections?classId=${classId}` : null,
@@ -72,6 +77,7 @@ export default function StudentsPage() {
   const query = new URLSearchParams();
   if (classId !== "all") query.set("classId", classId);
   if (sectionId !== "all") query.set("sectionId", sectionId);
+  if (debouncedSearch.trim()) query.set("search", debouncedSearch.trim());
   const queryString = query.toString();
 
   const {
@@ -87,7 +93,7 @@ export default function StudentsPage() {
         description="Manage student profiles and enrollment"
         action={
           canManage && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <AdmissionNumberFormatDialog />
               <BulkImportDialog onImported={refetch} />
               <CreateStudentDialog onCreated={refetch} />
@@ -97,6 +103,15 @@ export default function StudentsPage() {
       />
 
       <div className="mb-4 flex flex-wrap gap-3">
+        <div className="relative w-64">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or admission no."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
         <div className="w-48">
           <Select
             items={[{ value: "all", label: "All classes" }, ...(classes ?? []).map((c) => ({ value: c.id, label: c.name }))]}

@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 import type { BookLoan } from "./types";
 import { FINE_PER_DAY } from "./types";
 
@@ -63,7 +64,7 @@ export function ReturnBookDialog({
         <div className="flex flex-col gap-4">
           {late > 0 && !lost && (
             <p className="text-sm text-muted-foreground">
-              {late} day{late === 1 ? "" : "s"} overdue — estimated fine: {estimatedFine}
+              {late} day{late === 1 ? "" : "s"} overdue — estimated fine: {formatCurrency(estimatedFine)}
             </p>
           )}
           <div className="flex items-center gap-2">

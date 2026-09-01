@@ -18,7 +18,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LoanStatusBadge, ReservationStatusBadge } from "./loan-status-badge";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
 import type { Book, BookLoan, BookReservation } from "./types";
 
 interface DashboardResponse {
@@ -82,7 +82,7 @@ function StudentLibrary({ studentId }: { studentId: string }) {
                     <TableCell className="font-medium">{loan.book.title}</TableCell>
                     <TableCell>{formatDate(loan.issueDate)}</TableCell>
                     <TableCell>{formatDate(loan.dueDate)}</TableCell>
-                    <TableCell>{loan.fine > 0 ? loan.fine : "—"}</TableCell>
+                    <TableCell>{loan.fine > 0 ? formatCurrency(loan.fine) : "—"}</TableCell>
                     <TableCell>
                       <LoanStatusBadge loan={loan} />
                     </TableCell>

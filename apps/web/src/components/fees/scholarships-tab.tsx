@@ -10,10 +10,11 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ScholarshipDialog } from "./scholarship-dialog";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 import type { Scholarship } from "./types";
 
 function formatDiscount(s: Scholarship) {
-  return s.discountType === "PERCENTAGE" ? `${s.discountValue}%` : s.discountValue;
+  return s.discountType === "PERCENTAGE" ? `${s.discountValue}%` : formatCurrency(s.discountValue);
 }
 
 export function ScholarshipsTab() {

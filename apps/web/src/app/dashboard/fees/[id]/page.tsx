@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, apiFetchBlob, downloadBlob, ApiError } from "@/lib/api-client";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
 import type { FeeInvoice } from "@/components/fees/types";
 
 const FEE_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
@@ -90,7 +90,7 @@ export default function FeeInvoiceDetailPage() {
         title={`${invoice.student.user.firstName} ${invoice.student.user.lastName} — ${invoice.feeStructure.category}`}
         description={`${invoice.period} · Due ${formatDate(invoice.dueDate)}`}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={handleDownload}>
               <Download className="size-4" />
               Download invoice
@@ -125,12 +125,12 @@ export default function FeeInvoiceDetailPage() {
           <CardContent className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-4">
             <div>
               <div className="text-xs text-muted-foreground">Amount</div>
-              <div className="text-lg font-semibold">{invoice.amount}</div>
+              <div className="text-lg font-semibold">{formatCurrency(invoice.amount)}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Discount</div>
               <div className="flex items-center gap-2 text-lg font-semibold">
-                {invoice.discountAmount}
+                {formatCurrency(invoice.discountAmount)}
                 {canManage && invoice.payments.length === 0 && (
                   <EditDiscountDialog
                     invoiceId={invoice.id}
@@ -148,7 +148,7 @@ export default function FeeInvoiceDetailPage() {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Balance</div>
-              <div className="text-lg font-semibold">{invoice.balance}</div>
+              <div className="text-lg font-semibold">{formatCurrency(invoice.balance)}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Status</div>
@@ -157,7 +157,7 @@ export default function FeeInvoiceDetailPage() {
             {creditBalance > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground">Student credit balance</div>
-                <div className="text-lg font-semibold">{creditBalance}</div>
+                <div className="text-lg font-semibold">{formatCurrency(creditBalance)}</div>
               </div>
             )}
           </CardContent>
@@ -167,7 +167,7 @@ export default function FeeInvoiceDetailPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Payments</CardTitle>
             {canManage && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {invoice.balance > 0 && creditBalance > 0 && (
                   <ApplyCreditDialog
                     invoiceId={invoice.id}
@@ -213,7 +213,7 @@ export default function FeeInvoiceDetailPage() {
                         <TableCell>{formatDate(p.paymentDate)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {p.amountPaid}
+                            {formatCurrency(p.amountPaid)}
                             {p.paymentMethod === "CREDIT" && <Badge variant="secondary">Credit</Badge>}
                           </div>
                         </TableCell>
@@ -221,7 +221,7 @@ export default function FeeInvoiceDetailPage() {
                         <TableCell>
                           {refunded > 0 ? (
                             <span>
-                              {refunded}
+                              {formatCurrency(refunded)}
                               {p.refunds.map((r) => (
                                 <div key={r.id} className="text-xs text-muted-foreground">
                                   {r.reason}

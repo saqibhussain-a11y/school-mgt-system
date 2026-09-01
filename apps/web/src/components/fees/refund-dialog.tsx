@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 
 export function RefundDialog({
   trigger,
@@ -59,7 +60,7 @@ export function RefundDialog({
           <DialogTitle>Record refund</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Refundable on this payment: {refundable}. This records the refund as its own ledger entry — it never edits
+          Refundable on this payment: {formatCurrency(refundable)}. This records the refund as its own ledger entry — it never edits
           or deletes the original payment.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { FeeStatusBadge } from "./fee-status-badge";
 import { useApi } from "@/lib/use-api";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
 import type { FeeInvoice, FeeInvoiceStatus, FeeSummary } from "./types";
 import type { SchoolClass } from "@/components/academics/classes-tab";
 
@@ -50,25 +50,25 @@ export function FeeInvoicesTab() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total invoiced</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">{summary.totalInvoiced}</CardContent>
+            <CardContent className="text-2xl font-semibold">{formatCurrency(summary.totalInvoiced)}</CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total collected</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">{summary.totalCollected}</CardContent>
+            <CardContent className="text-2xl font-semibold">{formatCurrency(summary.totalCollected)}</CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">{summary.totalOutstanding}</CardContent>
+            <CardContent className="text-2xl font-semibold">{formatCurrency(summary.totalOutstanding)}</CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Unapplied fee credit</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">{summary.totalUnappliedCredit}</CardContent>
+            <CardContent className="text-2xl font-semibold">{formatCurrency(summary.totalUnappliedCredit)}</CardContent>
           </Card>
         </div>
       )}
@@ -152,8 +152,8 @@ export function FeeInvoicesTab() {
                   <TableCell className="capitalize">{inv.feeStructure.category}</TableCell>
                   <TableCell>{inv.period}</TableCell>
                   <TableCell>{formatDate(inv.dueDate)}</TableCell>
-                  <TableCell>{inv.netAmount}</TableCell>
-                  <TableCell>{inv.balance}</TableCell>
+                  <TableCell>{formatCurrency(inv.netAmount)}</TableCell>
+                  <TableCell>{formatCurrency(inv.balance)}</TableCell>
                   <TableCell>
                     <FeeStatusBadge status={inv.status} />
                   </TableCell>

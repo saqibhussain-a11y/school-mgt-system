@@ -30,7 +30,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useApi } from "@/lib/use-api";
 import { useReportClasses } from "@/lib/use-report-classes";
 import { attendanceTone } from "@/lib/attendance-tone";
-import { formatDate, formatRelativeTime, formatRole } from "@/lib/format";
+import { formatDate, formatRelativeTime, formatRole, formatCurrency } from "@/lib/format";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "LEAVE";
 
@@ -318,7 +318,7 @@ function RecentFeePaymentsCard({ payments }: { payments: RecentFeePayment[] }) {
                 </p>
               </div>
               <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-                {p.amount.toLocaleString()}
+                {formatCurrency(p.amount)}
               </span>
             </div>
           ))

@@ -93,7 +93,7 @@ export default function AssignmentDetailPage() {
         description={`${assignment.class.name} · ${assignment.subject.name} · Due ${formatDate(assignment.dueDate)} · Max marks ${assignment.maxMarks}`}
         action={
           isAdmin && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <EditAssignmentDialog
                 assignment={assignment}
                 onSaved={refetch}

@@ -15,6 +15,12 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
+      {/* Most tables are wider than a phone screen, so this scroll container
+          is nearly always active there — a persistent edge fade tells you
+          there's more to the right instead of columns silently clipping
+          with no cue (only shown below sm since desktop tables usually fit
+          or have their own visible scrollbar). */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden" />
     </div>
   )
 }

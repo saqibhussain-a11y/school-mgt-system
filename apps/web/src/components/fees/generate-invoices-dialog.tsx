@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 import type { FeeStructure } from "./types";
 
 export function GenerateInvoicesDialog({
@@ -61,7 +62,7 @@ export function GenerateInvoicesDialog({
           <DialogTitle>Generate invoices</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Creates a {structure.category} invoice of {structure.amount} for every active student in{" "}
+          Creates a {structure.category} invoice of {formatCurrency(structure.amount)} for every active student in{" "}
           {structure.class.name}.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

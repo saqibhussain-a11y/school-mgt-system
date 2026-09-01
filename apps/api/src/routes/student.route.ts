@@ -40,21 +40,21 @@ studentRouter.use(authenticate);
 studentRouter.get("/", authorize(...VIEW_ROLES), async (req, res, next) => {
   try {
     const schoolId = req.user!.schoolId;
-    const { classId, sectionId } = req.query as { classId?: string; sectionId?: string };
+    const { classId, sectionId, search } = req.query as { classId?: string; sectionId?: string; search?: string };
 
     if (req.user!.role === Role.TEACHER) {
       const assignedSectionIds = await getAssignedSectionIdsForUser(schoolId, req.user!.sub);
       if (sectionId) {
 
         const inScope = assignedSectionIds.includes(sectionId);
-        res.json(inScope ? await studentService.list(schoolId, { classId, sectionId }) : []);
+        res.json(inScope ? await studentService.list(schoolId, { classId, sectionId, search }) : []);
         return;
       }
-      res.json(await studentService.list(schoolId, { classId, sectionIdIn: assignedSectionIds }));
+      res.json(await studentService.list(schoolId, { classId, sectionIdIn: assignedSectionIds, search }));
       return;
     }
 
-    res.json(await studentService.list(schoolId, { classId, sectionId }));
+    res.json(await studentService.list(schoolId, { classId, sectionId, search }));
   } catch (err) {
     next(err);
   }

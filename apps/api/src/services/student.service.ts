@@ -106,11 +106,24 @@ async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInp
 export const studentService = {
   list(
     schoolId: string,
-    filters: { classId?: string; sectionId?: string; sectionIdIn?: string[] } = {},
+    filters: { classId?: string; sectionId?: string; sectionIdIn?: string[]; search?: string } = {},
   ) {
-    const { sectionIdIn, ...rest } = filters;
+    const { sectionIdIn, search, ...rest } = filters;
     return prisma.student.findMany({
-      where: { schoolId, ...rest, ...(sectionIdIn ? { sectionId: { in: sectionIdIn } } : {}) },
+      where: {
+        schoolId,
+        ...rest,
+        ...(sectionIdIn ? { sectionId: { in: sectionIdIn } } : {}),
+        ...(search
+          ? {
+              OR: [
+                { admissionNo: { contains: search, mode: "insensitive" } },
+                { user: { firstName: { contains: search, mode: "insensitive" } } },
+                { user: { lastName: { contains: search, mode: "insensitive" } } },
+              ],
+            }
+          : {}),
+      },
       include: studentListInclude,
       orderBy: { admissionNo: "asc" },
       take: LIST_SAFETY_CAP,

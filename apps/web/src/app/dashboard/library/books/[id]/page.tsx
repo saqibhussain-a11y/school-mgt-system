@@ -67,7 +67,7 @@ export default function BookDetailPage() {
         description={`${book.author}${book.category ? ` · ${book.category}` : ""}`}
         action={
           canManage && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <IssueBookDialog
                 book={book}
                 onIssued={() => {

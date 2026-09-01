@@ -18,6 +18,7 @@ import { LoanStatusBadge } from "./loan-status-badge";
 import { ReturnBookDialog } from "./return-book-dialog";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 import { formatDate } from "@/lib/format";
 import type { BookLoan } from "./types";
 
@@ -104,7 +105,7 @@ export function LoansTab() {
                   <TableCell>
                     {loan.fine > 0 ? (
                       <span className={loan.finePaid ? "text-muted-foreground" : ""}>
-                        {loan.fine} {loan.finePaid ? "(paid)" : ""}
+                        {formatCurrency(loan.fine)} {loan.finePaid ? "(paid)" : ""}
                       </span>
                     ) : (
                       "—"

@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 
 export function EditDiscountDialog({
   trigger,
@@ -58,8 +59,8 @@ export function EditDiscountDialog({
           <DialogTitle>Edit discount</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Invoice amount is {amount}. Covers sibling/staff-child discounts. Only possible before any payment is
-          recorded.
+          Invoice amount is {formatCurrency(amount)}. Covers sibling/staff-child discounts. Only possible before any
+          payment is recorded.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
