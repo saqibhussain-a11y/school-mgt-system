@@ -5,9 +5,7 @@ import { platformDashboardService } from "../services/platformDashboard.service"
 import { platformAuditLogService } from "../services/platformAuditLog.service";
 import { platformReportsService } from "../services/platformReports.service";
 import { systemHealthService } from "../services/systemHealth.service";
-import { authService } from "../services/auth.service";
 import { authenticatePlatform } from "../middleware/auth.middleware";
-import { platformImpersonationLimiter } from "../middleware/rateLimit";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import {
@@ -128,27 +126,3 @@ platformRouter.post("/schools/:id/admins/:adminId/reset-password", async (req, r
     next(err);
   }
 });
-
-platformRouter.post(
-  "/schools/:id/impersonate",
-  platformImpersonationLimiter,
-  async (req, res, next) => {
-    try {
-      const targetUser = await schoolService.getOldestAdmin(req.params.id);
-      if (!targetUser) throw new HttpError(404, "This school has no admin account to impersonate");
-
-      const platformAdminId = req.platformAdmin!.sub;
-      const accessToken = authService.issueImpersonationToken(platformAdminId, targetUser);
-      await platformAuditLogService.recordStandalone(platformAdminId, {
-        action: "school.impersonate",
-        targetType: "School",
-        targetId: req.params.id,
-        metadata: { targetUserId: targetUser.id, targetUserEmail: targetUser.email },
-      });
-
-      res.json({ accessToken, schoolId: targetUser.schoolId });
-    } catch (err) {
-      next(err);
-    }
-  },
-);

@@ -10,10 +10,6 @@ export interface AccessTokenPayload {
   sub: string;
   schoolId: string;
   role: string;
-  // Set only on a platform-admin-minted impersonation token (the platform
-  // admin's id) — every other consumer of this payload is unchanged, since
-  // schoolId/role still carry the real target user's values.
-  impersonatedBy?: string;
 }
 
 export interface RefreshTokenPayload {

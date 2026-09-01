@@ -12,15 +12,9 @@ export interface AuditLogEntry {
 export const platformAuditLogService = {
   // Takes the transaction client of whatever mutation it's logging, so the
   // audit row and the action it describes can never desync — see callers in
-  // school.service.ts and auth.service.ts's impersonation path.
+  // school.service.ts.
   record(tx: PrismaTransactionClient, entry: AuditLogEntry) {
     return tx.platformAuditLog.create({ data: entry });
-  },
-
-  // For actions with no primary DB write of their own to piggyback a
-  // transaction on (e.g. impersonation — minting a JWT touches no table).
-  recordStandalone(platformAdminId: string, entry: Omit<AuditLogEntry, "platformAdminId">) {
-    return runAsPlatform(() => prisma.platformAuditLog.create({ data: { platformAdminId, ...entry } }));
   },
 
   list(limit = 50, cursor?: string) {

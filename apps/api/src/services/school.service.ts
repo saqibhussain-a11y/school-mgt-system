@@ -123,17 +123,6 @@ export const schoolService = {
     return runAsPlatform(() => userService.listByRole(schoolId, Role.SCHOOL_ADMIN));
   },
 
-  // Used by the impersonation flow — the oldest SCHOOL_ADMIN account is the
-  // one every school always has (created alongside the school itself).
-  getOldestAdmin(schoolId: string) {
-    return runAsPlatform(() =>
-      prisma.user.findFirst({
-        where: { schoolId, role: Role.SCHOOL_ADMIN },
-        orderBy: { createdAt: "asc" },
-      }),
-    );
-  },
-
   async createAdmin(
     platformAdminId: string,
     schoolId: string,

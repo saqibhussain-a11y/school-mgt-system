@@ -11,7 +11,6 @@ import { SubscriptionStatusSelect } from "@/components/platform/subscription-sta
 import { PlanSelect } from "@/components/platform/plan-select";
 import { ManageSchoolAdmins } from "@/components/platform/manage-school-admins";
 import { SchoolUsageCard } from "@/components/platform/school-usage-card";
-import { ImpersonateButton } from "@/components/platform/impersonate-button";
 import { usePlatformApi } from "@/lib/use-platform-api";
 import { formatDate } from "@/lib/format";
 import type { PlatformSchool } from "@/components/platform/types";
@@ -45,11 +44,7 @@ export default function PlatformSchoolDetailPage() {
         <ArrowLeft className="size-4" />
         Back to schools
       </Button>
-      <PageHeader
-        title={school.name}
-        description={school.subdomain}
-        action={<ImpersonateButton schoolId={school.id} schoolName={school.name} />}
-      />
+      <PageHeader title={school.name} description={school.subdomain} />
 
       <div className="flex flex-col gap-6">
         <Card>

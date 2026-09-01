@@ -1,4 +1,4 @@
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 
 // Keyed by IP (express-rate-limit's default) — proportionate to this app's
 // scale. A distributed attacker rotating IPs defeats this; that's what the
@@ -39,20 +39,4 @@ export const clientErrorReportLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message,
-});
-
-// Mints a real login-equivalent credential, so it gets login's own
-// treatment — keyed per platform admin (authenticated already) rather than
-// IP, since a shared office IP shouldn't throttle a different admin.
-export const platformImpersonationLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message,
-  // Falls back to a normalized IP key (not raw req.ip) only for the
-  // unreachable case where this runs before authenticatePlatform sets
-  // req.platformAdmin — express-rate-limit requires IPv6 addresses go
-  // through its own normalizer or they can bypass per-key limits.
-  keyGenerator: (req) => req.platformAdmin?.sub ?? ipKeyGenerator(req.ip ?? "unknown"),
 });

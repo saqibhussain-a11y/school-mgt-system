@@ -30,10 +30,6 @@ export interface MeDto {
   schoolId: string;
   firstName: string;
   lastName: string;
-  // Set only when this session was minted by a Platform Admin's "view as
-  // school admin" support action, not a real login — drives the
-  // impersonation banner in DashboardShell.
-  impersonatedBy?: string | null;
 }
 
 export interface NotificationDto {
