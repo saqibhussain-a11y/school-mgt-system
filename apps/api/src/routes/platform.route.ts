@@ -5,6 +5,7 @@ import { platformDashboardService } from "../services/platformDashboard.service"
 import { platformAuditLogService } from "../services/platformAuditLog.service";
 import { platformReportsService } from "../services/platformReports.service";
 import { systemHealthService } from "../services/systemHealth.service";
+import { planService } from "../services/plan.service";
 import { authenticatePlatform } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
@@ -13,6 +14,7 @@ import {
   updateSubscriptionSchema,
   createSchoolAdminSchema,
 } from "../validation/school.schema";
+import { updatePlanSchema } from "../validation/plan.schema";
 
 export const platformRouter = Router();
 platformRouter.use(authenticatePlatform);
@@ -56,6 +58,22 @@ platformRouter.get("/reports", async (_req, res, next) => {
 platformRouter.get("/system-health", async (_req, res, next) => {
   try {
     res.json(await systemHealthService.getStatus());
+  } catch (err) {
+    next(err);
+  }
+});
+
+platformRouter.get("/plans", async (_req, res, next) => {
+  try {
+    res.json(await planService.list());
+  } catch (err) {
+    next(err);
+  }
+});
+
+platformRouter.patch("/plans/:key", validateBody(updatePlanSchema), async (req, res, next) => {
+  try {
+    res.json(await planService.update(req.platformAdmin!.sub, req.params.key, req.body));
   } catch (err) {
     next(err);
   }

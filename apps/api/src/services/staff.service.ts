@@ -1,5 +1,6 @@
 import { prisma, Role, StaffStatus, DayOfWeek } from "@sms/db";
 import { hashPassword } from "../lib/password";
+import { planService } from "./plan.service";
 
 export interface CreateStaffInput {
   email: string;
@@ -36,6 +37,8 @@ export const staffService = {
     const passwordHash = await hashPassword(input.password);
 
     return prisma.$transaction(async (tx) => {
+      await planService.assertSeatAvailable(tx, schoolId, "staff", 1);
+
       const user = await tx.user.create({
         data: {
           schoolId,

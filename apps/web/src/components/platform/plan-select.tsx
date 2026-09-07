@@ -10,8 +10,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { usePlatformApi } from "@/lib/use-platform-api";
 import { ApiError } from "@/lib/api-client";
-import { PLAN_LABELS, type PlanKey } from "./types";
+import type { Plan } from "./types";
 
 export function PlanSelect({
   schoolId,
@@ -22,8 +23,8 @@ export function PlanSelect({
   plan: string;
   onChanged: () => void;
 }) {
+  const { data: plans } = usePlatformApi<Plan[]>("/api/platform/plans");
   const [submitting, setSubmitting] = useState(false);
-  const planKeys = Object.keys(PLAN_LABELS) as PlanKey[];
 
   async function handleChange(next: string | null) {
     if (!next || next === plan) return;
@@ -44,18 +45,18 @@ export function PlanSelect({
 
   return (
     <Select
-      items={planKeys.map((key) => ({ value: key, label: PLAN_LABELS[key] }))}
+      items={(plans ?? []).map((p) => ({ value: p.key, label: p.label }))}
       value={plan}
       onValueChange={handleChange}
-      disabled={submitting}
+      disabled={submitting || !plans}
     >
       <SelectTrigger className="w-36">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {planKeys.map((key) => (
-          <SelectItem key={key} value={key}>
-            {PLAN_LABELS[key]}
+        {(plans ?? []).map((p) => (
+          <SelectItem key={p.key} value={p.key}>
+            {p.label}
           </SelectItem>
         ))}
       </SelectContent>

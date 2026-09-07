@@ -6,7 +6,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GrowthChurnChart, UsersByRoleChart } from "@/components/platform/lazy-charts";
-import { PLAN_LABELS, type PlanKey } from "@/components/platform/types";
+import type { Plan } from "@/components/platform/types";
 import { usePlatformApi } from "@/lib/use-platform-api";
 import { formatCurrency } from "@/lib/format";
 
@@ -29,6 +29,8 @@ interface PlatformReports {
 
 export default function PlatformReportsPage() {
   const { data, loading } = usePlatformApi<PlatformReports>("/api/platform/reports");
+  const { data: plans } = usePlatformApi<Plan[]>("/api/platform/plans");
+  const labelFor = (key: string) => plans?.find((p) => p.key === key)?.label ?? key;
 
   return (
     <div>
@@ -81,9 +83,7 @@ export default function PlatformReportsPage() {
                 <TableBody>
                   {data.revenue.breakdown.map((row) => (
                     <TableRow key={row.plan}>
-                      <TableCell className="font-medium">
-                        {PLAN_LABELS[row.plan as PlanKey] ?? row.plan}
-                      </TableCell>
+                      <TableCell className="font-medium">{labelFor(row.plan)}</TableCell>
                       <TableCell>{row.count}</TableCell>
                       <TableCell>{formatCurrency(row.monthlyValue)}</TableCell>
                     </TableRow>

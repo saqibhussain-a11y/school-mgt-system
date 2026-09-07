@@ -7,6 +7,7 @@ const TENANT_EXEMPT_MODELS: ReadonlySet<Prisma.ModelName> = new Set([
   "PlatformAdmin",
   "PlatformRefreshToken",
   "PlatformAuditLog",
+  "Plan",
 ]);
 
 const WHERE_SCOPED_OPERATIONS = new Set([

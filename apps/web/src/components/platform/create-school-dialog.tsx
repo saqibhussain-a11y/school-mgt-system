@@ -16,10 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { usePlatformApi } from "@/lib/use-platform-api";
 import { ApiError } from "@/lib/api-client";
-import { PLAN_LABELS, type PlanKey } from "./types";
-
-const PLAN_KEYS = Object.keys(PLAN_LABELS) as PlanKey[];
+import type { Plan, PlanKey } from "./types";
 
 const EMPTY_FORM = {
   name: "",
@@ -31,6 +30,7 @@ const EMPTY_FORM = {
 };
 
 export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
+  const { data: plans } = usePlatformApi<Plan[]>("/api/platform/plans");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -168,7 +168,7 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
             <div className="flex flex-col gap-2">
               <Label htmlFor="sch-plan">Plan</Label>
               <Select
-                items={PLAN_KEYS.map((key) => ({ value: key, label: PLAN_LABELS[key] }))}
+                items={(plans ?? []).map((p) => ({ value: p.key, label: p.label }))}
                 value={form.subscriptionPlan}
                 onValueChange={(next) => next && setForm({ ...form, subscriptionPlan: next as PlanKey })}
               >
@@ -176,9 +176,9 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PLAN_KEYS.map((key) => (
-                    <SelectItem key={key} value={key}>
-                      {PLAN_LABELS[key]}
+                  {(plans ?? []).map((p) => (
+                    <SelectItem key={p.key} value={p.key}>
+                      {p.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

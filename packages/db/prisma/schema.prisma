@@ -25,6 +25,21 @@ model School {
   users User[]
 }
 
+// Editable via Platform Admin (see planService/PATCH /api/platform/plans/:key)
+// — was a hardcoded TS object (apps/api/src/config/plans.ts) until this
+// model existed. The 3 keys are fixed in code (School.subscriptionPlan
+// references one by key, and plan.route.ts only allows PATCHing an existing
+// key, never creating/deleting a row) — only label/limits/price are
+// DB-editable.
+model Plan {
+  key          String   @id
+  label        String
+  maxStudents  Int
+  maxStaff     Int
+  priceMonthly Int
+  updatedAt    DateTime @updatedAt
+}
+
 enum Role {
   SCHOOL_ADMIN
   PRINCIPAL

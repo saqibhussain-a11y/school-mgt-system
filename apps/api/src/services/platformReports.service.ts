@@ -1,5 +1,4 @@
 import { prisma, runAsPlatform } from "@sms/db";
-import { PLAN_DEFINITIONS, type PlanKey } from "../config/plans";
 
 const MONTHS_BACK = 12;
 
@@ -20,7 +19,7 @@ function lastNMonths(n: number) {
 export const platformReportsService = {
   getRevenue() {
     return runAsPlatform(async () => {
-      const [activeGroups, pastDueGroups] = await Promise.all([
+      const [activeGroups, pastDueGroups, plans] = await Promise.all([
         prisma.school.groupBy({
           by: ["subscriptionPlan"],
           where: { subscriptionStatus: "active" },
@@ -31,10 +30,13 @@ export const platformReportsService = {
           where: { subscriptionStatus: "past_due" },
           _count: { _all: true },
         }),
+        // Priced off the live, admin-editable Plan table rather than a
+        // fixed constant, so an edited price shows up in MRR immediately.
+        prisma.plan.findMany({ select: { key: true, priceMonthly: true } }),
       ]);
+      const priceByKey = new Map(plans.map((p) => [p.key, p.priceMonthly]));
 
-      const valueOf = (plan: string, count: number) =>
-        (PLAN_DEFINITIONS[plan as PlanKey]?.priceMonthly ?? 0) * count;
+      const valueOf = (plan: string, count: number) => (priceByKey.get(plan) ?? 0) * count;
 
       const breakdown = activeGroups.map((g) => ({
         plan: g.subscriptionPlan,

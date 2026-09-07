@@ -7,6 +7,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { creditPoolFor, roundMoney } from "../lib/feeLedger";
 import { admissionNumberFormatService } from "./admissionNumberFormat.service";
 import { passwordResetService } from "./passwordReset.service";
+import { planService } from "./plan.service";
 
 type TxClient = PrismaTransactionClient;
 
@@ -135,13 +136,19 @@ export const studentService = {
   },
 
   create(schoolId: string, input: CreateStudentInput) {
-    return prisma.$transaction((tx) => createOne(tx, schoolId, input));
+    return prisma.$transaction(async (tx) => {
+      await planService.assertSeatAvailable(tx, schoolId, "student", 1);
+      return createOne(tx, schoolId, input);
+    });
   },
 
   // All-or-nothing: one row failing (e.g. a duplicate email/admissionNo)
-  // rolls back the whole batch — master doc Section 8.10.
+  // rolls back the whole batch — master doc Section 8.10. The seat check is
+  // for the whole batch up front too, so a bulk import doesn't partially
+  // succeed up to the plan limit then fail confusingly on one row.
   bulkCreate(schoolId: string, inputs: CreateStudentInput[]) {
     return prisma.$transaction(async (tx) => {
+      await planService.assertSeatAvailable(tx, schoolId, "student", inputs.length);
       const created = [];
       for (const input of inputs) {
         created.push(await createOne(tx, schoolId, input));
