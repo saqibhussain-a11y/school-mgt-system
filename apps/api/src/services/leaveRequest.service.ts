@@ -3,7 +3,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { staffService } from "./staff.service";
 import { inAppNotificationService } from "./inAppNotification.service";
 import { leavePolicyService } from "./leavePolicy.service";
-import { LEAVE_TYPES } from "../validation/leaveRequest.schema";
+import { ENTITLEMENT_LEAVE_TYPES } from "../validation/leaveRequest.schema";
 
 type TxClient = PrismaTransactionClient;
 
@@ -13,7 +13,7 @@ const REVIEWER_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
 // Maps each LEAVE_TYPES entry to its LeavePolicy field — entitlement is now
 // per-school (see leavePolicy.service.ts), not a fixed global constant.
-const POLICY_FIELD: Record<(typeof LEAVE_TYPES)[number], "sickDays" | "casualDays" | "otherDays"> = {
+const POLICY_FIELD: Record<(typeof ENTITLEMENT_LEAVE_TYPES)[number], "sickDays" | "casualDays" | "otherDays"> = {
   sick: "sickDays",
   casual: "casualDays",
   other: "otherDays",
@@ -24,7 +24,9 @@ const leaveRequestInclude = {
   reviewedBy: { select: { id: true, firstName: true, lastName: true } },
 };
 
-function inclusiveDayCount(start: Date, end: Date) {
+// Exported for payroll.service.ts's unpaid-leave-deduction calculation —
+// same inclusive day-span math, no reason to duplicate it.
+export function inclusiveDayCount(start: Date, end: Date) {
   const ms = end.getTime() - start.getTime();
   return Math.round(ms / 86_400_000) + 1;
 }
@@ -204,7 +206,7 @@ export const leaveRequestService = {
         (usedByType[req.leaveType] ?? 0) + inclusiveDayCount(req.startDate, req.endDate);
     }
 
-    return LEAVE_TYPES.map((leaveType) => {
+    return ENTITLEMENT_LEAVE_TYPES.map((leaveType) => {
       const totalDays = policy[POLICY_FIELD[leaveType]];
       const usedDays = usedByType[leaveType] ?? 0;
       return { leaveType, totalDays, usedDays, remainingDays: Math.max(0, totalDays - usedDays) };

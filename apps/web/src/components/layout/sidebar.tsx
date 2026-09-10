@@ -61,7 +61,7 @@ export function Sidebar() {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
-        <NavList items={visibleNavItems(user.role)} collapsed={collapsed} />
+        <NavList items={visibleNavItems(user.role, user.enabledModules)} collapsed={collapsed} />
       </div>
     </aside>
   );

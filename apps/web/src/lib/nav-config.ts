@@ -13,6 +13,7 @@ import {
   ListTree,
   Camera,
   Wallet,
+  Banknote,
   FileText,
   BarChart3,
   Library,
@@ -20,12 +21,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@sms/shared-types";
+import type { ModuleKey } from "./modules";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
   roles?: UserRole[];
+  // Only shown when the viewer's school has this optional module turned on
+  // (see School.enabledModules / requireModule()) — independent of `roles`,
+  // both must pass.
+  module?: ModuleKey;
   children?: NavItem[];
 }
 
@@ -81,6 +87,13 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: "Leave", href: "/dashboard/leave", icon: CalendarClock, roles: LEAVE_ROLES },
   {
+    label: "Payroll",
+    href: "/dashboard/payroll",
+    icon: Banknote,
+    roles: ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "ACCOUNTANT", "LIBRARIAN", "TRANSPORT_MANAGER"],
+    module: "PAYROLL",
+  },
+  {
     label: "Exams",
     href: "/dashboard/exams",
     icon: GraduationCap,
@@ -134,10 +147,13 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export function visibleNavItems(role: UserRole): NavItem[] {
-  return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role)).map((item) => {
+export function visibleNavItems(role: UserRole, enabledModules: string[] = []): NavItem[] {
+  function passes(item: NavItem) {
+    return (!item.roles || item.roles.includes(role)) && (!item.module || enabledModules.includes(item.module));
+  }
+  return NAV_ITEMS.filter(passes).map((item) => {
     if (!item.children) return item;
-    const children = item.children.filter((child) => !child.roles || child.roles.includes(role));
+    const children = item.children.filter(passes);
     return children.length > 0 ? { ...item, children } : { ...item, children: undefined };
   });
 }

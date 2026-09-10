@@ -27,6 +27,10 @@ const LEAVE_TYPES = [
   { value: "sick", label: "Sick" },
   { value: "casual", label: "Casual" },
   { value: "other", label: "Other" },
+  // No LeavePolicy quota — always available, and (if Payroll is enabled)
+  // deducted from that month's payslip instead of counting against a
+  // sick/casual/other balance.
+  { value: "unpaid", label: "Unpaid" },
 ];
 
 export function ApplyLeaveDialog({

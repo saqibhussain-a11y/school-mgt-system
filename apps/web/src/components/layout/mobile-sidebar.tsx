@@ -35,7 +35,7 @@ export function MobileSidebar() {
           <SheetTitle className="text-sidebar-foreground">School Management System</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-3">
-          <NavList items={visibleNavItems(user.role)} onNavigate={() => setOpen(false)} />
+          <NavList items={visibleNavItems(user.role, user.enabledModules)} onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>
     </Sheet>

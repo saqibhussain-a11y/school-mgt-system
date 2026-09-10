@@ -880,6 +880,11 @@ model Staff {
   periodsAvailableFrom Int?
   periodsAvailableTo   Int?
   maxPeriodsPerWeek    Int?
+  // Null until an admin sets it on the Payroll "Salaries" tab — a payroll
+  // run skips any staff member without one rather than guessing. Payslip.baseSalary
+  // snapshots this at generation time (same convention as FeeInvoice.amount),
+  // so a later raise only affects payslips generated after the change.
+  baseSalary           Float?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -889,8 +894,73 @@ model Staff {
   timetableSlots     TimetableSlot[]
   examInvigilations  ExamInvigilation[]
   attendances        StaffAttendance[]
+  payslips           Payslip[]
 
   @@index([schoolId])
+}
+
+enum PayslipStatus {
+  UNPAID
+  PAID
+}
+
+// One row per staff member per calendar month, generated in bulk (see
+// payroll.service.ts's generate()) — mirrors FeeInvoice's "snapshot amount
+// at generation time, then adjust/pay against the row" shape. baseSalary is
+// copied from Staff.baseSalary at generation time rather than read live, so
+// a later salary change never rewrites an already-issued payslip.
+model Payslip {
+  id                   String        @id @default(cuid())
+  schoolId             String
+  staffId              String
+  period               String // "YYYY-MM"
+  baseSalary           Float
+  // Unpaid-leave days approved within this period (leaveType "unpaid" on
+  // LeaveRequest — see leaveRequest.schema.ts) and the resulting deduction,
+  // computed at generation time using a flat 30-day divisor (baseSalary/30
+  // per day), same simplifying convention used elsewhere in local payroll
+  // practice rather than the actual number of days in the given month.
+  unpaidLeaveDays      Float         @default(0)
+  unpaidLeaveDeduction Float         @default(0)
+  // baseSalary - unpaidLeaveDeduction + sum(adjustments.amount) — recomputed
+  // and persisted (not derived at read time) on every adjustment add/remove,
+  // same "recompute and store" convention as FeeInvoice.status.
+  netPay               Float
+  status               PayslipStatus @default(UNPAID)
+  paidAt               DateTime?
+  generatedByUserId    String
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  staff       Staff               @relation(fields: [staffId], references: [id])
+  adjustments PayslipAdjustment[]
+
+  @@unique([staffId, period])
+  @@index([schoolId])
+  @@index([schoolId, period])
+}
+
+// A one-off line item on a single payslip (bonus, advance recovery, etc.) —
+// positive amount = allowance/addition, negative = deduction. Kept as its
+// own append-only table (never edited in place) rather than a single field
+// on Payslip, since a month can have several of these and each needs its
+// own label.
+model PayslipAdjustment {
+  id        String   @id @default(cuid())
+  // Required even though payslipId alone would identify the row — every
+  // non-exempt model needs its own schoolId column, since the tenant-scoping
+  // Prisma extension (packages/db/src/client.ts) blindly injects it into
+  // every write/filter for any model not in TENANT_EXEMPT_MODELS.
+  schoolId  String
+  payslipId String
+  label     String
+  amount    Float
+  createdAt DateTime @default(now())
+
+  payslip Payslip @relation(fields: [payslipId], references: [id])
+
+  @@index([schoolId])
+  @@index([payslipId])
 }
 
 // One row per school — office coordinates the geofence check compares

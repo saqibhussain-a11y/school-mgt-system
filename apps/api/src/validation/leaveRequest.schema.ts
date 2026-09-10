@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { LeaveStatus } from "@sms/db";
 
-export const LEAVE_TYPES = ["sick", "casual", "other"] as const;
+// "unpaid" has no LeavePolicy entitlement/quota (see ENTITLEMENT_LEAVE_TYPES
+// below) — it exists so a staff member can request leave beyond their paid
+// quota, and payroll.service.ts's generate() deducts it from that month's
+// payslip. Added for Payroll; harmless if Payroll is disabled for a school.
+export const LEAVE_TYPES = ["sick", "casual", "other", "unpaid"] as const;
+export const ENTITLEMENT_LEAVE_TYPES = ["sick", "casual", "other"] as const;
 
 export const createLeaveRequestSchema = z
   .object({
