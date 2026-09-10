@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreateStudentDialog } from "@/components/students/create-student-dialog";
 import { BulkImportDialog } from "@/components/students/bulk-import-dialog";
-import { AdmissionNumberFormatDialog } from "@/components/students/admission-number-format-dialog";
 import type { StudentSummary } from "@/components/students/types";
 import {
   Select,
@@ -94,7 +93,6 @@ export default function StudentsPage() {
         action={
           canManage && (
             <div className="flex flex-wrap gap-2">
-              <AdmissionNumberFormatDialog />
               <BulkImportDialog onImported={refetch} />
               <CreateStudentDialog onCreated={refetch} />
             </div>

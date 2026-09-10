@@ -34,3 +34,10 @@ export const createSchoolAdminSchema = z.object({
 export const updateSchoolModulesSchema = z.object({
   enabledModules: z.array(z.enum(MODULE_KEYS)),
 });
+
+export const updateSchoolProfileSchema = z.object({
+  name: z.string().min(1).optional(),
+  address: z.string().max(500).nullable().optional(),
+  contactEmail: z.union([z.string().email(), z.literal("")]).nullable().optional(),
+  contactPhone: z.string().max(30).nullable().optional(),
+});

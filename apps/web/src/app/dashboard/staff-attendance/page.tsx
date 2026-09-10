@@ -1,9 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RosterTab } from "@/components/staff-attendance/roster-tab";
-import { StaffAttendanceSettingsTab } from "@/components/staff-attendance/staff-attendance-settings-tab";
 import { MyCheckInView } from "@/components/staff-attendance/my-checkin-view";
 import { useAuth } from "@/lib/auth-context";
 
@@ -26,22 +24,7 @@ export default function StaffAttendancePage() {
         }
       />
 
-      {isAdmin ? (
-        <Tabs defaultValue="roster">
-          <TabsList>
-            <TabsTrigger value="roster">Roster</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
-          <TabsContent value="roster" className="mt-4">
-            <RosterTab />
-          </TabsContent>
-          <TabsContent value="settings" className="mt-4">
-            <StaffAttendanceSettingsTab />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <MyCheckInView />
-      )}
+      {isAdmin ? <RosterTab /> : <MyCheckInView />}
     </div>
   );
 }

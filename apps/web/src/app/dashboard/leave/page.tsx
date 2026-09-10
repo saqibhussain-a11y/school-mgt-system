@@ -5,7 +5,6 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { ApplyLeaveDialog } from "@/components/leave/apply-leave-dialog";
 import { LeaveRequestTable, type LeaveRequestSummary } from "@/components/leave/leave-request-table";
-import { LeavePolicyTab } from "@/components/leave/leave-policy-tab";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -114,7 +113,6 @@ export default function LeavePage() {
   const tabs: { value: string; label: string; content: ReactNode }[] = [];
   if (canApply) tabs.push({ value: "mine", label: "My requests", content: myTab });
   if (canViewAll) tabs.push({ value: "all", label: "All requests", content: allTab });
-  if (canReview) tabs.push({ value: "policy", label: "Policy", content: <LeavePolicyTab /> });
 
   return (
     <div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { KeyRound, LogOut, Palette } from "lucide-react";
+import { KeyRound, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -31,17 +31,6 @@ export function Topbar() {
       <MobileSidebar />
       <div className="flex-1" />
       <NotificationBell />
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Appearance settings"
-        nativeButton={false}
-        render={
-          <Link href="/dashboard/settings">
-            <Palette className="size-4" />
-          </Link>
-        }
-      />
       <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -71,6 +60,10 @@ export function Topbar() {
             </DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
+          <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+            <Settings className="size-4" />
+            Settings
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
             <KeyRound className="size-4" />
             Change password

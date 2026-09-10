@@ -176,6 +176,24 @@ export const schoolService = {
     });
   },
 
+  getProfile(schoolId: string) {
+    return prisma.school.findUniqueOrThrow({
+      where: { id: schoolId },
+      select: { id: true, name: true, address: true, contactEmail: true, contactPhone: true },
+    });
+  },
+
+  updateProfile(
+    schoolId: string,
+    data: { name?: string; address?: string | null; contactEmail?: string | null; contactPhone?: string | null },
+  ) {
+    return prisma.school.update({
+      where: { id: schoolId },
+      data: { ...data, contactEmail: data.contactEmail === "" ? null : data.contactEmail },
+      select: { id: true, name: true, address: true, contactEmail: true, contactPhone: true },
+    });
+  },
+
   getUsage(schoolId: string) {
     return runAsPlatform(async () => {
       const [studentCount, staffCount, classCount, mostRecentLogin] = await Promise.all([

@@ -12,6 +12,12 @@ model School {
   id                          String    @id @default(cuid())
   name                        String
   subdomain                   String    @unique
+  // Editable by the school's own SCHOOL_ADMIN/PRINCIPAL via the Settings ->
+  // School Profile tab (school.route.ts's GET/PATCH /me) — unlike
+  // subdomain/subscriptionPlan/subscriptionStatus, which stay Platform-Admin-only.
+  address                     String?
+  contactEmail                String?
+  contactPhone                String?
   subscriptionPlan            String    @default("STARTER")
   subscriptionStatus          String    @default("active")
   // Set whenever subscriptionStatus actually changes (not on every update
