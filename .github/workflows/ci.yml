@@ -10,6 +10,8 @@ env:
   REDIS_URL: "redis://localhost:6379"
   JWT_ACCESS_SECRET: "ci-access-secret"
   JWT_REFRESH_SECRET: "ci-refresh-secret"
+  JWT_PLATFORM_ACCESS_SECRET: "ci-platform-access-secret"
+  JWT_PLATFORM_REFRESH_SECRET: "ci-platform-refresh-secret"
   CORS_ORIGIN: "http://localhost:3000"
   NEXT_PUBLIC_API_URL: "http://localhost:4000"
   NODE_ENV: "test"
@@ -29,6 +31,16 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -66,3 +78,54 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # `npm run build` only proves the TypeScript compiles — it never
+      # proves the app actually starts. This runs the real `start` script
+      # (what Render/any host will run) against real Postgres/Redis and
+      # waits for a real 200 from /api/health. Added after discovering
+      # `node dist/index.js` had never actually been exercised end-to-end
+      # and was broken (a workspace package's raw-TS entry point isn't
+      # resolvable at runtime the way `tsx` resolves it in dev).
+      - name: Smoke-test production boot
+        run: |
+          npm run start -w apps/api &
+          SERVER_PID=$!
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4000/api/health > /dev/null; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          kill "$SERVER_PID" 2>/dev/null || true
+          if [ -z "$ok" ]; then
+            echo "API never became healthy within 30s"
+            exit 1
+          fi
+          echo "Boot smoke test passed"
+
+  deploy:
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      # No-ops (instead of failing) until the one-time Render setup in
+      # render.yaml's header comment is done — the secrets won't exist yet
+      # on a repo that hasn't been through that setup, and that shouldn't
+      # show as a broken pipeline.
+      - name: Deploy API to Render
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_API }}" ]; then
+            echo "RENDER_DEPLOY_HOOK_API not set yet — skipping. See render.yaml for setup."
+            exit 0
+          fi
+          curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API }}"
+
+      - name: Deploy web to Render
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_WEB }}" ]; then
+            echo "RENDER_DEPLOY_HOOK_WEB not set yet — skipping. See render.yaml for setup."
+            exit 0
+          fi
+          curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_WEB }}"

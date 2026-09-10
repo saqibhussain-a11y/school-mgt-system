@@ -1,0 +1,113 @@
+# Render Blueprint — see https://render.com/docs/blueprint-spec
+#
+# Deploys are deliberately NOT auto-triggered by Render on every push
+# (autoDeployTrigger: off on both web services below). Instead, GitHub
+# Actions (.github/workflows/ci.yml) calls each service's Deploy Hook URL
+# only after typecheck/lint/test/build AND a real production-boot smoke
+# test all pass on `main` — so a broken change never reaches these services
+# at all, instead of reaching them and then being caught.
+#
+# One-time manual setup after the first Blueprint sync in the Render
+# dashboard (not expressible in this file):
+#   1. Copy each web service's Deploy Hook URL (Settings tab) into this
+#      repo's GitHub secrets as RENDER_DEPLOY_HOOK_API / RENDER_DEPLOY_HOOK_WEB.
+#   2. Fill in the `sync: false` env vars below (SMTP_*, R2_*) — without
+#      them, the app silently falls back to a disposable Ethereal test inbox
+#      for all emails and local disk for file storage, neither of which
+#      survives real production use.
+#   3. Postgres and the Key Value (Redis) instance are on the free plan —
+#      free Postgres is deleted 30+14 days after creation unless upgraded to
+#      a paid plan first. Free Key Value has no disk persistence (fine for
+#      the cache; queued-but-not-yet-run BullMQ jobs would be lost on a
+#      restart, which only matters for in-flight timetable-generation jobs).
+
+databases:
+  - name: sms-postgres
+    plan: free
+    databaseName: sms
+    user: sms
+    region: oregon
+
+services:
+  - name: sms-redis
+    type: keyvalue
+    plan: free
+    region: oregon
+    ipAllowList:
+      - source: 0.0.0.0/0
+
+  - name: sms-api
+    type: web
+    runtime: node
+    plan: free
+    region: oregon
+    autoDeployTrigger: off
+    buildCommand: npm ci && npm run generate -w packages/db && npm run build -w apps/api
+    preDeployCommand: npm run migrate:deploy -w packages/db
+    startCommand: npm run start -w apps/api
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sms-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: sms-redis
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_PLATFORM_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_PLATFORM_REFRESH_SECRET
+        generateValue: true
+      # Hardcoded to the web service's default Render URL (matches its
+      # `name: sms-web` below) rather than linked via fromService, because
+      # fromService only exposes another web service's private/internal
+      # host:port — not its public https URL that a real browser can reach.
+      - key: CORS_ORIGIN
+        value: https://sms-web.onrender.com
+      - key: WEB_APP_URL
+        value: https://sms-web.onrender.com
+      - key: API_BASE_URL
+        value: https://sms-api.onrender.com
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+
+  - name: sms-web
+    type: web
+    runtime: node
+    plan: free
+    region: oregon
+    autoDeployTrigger: off
+    buildCommand: npm ci && npm run build -w apps/web
+    startCommand: npm run start -w apps/web
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Baked into the client bundle at build time (Next.js NEXT_PUBLIC_*
+      # convention) — must match sms-api's actual public URL above.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://sms-api.onrender.com
