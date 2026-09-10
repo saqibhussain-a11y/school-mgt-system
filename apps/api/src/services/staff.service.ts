@@ -1,15 +1,20 @@
+import { randomUUID } from "crypto";
 import { prisma, Role, StaffStatus, DayOfWeek } from "@sms/db";
 import { hashPassword } from "../lib/password";
+import { generateTempPassword } from "../lib/tempPassword";
+import { generateOtp } from "../lib/otp";
 import { planService } from "./plan.service";
+import { passwordResetService } from "./passwordReset.service";
+import { notificationService } from "./notification.service";
 
 export interface CreateStaffInput {
   email: string;
-  password: string;
   firstName: string;
   lastName: string;
   role: Role;
   designation: string;
   joiningDate?: Date;
+  mode: "ADMIN_SET" | "SELF_SERVICE";
 }
 
 const staffInclude = {
@@ -34,9 +39,12 @@ export const staffService = {
   },
 
   async create(schoolId: string, input: CreateStaffInput) {
-    const passwordHash = await hashPassword(input.password);
+    const isInvite = input.mode === "SELF_SERVICE";
+    const temporaryPassword = isInvite ? undefined : generateTempPassword();
+    const passwordHash = await hashPassword(temporaryPassword ?? randomUUID());
+    const otp = isInvite ? generateOtp() : undefined;
 
-    return prisma.$transaction(async (tx) => {
+    const staff = await prisma.$transaction(async (tx) => {
       await planService.assertSeatAvailable(tx, schoolId, "staff", 1);
 
       const user = await tx.user.create({
@@ -44,6 +52,7 @@ export const staffService = {
           schoolId,
           email: input.email,
           passwordHash,
+          isActivated: !isInvite,
           role: input.role,
           firstName: input.firstName,
           lastName: input.lastName,
@@ -60,6 +69,15 @@ export const staffService = {
         include: staffInclude,
       });
     });
+
+    if (isInvite) {
+      await passwordResetService.create(schoolId, staff.userId, otp!);
+      await notificationService.notifyAccountInvite(schoolId, input.email, input.firstName, otp!);
+    } else {
+      await notificationService.notifyNewAccount(input.email, input.firstName, temporaryPassword!);
+    }
+
+    return { ...staff, mode: input.mode, ...(temporaryPassword ? { temporaryPassword } : {}) };
   },
 
   async update(schoolId: string, id: string, data: Partial<{ designation: string }>) {

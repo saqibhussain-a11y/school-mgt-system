@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Plus, Copy } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { CredentialModeField, CredentialResultPanel, type CredentialMode, type CredentialResult } from "@/components/shared/credential-mode";
 
 const STAFF_ROLES = ["TEACHER", "PRINCIPAL", "ACCOUNTANT", "LIBRARIAN", "TRANSPORT_MANAGER"];
 
@@ -31,36 +32,35 @@ const EMPTY_FORM = {
   lastName: "",
   role: "TEACHER",
   designation: "",
+  mode: "ADMIN_SET" as CredentialMode,
 };
 
 export function CreateStaffDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(
-    null,
-  );
+  const [result, setResult] = useState<CredentialResult | null>(null);
 
   function reset() {
     setForm(EMPTY_FORM);
-    setCredentials(null);
+    setResult(null);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const staff = await apiFetch<{ user: { email: string }; temporaryPassword?: string }>(
-        "/api/staff",
-        { method: "POST", body: JSON.stringify(form) },
-      );
+      const staff = await apiFetch<{
+        user: { email: string };
+        mode: CredentialMode;
+        temporaryPassword?: string;
+      }>("/api/staff", { method: "POST", body: JSON.stringify(form) });
       toast.success("Staff member created");
-      if (staff.temporaryPassword) {
-        setCredentials({ email: staff.user.email, password: staff.temporaryPassword });
-      } else {
-        setOpen(false);
-        reset();
-      }
+      setResult(
+        staff.mode === "ADMIN_SET"
+          ? { mode: "ADMIN_SET", email: staff.user.email, temporaryPassword: staff.temporaryPassword! }
+          : { mode: "SELF_SERVICE", email: staff.user.email },
+      );
       onCreated();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to create staff member");
@@ -86,44 +86,14 @@ export function CreateStaffDialog({ onCreated }: { onCreated: () => void }) {
           <DialogTitle>New staff member</DialogTitle>
         </DialogHeader>
 
-        {credentials ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              Share these credentials — this password won&apos;t be shown again.
-            </p>
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted p-3 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Email</span>
-                <span className="font-mono">{credentials.email}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Temporary password</span>
-                <span className="flex items-center gap-2 font-mono">
-                  {credentials.password}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(credentials.password);
-                      toast.success("Copied to clipboard");
-                    }}
-                    aria-label="Copy password"
-                  >
-                    <Copy className="size-3.5" />
-                  </button>
-                </span>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  setOpen(false);
-                  reset();
-                }}
-              >
-                Done
-              </Button>
-            </DialogFooter>
-          </div>
+        {result ? (
+          <CredentialResultPanel
+            result={result}
+            onDone={() => {
+              setOpen(false);
+              reset();
+            }}
+          />
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
@@ -187,6 +157,7 @@ export function CreateStaffDialog({ onCreated }: { onCreated: () => void }) {
                 />
               </div>
             </div>
+            <CredentialModeField mode={form.mode} onChange={(mode) => setForm({ ...form, mode })} />
             <DialogFooter>
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Creating…" : "Create staff member"}

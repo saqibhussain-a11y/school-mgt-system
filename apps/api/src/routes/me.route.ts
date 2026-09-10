@@ -8,6 +8,7 @@ import { teacherAssignmentService } from "../services/teacherAssignment.service"
 import { timetableSlotService } from "../services/timetableSlot.service";
 import { examInvigilationService } from "../services/examInvigilation.service";
 import { syllabusService } from "../services/syllabus.service";
+import { schoolService } from "../services/school.service";
 import { HttpError } from "../middleware/errorHandler";
 
 export const meRouter = Router();
@@ -18,6 +19,7 @@ meRouter.get("/", authenticate, async (req, res, next) => {
     if (!user) {
       throw new HttpError(404, "User not found");
     }
+    const enabledModules = await schoolService.getEnabledModules(user.schoolId);
     res.json({
       id: user.id,
       email: user.email,
@@ -25,6 +27,7 @@ meRouter.get("/", authenticate, async (req, res, next) => {
       schoolId: user.schoolId,
       firstName: user.firstName,
       lastName: user.lastName,
+      enabledModules,
     });
   } catch (err) {
     next(err);

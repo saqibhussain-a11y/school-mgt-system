@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Plus, Copy } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { platformApiFetch } from "@/lib/platform-api-client";
 import { usePlatformApi } from "@/lib/use-platform-api";
 import { ApiError } from "@/lib/api-client";
+import { CredentialModeField, CredentialResultPanel, type CredentialMode, type CredentialResult } from "@/components/shared/credential-mode";
 import type { Plan, PlanKey } from "./types";
 
 const EMPTY_FORM = {
@@ -27,6 +28,7 @@ const EMPTY_FORM = {
   adminFirstName: "",
   adminLastName: "",
   subscriptionPlan: "STARTER" as PlanKey,
+  mode: "ADMIN_SET" as CredentialMode,
 };
 
 export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
@@ -34,23 +36,28 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [result, setResult] = useState<CredentialResult | null>(null);
 
   function reset() {
     setForm(EMPTY_FORM);
-    setCredentials(null);
+    setResult(null);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const school = await platformApiFetch<{ adminEmail: string; adminTemporaryPassword: string }>(
-        "/api/platform/schools",
-        { method: "POST", body: JSON.stringify(form) },
-      );
+      const school = await platformApiFetch<{
+        adminEmail: string;
+        mode: CredentialMode;
+        adminTemporaryPassword?: string;
+      }>("/api/platform/schools", { method: "POST", body: JSON.stringify(form) });
       toast.success("School created");
-      setCredentials({ email: school.adminEmail, password: school.adminTemporaryPassword });
+      setResult(
+        school.mode === "ADMIN_SET"
+          ? { mode: "ADMIN_SET", email: school.adminEmail, temporaryPassword: school.adminTemporaryPassword! }
+          : { mode: "SELF_SERVICE", email: school.adminEmail },
+      );
       onCreated();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to create school");
@@ -76,44 +83,14 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
           <DialogTitle>New school</DialogTitle>
         </DialogHeader>
 
-        {credentials ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              Share these credentials with the school&apos;s admin — this password won&apos;t be shown again.
-            </p>
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted p-3 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Email</span>
-                <span className="font-mono">{credentials.email}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Temporary password</span>
-                <span className="flex items-center gap-2 font-mono">
-                  {credentials.password}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(credentials.password);
-                      toast.success("Copied to clipboard");
-                    }}
-                    aria-label="Copy password"
-                  >
-                    <Copy className="size-3.5" />
-                  </button>
-                </span>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  setOpen(false);
-                  reset();
-                }}
-              >
-                Done
-              </Button>
-            </DialogFooter>
-          </div>
+        {result ? (
+          <CredentialResultPanel
+            result={result}
+            onDone={() => {
+              setOpen(false);
+              reset();
+            }}
+          />
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
@@ -184,6 +161,7 @@ export function CreateSchoolDialog({ onCreated }: { onCreated: () => void }) {
                 </SelectContent>
               </Select>
             </div>
+            <CredentialModeField mode={form.mode} onChange={(mode) => setForm({ ...form, mode })} />
             <DialogFooter>
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Creating…" : "Create school"}

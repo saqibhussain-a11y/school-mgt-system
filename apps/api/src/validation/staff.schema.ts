@@ -11,7 +11,7 @@ const STAFF_ROLES = [
 
 export const createStaffSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8).optional(),
+  mode: z.enum(["ADMIN_SET", "SELF_SERVICE"]),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   role: z.nativeEnum(Role).refine((r) => STAFF_ROLES.includes(r as (typeof STAFF_ROLES)[number]), {

@@ -4,11 +4,9 @@ import { staffService } from "../services/staff.service";
 import { teacherAssignmentService } from "../services/teacherAssignment.service";
 import { teacherSubjectAssignmentService } from "../services/teacherSubjectAssignment.service";
 import { sectionService } from "../services/section.service";
-import { notificationService } from "../services/notification.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
-import { generateTempPassword } from "../lib/tempPassword";
 import {
   createStaffSchema,
   updateStaffSchema,
@@ -48,15 +46,8 @@ staffRouter.post(
   validateBody(createStaffSchema),
   async (req, res, next) => {
     try {
-      const password = req.body.password ?? generateTempPassword();
-      const staff = await staffService.create(req.user!.schoolId, { ...req.body, password });
-      if (!req.body.password) {
-        await notificationService.notifyNewAccount(staff.user.email, staff.user.firstName, password);
-      }
-      res.status(201).json({
-        ...staff,
-        temporaryPassword: req.body.password ? undefined : password,
-      });
+      const staff = await staffService.create(req.user!.schoolId, req.body);
+      res.status(201).json(staff);
     } catch (err) {
       next(err);
     }

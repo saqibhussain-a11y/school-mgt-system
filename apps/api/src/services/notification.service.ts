@@ -6,9 +6,9 @@ function loginUrl() {
   return `${process.env.WEB_APP_URL ?? "http://localhost:3000"}/login`;
 }
 
-function claimAccountUrl(email: string) {
+function claimAccountUrl(schoolId: string, email: string) {
   const base = process.env.WEB_APP_URL ?? "http://localhost:3000";
-  return `${base}/forgot-password?email=${encodeURIComponent(email)}`;
+  return `${base}/forgot-password?schoolId=${encodeURIComponent(schoolId)}&email=${encodeURIComponent(email)}`;
 }
 
 export const notificationService = {
@@ -30,9 +30,9 @@ export const notificationService = {
 
   // Best-effort, same as notifyNewAccount — a failed send shouldn't block
   // the admin's "send invite" action.
-  async notifyAccountInvite(email: string, firstName: string, otp: string) {
+  async notifyAccountInvite(schoolId: string, email: string, firstName: string, otp: string) {
     try {
-      const { subject, html } = accountInviteEmail(firstName, otp, claimAccountUrl(email));
+      const { subject, html } = accountInviteEmail(firstName, otp, claimAccountUrl(schoolId, email));
       await sendMail(email, subject, html);
     } catch (err) {
       logger.error({ err, email }, "Failed to send account invite email");

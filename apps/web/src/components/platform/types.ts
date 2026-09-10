@@ -16,6 +16,15 @@ export interface Plan {
   updatedAt: string;
 }
 
+// Mirrors apps/api/src/config/modules.ts's MODULE_KEYS — fixed set, adding
+// one needs code changes; whether a given school HAS a key is DB-editable
+// (School.enabledModules) via the Platform Admin school detail page.
+export const MODULE_KEYS = ["PAYROLL"] as const;
+export type ModuleKey = (typeof MODULE_KEYS)[number];
+export const MODULE_LABELS: Record<ModuleKey, string> = {
+  PAYROLL: "Payroll",
+};
+
 export interface PlatformSchool {
   id: string;
   name: string;
@@ -24,6 +33,7 @@ export interface PlatformSchool {
   subscriptionStatus: string;
   subscriptionStatusChangedAt: string | null;
   trialEndsAt: string | null;
+  enabledModules: string[];
   createdAt: string;
 }
 

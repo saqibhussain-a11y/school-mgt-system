@@ -26,7 +26,7 @@ function ForgotPasswordForm() {
   const searchParams = useSearchParams();
 
   const [schools, setSchools] = useState<SchoolDto[] | null>(null);
-  const [schoolId, setSchoolId] = useState("");
+  const [schoolId, setSchoolId] = useState(searchParams.get("schoolId") ?? "");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [step, setStep] = useState<"request" | "confirm">("request");
   const [otp, setOtp] = useState("");

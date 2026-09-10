@@ -21,6 +21,7 @@ import { usePlatformApi } from "@/lib/use-platform-api";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import { ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
+import { CredentialModeField, CredentialResultPanel, type CredentialMode, type CredentialResult } from "@/components/shared/credential-mode";
 
 interface SchoolAdmin {
   id: string;
@@ -30,56 +31,33 @@ interface SchoolAdmin {
   createdAt: string;
 }
 
-function CredentialDisplay({ email, password }: { email: string; password: string }) {
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted p-3 text-sm">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground">Email</span>
-        <span className="font-mono">{email}</span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground">Temporary password</span>
-        <span className="flex items-center gap-2 font-mono">
-          {password}
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(password);
-              toast.success("Copied to clipboard");
-            }}
-            aria-label="Copy password"
-          >
-            <Copy className="size-3.5" />
-          </button>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-const EMPTY_FORM = { email: "", firstName: "", lastName: "" };
+const EMPTY_FORM = { email: "", firstName: "", lastName: "", mode: "ADMIN_SET" as CredentialMode };
 
 function CreateAdminDialog({ schoolId, onCreated }: { schoolId: string; onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [result, setResult] = useState<CredentialResult | null>(null);
 
   function reset() {
     setForm(EMPTY_FORM);
-    setCredentials(null);
+    setResult(null);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const admin = await platformApiFetch<{ email: string; temporaryPassword: string }>(
+      const admin = await platformApiFetch<{ email: string; mode: CredentialMode; temporaryPassword?: string }>(
         `/api/platform/schools/${schoolId}/admins`,
         { method: "POST", body: JSON.stringify(form) },
       );
       toast.success("Admin created");
-      setCredentials({ email: admin.email, password: admin.temporaryPassword });
+      setResult(
+        admin.mode === "ADMIN_SET"
+          ? { mode: "ADMIN_SET", email: admin.email, temporaryPassword: admin.temporaryPassword! }
+          : { mode: "SELF_SERVICE", email: admin.email },
+      );
       onCreated();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to create admin");
@@ -105,23 +83,14 @@ function CreateAdminDialog({ schoolId, onCreated }: { schoolId: string; onCreate
           <DialogTitle>New school admin</DialogTitle>
         </DialogHeader>
 
-        {credentials ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              Share these credentials with the admin — this password won&apos;t be shown again.
-            </p>
-            <CredentialDisplay email={credentials.email} password={credentials.password} />
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  setOpen(false);
-                  reset();
-                }}
-              >
-                Done
-              </Button>
-            </DialogFooter>
-          </div>
+        {result ? (
+          <CredentialResultPanel
+            result={result}
+            onDone={() => {
+              setOpen(false);
+              reset();
+            }}
+          />
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
@@ -154,6 +123,7 @@ function CreateAdminDialog({ schoolId, onCreated }: { schoolId: string; onCreate
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
+            <CredentialModeField mode={form.mode} onChange={(mode) => setForm({ ...form, mode })} />
             <DialogFooter>
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Creating…" : "Create admin"}

@@ -13,6 +13,7 @@ import {
   createSchoolSchema,
   updateSubscriptionSchema,
   createSchoolAdminSchema,
+  updateSchoolModulesSchema,
 } from "../validation/school.schema";
 import { updatePlanSchema } from "../validation/plan.schema";
 
@@ -101,6 +102,24 @@ platformRouter.patch(
   async (req, res, next) => {
     try {
       const school = await schoolService.updateSubscription(req.platformAdmin!.sub, req.params.id, req.body);
+      if (!school) throw new HttpError(404, "School not found");
+      res.json(school);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+platformRouter.patch(
+  "/schools/:id/modules",
+  validateBody(updateSchoolModulesSchema),
+  async (req, res, next) => {
+    try {
+      const school = await schoolService.updateModules(
+        req.platformAdmin!.sub,
+        req.params.id,
+        req.body.enabledModules,
+      );
       if (!school) throw new HttpError(404, "School not found");
       res.json(school);
     } catch (err) {

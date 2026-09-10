@@ -11,6 +11,7 @@ import { SubscriptionStatusSelect } from "@/components/platform/subscription-sta
 import { PlanSelect } from "@/components/platform/plan-select";
 import { ManageSchoolAdmins } from "@/components/platform/manage-school-admins";
 import { SchoolUsageCard } from "@/components/platform/school-usage-card";
+import { SchoolModulesCard } from "@/components/platform/school-modules-card";
 import { usePlatformApi } from "@/lib/use-platform-api";
 import { formatDate } from "@/lib/format";
 import type { PlatformSchool } from "@/components/platform/types";
@@ -69,6 +70,12 @@ export default function PlatformSchoolDetailPage() {
         </Card>
 
         <SchoolUsageCard schoolId={school.id} />
+
+        <SchoolModulesCard
+          schoolId={school.id}
+          enabledModules={school.enabledModules}
+          onChanged={refetch}
+        />
 
         <ManageSchoolAdmins schoolId={school.id} />
       </div>

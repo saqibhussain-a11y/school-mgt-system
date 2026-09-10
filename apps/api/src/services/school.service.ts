@@ -1,13 +1,18 @@
+import { randomUUID } from "crypto";
 import { prisma, Role, runAsPlatform } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { hashPassword } from "../lib/password";
 import { generateTempPassword } from "../lib/tempPassword";
+import { generateOtp } from "../lib/otp";
 import { notificationService } from "./notification.service";
 import { userService } from "./user.service";
 import { authTokenService } from "./authToken.service";
 import { platformAuditLogService } from "./platformAuditLog.service";
+import { passwordResetService } from "./passwordReset.service";
 import { getOrSet, invalidate } from "../lib/cache";
 import type { PlanKey } from "../config/plans";
+
+type CredentialMode = "ADMIN_SET" | "SELF_SERVICE";
 
 export const schoolService = {
   // Read on every authenticated request (see auth.middleware.ts) to block a
@@ -20,6 +25,18 @@ export const schoolService = {
         select: { subscriptionStatus: true },
       });
       return school?.subscriptionStatus ?? null;
+    });
+  },
+
+  // Read by requireModule() on every gated request, so cached the same way
+  // as getSubscriptionStatus above; updateModules() invalidates it on change.
+  getEnabledModules(schoolId: string) {
+    return getOrSet(`school:enabled-modules:${schoolId}`, 30, async () => {
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { enabledModules: true },
+      });
+      return school?.enabledModules ?? [];
     });
   },
 
@@ -43,16 +60,22 @@ export const schoolService = {
       adminFirstName: string;
       adminLastName: string;
       subscriptionPlan?: PlanKey;
+      mode: CredentialMode;
     },
   ) {
     return runAsPlatform(async () => {
       const existing = await prisma.school.findUnique({ where: { subdomain: data.subdomain } });
       if (existing) throw new HttpError(409, "A school with this subdomain already exists");
 
-      const temporaryPassword = generateTempPassword();
-      const passwordHash = await hashPassword(temporaryPassword);
+      const isInvite = data.mode === "SELF_SERVICE";
+      const temporaryPassword = isInvite ? undefined : generateTempPassword();
+      // Same unguessable-placeholder trick as student admission (see
+      // student.service.ts's createOne) for the invite path — no real,
+      // usable password should exist until the admin actually claims it.
+      const passwordHash = await hashPassword(temporaryPassword ?? randomUUID());
+      const otp = isInvite ? generateOtp() : undefined;
 
-      const school = await prisma.$transaction(async (tx) => {
+      const { school, adminId } = await prisma.$transaction(async (tx) => {
         const created = await tx.school.create({
           data: {
             name: data.name,
@@ -60,11 +83,12 @@ export const schoolService = {
             ...(data.subscriptionPlan ? { subscriptionPlan: data.subscriptionPlan } : {}),
           },
         });
-        await tx.user.create({
+        const admin = await tx.user.create({
           data: {
             schoolId: created.id,
             email: data.adminEmail,
             passwordHash,
+            isActivated: !isInvite,
             role: Role.SCHOOL_ADMIN,
             firstName: data.adminFirstName,
             lastName: data.adminLastName,
@@ -77,11 +101,22 @@ export const schoolService = {
           targetId: created.id,
           metadata: { name: data.name, subdomain: data.subdomain },
         });
-        return created;
+        return { school: created, adminId: admin.id };
       });
 
-      await notificationService.notifyNewAccount(data.adminEmail, data.adminFirstName, temporaryPassword);
-      return { ...school, adminEmail: data.adminEmail, adminTemporaryPassword: temporaryPassword };
+      if (isInvite) {
+        await passwordResetService.create(school.id, adminId, otp!);
+        await notificationService.notifyAccountInvite(school.id, data.adminEmail, data.adminFirstName, otp!);
+      } else {
+        await notificationService.notifyNewAccount(data.adminEmail, data.adminFirstName, temporaryPassword!);
+      }
+
+      return {
+        ...school,
+        adminEmail: data.adminEmail,
+        mode: data.mode,
+        ...(temporaryPassword ? { adminTemporaryPassword: temporaryPassword } : {}),
+      };
     });
   },
 
@@ -120,6 +155,27 @@ export const schoolService = {
     });
   },
 
+  async updateModules(platformAdminId: string, id: string, enabledModules: string[]) {
+    return runAsPlatform(async () => {
+      const existing = await prisma.school.findUnique({ where: { id } });
+      if (!existing) return null;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const result = await tx.school.update({ where: { id }, data: { enabledModules } });
+        await platformAuditLogService.record(tx, {
+          platformAdminId,
+          action: "school.update_modules",
+          targetType: "School",
+          targetId: id,
+          metadata: { from: existing.enabledModules, to: enabledModules },
+        });
+        return result;
+      });
+      await invalidate(`school:enabled-modules:${id}`);
+      return updated;
+    });
+  },
+
   getUsage(schoolId: string) {
     return runAsPlatform(async () => {
       const [studentCount, staffCount, classCount, mostRecentLogin] = await Promise.all([
@@ -148,7 +204,7 @@ export const schoolService = {
   async createAdmin(
     platformAdminId: string,
     schoolId: string,
-    data: { email: string; firstName: string; lastName: string },
+    data: { email: string; firstName: string; lastName: string; mode: CredentialMode },
   ) {
     return runAsPlatform(async () => {
       const school = await prisma.school.findUnique({ where: { id: schoolId } });
@@ -159,8 +215,11 @@ export const schoolService = {
       });
       if (existing) throw new HttpError(409, "A user with this email already exists at this school");
 
-      const temporaryPassword = generateTempPassword();
-      const passwordHash = await hashPassword(temporaryPassword);
+      const isInvite = data.mode === "SELF_SERVICE";
+      const temporaryPassword = isInvite ? undefined : generateTempPassword();
+      const passwordHash = await hashPassword(temporaryPassword ?? randomUUID());
+      const otp = isInvite ? generateOtp() : undefined;
+
       const admin = await prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
           data: {
@@ -169,6 +228,7 @@ export const schoolService = {
             firstName: data.firstName,
             lastName: data.lastName,
             passwordHash,
+            isActivated: !isInvite,
             role: Role.SCHOOL_ADMIN,
           },
         });
@@ -182,8 +242,21 @@ export const schoolService = {
         return created;
       });
 
-      await notificationService.notifyNewAccount(data.email, data.firstName, temporaryPassword);
-      return { id: admin.id, email: admin.email, firstName: admin.firstName, lastName: admin.lastName };
+      if (isInvite) {
+        await passwordResetService.create(schoolId, admin.id, otp!);
+        await notificationService.notifyAccountInvite(schoolId, data.email, data.firstName, otp!);
+      } else {
+        await notificationService.notifyNewAccount(data.email, data.firstName, temporaryPassword!);
+      }
+
+      return {
+        id: admin.id,
+        email: admin.email,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        mode: data.mode,
+        ...(temporaryPassword ? { temporaryPassword } : {}),
+      };
     });
   },
 

@@ -5,8 +5,11 @@ import { Check, LayoutDashboard, Megaphone, RotateCcw, Settings2, Users } from "
 import { useTheme } from "next-themes";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { MODULE_KEYS, MODULE_LABELS } from "@/lib/modules";
 import {
   applyPalette,
   DEFAULT_PALETTE_ID,
@@ -185,7 +188,33 @@ function PaletteCard({
   );
 }
 
+function EnabledFeaturesCard({ enabledModules }: { enabledModules: string[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Feature modules</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2.5">
+        <p className="text-xs text-muted-foreground">
+          Optional features turned on or off for your school by the platform administrator.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {MODULE_KEYS.map((key) => {
+            const enabled = enabledModules.includes(key);
+            return (
+              <Badge key={key} variant={enabled ? "default" : "outline"}>
+                {MODULE_LABELS[key]} · {enabled ? "Enabled" : "Not enabled"}
+              </Badge>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
+  const { user } = useAuth();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -221,6 +250,12 @@ export default function SettingsPage() {
           </Button>
         }
       />
+
+      {(user?.role === "SCHOOL_ADMIN" || user?.role === "PRINCIPAL") && (
+        <div className="mb-5 max-w-md">
+          <EnabledFeaturesCard enabledModules={user.enabledModules} />
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0">

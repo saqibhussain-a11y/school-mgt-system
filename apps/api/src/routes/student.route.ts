@@ -110,7 +110,7 @@ studentRouter.post(
       } else {
         const result = await studentService.generateCredentialsInvite(schoolId, req.params.id);
         if (!result) throw new HttpError(404, "Student not found");
-        await notificationService.notifyAccountInvite(result.email, result.firstName, result.otp);
+        await notificationService.notifyAccountInvite(schoolId, result.email, result.firstName, result.otp);
         res.json({ mode: "SELF_SERVICE", email: result.email });
       }
     } catch (err) {
