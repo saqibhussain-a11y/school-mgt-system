@@ -39,8 +39,7 @@ export function generatePayslipPdf(schoolName: string, data: PayslipPdfData): Pr
   }
   rows.push(["Net pay", String(data.netPay)]);
 
-  let y = doc.y;
-  y = drawTable(doc, [{ label: "", width: 300 }, { label: "", width: 160 }], rows, y);
+  drawTable(doc, [{ label: "", width: 300 }, { label: "", width: 160 }], rows, doc.y);
 
   drawSignatureFooter(doc, new Date(), "Accounts Office");
   return collectPdf(doc);
