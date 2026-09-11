@@ -21,7 +21,7 @@ export interface FeeRefund {
 export interface FeePayment {
   id: string;
   amountPaid: number;
-  paymentMethod: "MANUAL" | "CREDIT";
+  paymentMethod: "MANUAL" | "CREDIT" | "STRIPE";
   referenceNote: string | null;
   paymentDate: string;
   refunds: FeeRefund[];

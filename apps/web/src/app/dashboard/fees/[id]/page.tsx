@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Bell, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, CreditCard, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { FeeStatusBadge } from "@/components/fees/fee-status-badge";
@@ -28,6 +29,7 @@ export default function FeeInvoiceDetailPage() {
   const router = useRouter();
   const { user } = useAuth();
   const canManage = !!user && FEE_MANAGE_ROLES.includes(user.role);
+  const [payingNow, setPayingNow] = useState(false);
 
   const { data: invoice, loading, refetch } = useApi<FeeInvoice>(`/api/fee-invoices/${params.id}`);
   const { data: creditData, refetch: refetchCredit } = useApi<{ creditBalance: number }>(
@@ -46,6 +48,23 @@ export default function FeeInvoiceDetailPage() {
       downloadBlob(blob, `invoice-${params.id.slice(-8)}.pdf`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to download invoice");
+    }
+  }
+
+  // Redirects the whole browser tab to Stripe's hosted payment page —
+  // there's no client-side Stripe.js involved, so nothing here ever
+  // touches a card number. The invoice itself doesn't get marked paid by
+  // this call; only the webhook (once Stripe confirms the charge) does.
+  async function handlePayNow() {
+    setPayingNow(true);
+    try {
+      const { url } = await apiFetch<{ url: string }>(`/api/fee-invoices/${params.id}/checkout-session`, {
+        method: "POST",
+      });
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to start checkout");
+      setPayingNow(false);
     }
   }
 
@@ -91,6 +110,12 @@ export default function FeeInvoiceDetailPage() {
         description={`${invoice.period} · Due ${formatDate(invoice.dueDate)}`}
         action={
           <div className="flex flex-wrap gap-2">
+            {!canManage && invoice.balance > 0 && (
+              <Button size="sm" onClick={handlePayNow} disabled={payingNow}>
+                <CreditCard className="size-4" />
+                {payingNow ? "Redirecting…" : "Pay now"}
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={handleDownload}>
               <Download className="size-4" />
               Download invoice
@@ -215,6 +240,7 @@ export default function FeeInvoiceDetailPage() {
                           <div className="flex items-center gap-2">
                             {formatCurrency(p.amountPaid)}
                             {p.paymentMethod === "CREDIT" && <Badge variant="secondary">Credit</Badge>}
+                            {p.paymentMethod === "STRIPE" && <Badge variant="secondary">Paid online</Badge>}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{p.referenceNote || "—"}</TableCell>
