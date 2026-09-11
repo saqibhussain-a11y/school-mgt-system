@@ -110,12 +110,17 @@ export default function FeeInvoiceDetailPage() {
         description={`${invoice.period} · Due ${formatDate(invoice.dueDate)}`}
         action={
           <div className="flex flex-wrap gap-2">
+            {/* Online payment via Stripe — fully built (createCheckoutSession,
+            the webhook, recordPayment) but hidden for now; this was a
+            learning exercise, not something ready to offer to real parents
+            yet. To go live with it later, just remove this comment.
             {!canManage && invoice.balance > 0 && (
               <Button size="sm" onClick={handlePayNow} disabled={payingNow}>
                 <CreditCard className="size-4" />
                 {payingNow ? "Redirecting…" : "Pay now"}
               </Button>
             )}
+            */}
             <Button size="sm" variant="outline" onClick={handleDownload}>
               <Download className="size-4" />
               Download invoice
