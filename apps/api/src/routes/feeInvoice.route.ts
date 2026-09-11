@@ -152,6 +152,19 @@ feeInvoiceRouter.delete("/:id", authorize(...FEE_MANAGE_ROLES), async (req, res,
   }
 });
 
+feeInvoiceRouter.post("/:id/checkout-session", async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const invoice = await feeInvoiceService.getById(schoolId, req.params.id);
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    await assertCanViewStudentFees(schoolId, req.user!, invoice.studentId);
+    const result = await feeInvoiceService.createCheckoutSession(schoolId, req.params.id, req.user!.sub);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 feeInvoiceRouter.post(
   "/:id/payments",
   authorize(...FEE_MANAGE_ROLES),

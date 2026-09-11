@@ -7,6 +7,7 @@ import { computeScholarshipDiscount } from "./scholarship.service";
 import { generateInvoicePdf } from "../lib/invoicePdf";
 import { roundMoney, ledgerFor, statusFor, creditPoolFor } from "../lib/feeLedger";
 import { getOrSet } from "../lib/cache";
+import { getStripeClient } from "../lib/stripe";
 
 // Not real pagination (the fee list page filters by class/status/overdue,
 // no consumer paginates) — a backstop against an unbounded payload on a
@@ -313,6 +314,50 @@ export const feeInvoiceService = {
     }
     await prisma.feeInvoice.delete({ where: { id } });
     return invoice;
+  },
+
+  // Creates a Stripe-hosted payment page for whatever's still owed on this
+  // invoice. Does NOT record a FeePayment — that only happens once Stripe
+  // confirms the money actually moved, via the webhook. Trusting this
+  // request alone would let anyone mark an invoice paid without paying.
+  async createCheckoutSession(schoolId: string, invoiceId: string, initiatedByUserId: string) {
+    const invoice = await prisma.feeInvoice.findFirst({ where: { id: invoiceId, schoolId }, include: invoiceInclude });
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+
+    const { balance } = ledgerFor(invoice);
+    if (balance <= 0) throw new HttpError(400, "This invoice has no outstanding balance");
+
+    const studentName = `${invoice.student.user.firstName} ${invoice.student.user.lastName}`;
+    const webAppUrl = process.env.WEB_APP_URL ?? "http://localhost:3000";
+    const stripe = getStripeClient();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            // Stripe accounts domiciled in Pakistan can't settle in PKR
+            // (see the payment-strategy notes) — usd is a placeholder so
+            // the sandbox flow works end-to-end. Swapping in a
+            // PKR-capable gateway later only touches this method; nothing
+            // downstream of recordPayment cares which gateway was used.
+            currency: "usd",
+            product_data: { name: `${invoice.feeStructure.category} fee — ${invoice.period} (${studentName})` },
+            unit_amount: Math.round(balance * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${webAppUrl}/dashboard/fees?checkout=success`,
+      cancel_url: `${webAppUrl}/dashboard/fees?checkout=cancelled`,
+      // The webhook receives this session with no other request context,
+      // so metadata is the only way it learns which school/invoice/payer
+      // this was for.
+      metadata: { schoolId, invoiceId, initiatedByUserId },
+    });
+
+    if (!session.url) throw new HttpError(502, "Stripe did not return a checkout URL");
+    return { url: session.url };
   },
 
   // No upper guard on amountPaid vs. the invoice's balance — an amount
