@@ -17,6 +17,7 @@ import { env } from "./config/env";
 import { logger } from "./lib/logger";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { apiRouter } from "./routes";
+import { stripeWebhookRouter } from "./routes/stripeWebhook.route";
 import { initSocket, closeSocket } from "./lib/socket";
 import { closeRedis } from "./lib/redis";
 import { closeQueues } from "./lib/queue";
@@ -55,6 +56,11 @@ app.use(
 app.use(metricsMiddleware);
 app.use(compression());
 app.use(cors({ origin: env.corsOrigin }));
+
+// Mounted before express.json() — see stripeWebhook.route.ts for why this
+// one route needs the raw, unparsed request body.
+app.use("/api/webhooks", stripeWebhookRouter);
+
 app.use(express.json());
 
 app.use("/api", apiRouter);
