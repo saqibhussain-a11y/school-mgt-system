@@ -18,4 +18,6 @@ export const env = {
   jwtPlatformAccessSecret: required("JWT_PLATFORM_ACCESS_SECRET"),
   jwtPlatformRefreshSecret: required("JWT_PLATFORM_REFRESH_SECRET"),
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 };
