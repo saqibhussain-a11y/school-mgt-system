@@ -39,7 +39,7 @@ export function statusFor(netAmount: number, effectivePaid: number): FeeInvoiceS
 }
 
 interface CreditLedgerPayment extends LedgerPayment {
-  paymentMethod: "MANUAL" | "CREDIT";
+  paymentMethod: "MANUAL" | "CREDIT" | "STRIPE";
 }
 
 interface CreditLedgerInvoice {

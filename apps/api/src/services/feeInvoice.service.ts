@@ -323,7 +323,17 @@ export const feeInvoiceService = {
   async recordPayment(
     schoolId: string,
     invoiceId: string,
-    data: { amountPaid: number; referenceNote?: string; recordedByUserId: string; idempotencyKey?: string },
+    data: {
+      amountPaid: number;
+      referenceNote?: string;
+      recordedByUserId: string;
+      idempotencyKey?: string;
+      // CREDIT is deliberately not a valid value here — that path goes
+      // through applyCredit(), which checks the student's credit pool
+      // before spending it. Passing CREDIT through this method would skip
+      // that check entirely.
+      paymentMethod?: "MANUAL" | "STRIPE";
+    },
   ) {
     // A retried/double-clicked submission replays the same key — return the
     // payment that request already created rather than recording a second
@@ -353,6 +363,7 @@ export const feeInvoiceService = {
             schoolId,
             invoiceId,
             amountPaid: data.amountPaid,
+            paymentMethod: data.paymentMethod ?? "MANUAL",
             referenceNote: data.referenceNote,
             recordedByUserId: data.recordedByUserId,
             idempotencyKey: data.idempotencyKey,

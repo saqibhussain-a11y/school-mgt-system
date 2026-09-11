@@ -1248,6 +1248,7 @@ enum FeeInvoiceStatus {
 enum FeePaymentMethod {
   MANUAL
   CREDIT
+  STRIPE
 }
 
 // period is a free-form label ("September 2026", "Term 1") the accountant
