@@ -49,6 +49,7 @@ import { vehicleRouter } from "./vehicle.route";
 import { transportRouteRouter } from "./transportRoute.route";
 import { studentRouteRouter } from "./studentRoute.route";
 import { platformRouter } from "./platform.route";
+import { chatRouter } from "./chat.route";
 
 export const apiRouter = Router();
 
@@ -104,3 +105,4 @@ apiRouter.use("/vehicles", vehicleRouter);
 apiRouter.use("/routes", transportRouteRouter);
 apiRouter.use("/student-routes", studentRouteRouter);
 apiRouter.use("/platform", platformRouter);
+apiRouter.use("/chat", chatRouter);

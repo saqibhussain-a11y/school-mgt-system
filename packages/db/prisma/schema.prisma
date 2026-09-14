@@ -152,6 +152,7 @@ model User {
   scholarshipsCreated Scholarship[]      @relation("ScholarshipCreatedBy")
   documentsIssued     IssuedDocument[]   @relation("DocumentIssuedBy")
   bookLoansIssued     BookLoan[]         @relation("BookLoanIssuedBy")
+  chatMessages        ChatMessage[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -1566,4 +1567,29 @@ model StudentRoute {
   @@unique([studentId])
   @@index([schoolId])
   @@index([routeId])
+}
+
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+}
+
+// One running conversation per parent/student — no separate thread/session
+// concept, since a school parent's assistant is meant to feel like one
+// ongoing chat, not a list of past conversations to manage. Grounding data
+// (fees/attendance/announcements) is never stored here — only the message
+// text — since that data is rebuilt fresh from the live tables on every
+// turn (see chat.service.ts) rather than frozen at send-time.
+model ChatMessage {
+  id        String          @id @default(cuid())
+  schoolId  String
+  userId    String
+  role      ChatMessageRole
+  content   String
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId, createdAt])
 }

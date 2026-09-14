@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { env } from "../config/env";
 
 // Keyed by IP (express-rate-limit's default) — proportionate to this app's
@@ -51,4 +51,20 @@ export const clientErrorReportLimiter = rateLimit({
   legacyHeaders: false,
   message,
   skip,
+});
+
+// Keyed by user id, not IP — this guards LLM API cost/abuse per account,
+// unlike the auth limiters above which guard against IP-based
+// brute-forcing. Mounted after `authenticate`, so req.user is always set.
+export const chatMessageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many messages. Please wait a few minutes and try again." },
+  skip,
+  // req.user.sub needs no normalization (it's not an IP); the fallback
+  // does, since raw req.ip has many equivalent IPv6 textual forms that
+  // would otherwise each get their own bucket — see ipKeyGenerator's docs.
+  keyGenerator: (req) => req.user?.sub ?? ipKeyGenerator(req.ip ?? "unknown"),
 });
