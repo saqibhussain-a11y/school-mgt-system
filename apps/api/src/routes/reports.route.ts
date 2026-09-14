@@ -106,6 +106,12 @@ reportsRouter.get("/at-risk-students", authorize(...ACADEMIC_REPORT_ROLES), asyn
     const rows = await getOrSet(cacheKey, REPORT_CACHE_TTL_SECONDS, () =>
       reportsService.atRiskStudents(schoolId, { classId }),
     );
+    // CSV/PDF need a flat string per cell; the default JSON response is
+    // what the frontend table reads and needs `reasons` to stay an array
+    // (it renders its own ` · `-joined display) — flattening it for every
+    // format broke the table with `row.reasons.join is not a function`.
+    const format = (req.query.format as string) ?? "json";
+    const exportRows = format === "json" ? rows : rows.map((r) => ({ ...r, reasons: r.reasons.join("; ") }));
     await respond(
       req,
       res,
@@ -120,7 +126,7 @@ reportsRouter.get("/at-risk-students", authorize(...ACADEMIC_REPORT_ROLES), asyn
         { key: "latestExamPercentage", label: "Latest exam %", width: 110 },
         { key: "reasons", label: "Reasons", width: 280 },
       ],
-      rows.map((r) => ({ ...r, reasons: r.reasons.join("; ") })),
+      exportRows,
     );
   } catch (err) {
     next(err);
