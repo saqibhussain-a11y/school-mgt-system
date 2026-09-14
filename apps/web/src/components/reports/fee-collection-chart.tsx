@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExportButtons } from "./export-buttons";
+import { AiSummaryCard } from "./ai-summary-card";
 import { useApi } from "@/lib/use-api";
 import { useChartColors } from "@/lib/chart-colors";
 import { formatCurrency } from "@/lib/format";
@@ -46,6 +47,7 @@ export function FeeCollectionChart({ classes }: { classes: ClassOption[] }) {
   const params = new URLSearchParams();
   if (classId) params.set("classId", classId);
   const path = `/api/reports/fee-collection-trend?${params.toString()}`;
+  const summaryPath = `/api/reports/fee-collection-trend/summary?${params.toString()}`;
   const { data, loading } = useApi<FeeCollectionPoint[]>(path);
 
   const totalOutstanding = data?.reduce((s, d) => s + d.totalOutstanding, 0) ?? 0;
@@ -76,6 +78,8 @@ export function FeeCollectionChart({ classes }: { classes: ClassOption[] }) {
       <div className="sm:w-64">
         <StatCard label="Total outstanding" value={formatCurrency(totalOutstanding)} icon={Wallet} tone={totalOutstanding > 0 ? "warning" : "good"} />
       </div>
+
+      <AiSummaryCard path={summaryPath} />
 
       {loading ? (
         <Skeleton className="h-72 rounded-xl" />

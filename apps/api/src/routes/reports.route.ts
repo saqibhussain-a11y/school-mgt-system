@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { Role } from "@sms/db";
-import { reportsService } from "../services/reports.service";
+import { reportsService, type ReportSummaryType } from "../services/reports.service";
 import { getAssignedClassIdsForUser } from "../services/teacherAssignment.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { HttpError } from "../middleware/errorHandler";
@@ -10,6 +10,10 @@ import { getOrSet } from "../lib/cache";
 import { FEE_MANAGE_ROLES } from "./feeStructure.route";
 
 const REPORT_CACHE_TTL_SECONDS = 60;
+// Longer than the raw data's cache — an LLM call is slower and costlier to
+// redo than a DB query, and a summary going a few minutes stale is a much
+// smaller problem than one being slow every single time.
+const SUMMARY_CACHE_TTL_SECONDS = 300;
 
 const ACADEMIC_REPORT_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.TEACHER];
 
@@ -141,3 +145,32 @@ reportsRouter.get("/fee-collection-trend", authorize(...FEE_MANAGE_ROLES), async
     next(err);
   }
 });
+
+// One route per report type, each gated by that report's own roles — a
+// plain-language summary of exactly the data that report's own route
+// already serves, so it can never disagree with the chart/table next to it.
+function registerSummaryRoute(path: string, type: ReportSummaryType, roles: Role[]) {
+  reportsRouter.get(path, authorize(...roles), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId =
+        type === "fees"
+          ? (req.query.classId as string | undefined)
+          : await resolveClassIdForAcademicReport(schoolId, req.user!, req.query.classId as string | undefined);
+      const from = req.query.from ? new Date(req.query.from as string) : undefined;
+      const to = req.query.to ? new Date(req.query.to as string) : undefined;
+      const cacheKey = `reports:summary:${type}:${schoolId}:${classId ?? "all"}:${from?.toISOString() ?? ""}:${to?.toISOString() ?? ""}`;
+      const summary = await getOrSet(cacheKey, SUMMARY_CACHE_TTL_SECONDS, () =>
+        reportsService.summarize(schoolId, type, { classId, from, to }),
+      );
+      res.json({ summary });
+    } catch (err) {
+      next(err);
+    }
+  });
+}
+
+registerSummaryRoute("/attendance-trend/summary", "attendance", ACADEMIC_REPORT_ROLES);
+registerSummaryRoute("/performance-trend/summary", "performance", ACADEMIC_REPORT_ROLES);
+registerSummaryRoute("/at-risk-students/summary", "at-risk", ACADEMIC_REPORT_ROLES);
+registerSummaryRoute("/fee-collection-trend/summary", "fees", FEE_MANAGE_ROLES);

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExportButtons } from "./export-buttons";
+import { AiSummaryCard } from "./ai-summary-card";
 import { useApi } from "@/lib/use-api";
 import { useChartColors } from "@/lib/chart-colors";
 import { formatDate } from "@/lib/format";
@@ -51,6 +52,7 @@ export function PerformanceTrendChart({ isTeacher, classes }: { isTeacher: boole
   const params = new URLSearchParams();
   if (classId) params.set("classId", classId);
   const path = `/api/reports/performance-trend?${params.toString()}`;
+  const summaryPath = `/api/reports/performance-trend/summary?${params.toString()}`;
   const { data, loading } = useApi<PerformancePoint[]>(isTeacher && !classId ? null : path);
 
   const overall =
@@ -84,6 +86,8 @@ export function PerformanceTrendChart({ isTeacher, classes }: { isTeacher: boole
       <div className="sm:w-64">
         <StatCard label="Average exam performance" value={`${overall}%`} hint={`${data?.length ?? 0} exams`} icon={GraduationCap} />
       </div>
+
+      <AiSummaryCard path={summaryPath} />
 
       {loading ? (
         <Skeleton className="h-72 rounded-xl" />

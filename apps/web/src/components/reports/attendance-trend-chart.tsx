@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExportButtons } from "./export-buttons";
+import { AiSummaryCard } from "./ai-summary-card";
 import { useApi } from "@/lib/use-api";
 import { useChartColors } from "@/lib/chart-colors";
 import { formatDate, toDateInputValue } from "@/lib/format";
@@ -70,6 +71,7 @@ export function AttendanceTrendChart({ isTeacher, classes }: { isTeacher: boolea
   const params = new URLSearchParams({ from: range.from, to: range.to });
   if (classId) params.set("classId", classId);
   const path = `/api/reports/attendance-trend?${params.toString()}`;
+  const summaryPath = `/api/reports/attendance-trend/summary?${params.toString()}`;
   const { data, loading } = useApi<AttendancePoint[]>(isTeacher && !classId ? null : path);
 
   const overall =
@@ -133,6 +135,8 @@ export function AttendanceTrendChart({ isTeacher, classes }: { isTeacher: boolea
       <div className="sm:w-64">
         <StatCard label="Average attendance" value={`${overall}%`} hint={`${data?.length ?? 0} days in range`} icon={CalendarCheck} />
       </div>
+
+      <AiSummaryCard path={summaryPath} />
 
       {loading ? (
         <Skeleton className="h-72 rounded-xl" />

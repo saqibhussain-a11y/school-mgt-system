@@ -1,6 +1,23 @@
 import { prisma, AttendanceStatus } from "@sms/db";
 import { gradeFor } from "../lib/grading";
 import { ledgerFor, roundMoney } from "../lib/feeLedger";
+import { getLlmProvider } from "../lib/llm";
+
+export type ReportSummaryType = "attendance" | "performance" | "fees" | "at-risk";
+
+const SUMMARY_SYSTEM_PROMPT =
+  "You summarize school analytics data for a school administrator. Write 3-5 concise, plain-language " +
+  "sentences — no markdown, no bullet points, no headings. State only facts present in the JSON data " +
+  "given to you; never invent a number that isn't there. Call out whatever is most worth the reader's " +
+  "attention: the clearest trend, the biggest outlier, or the most actionable point.";
+
+const REPORT_DESCRIPTIONS: Record<ReportSummaryType, string> = {
+  attendance: "Daily attendance percentage over a date range, one point per day with the percentage and how many students were marked.",
+  performance: "Exam-over-exam average performance percentage across a class's exams, in chronological order.",
+  fees: "Monthly fee totals: amount invoiced, amount collected, and amount still outstanding.",
+  "at-risk":
+    "Students currently flagged as at-risk, with the specific reason(s) for each — low attendance and/or a declining or failing exam trend.",
+};
 
 const STATUS_WEIGHT: Record<AttendanceStatus, number> = {
   PRESENT: 1,
@@ -284,5 +301,41 @@ export const reportsService = {
         totalCollected: roundMoney(bucket.collected),
         totalOutstanding: roundMoney(bucket.outstanding),
       }));
+  },
+
+  // Reuses whichever *Trend/atRiskStudents method above already answers
+  // this report — no separate data path, so the summary can never disagree
+  // with the chart/table sitting right next to it.
+  async summarize(
+    schoolId: string,
+    type: ReportSummaryType,
+    filters: { classId?: string; from?: Date; to?: Date } = {},
+  ) {
+    const data =
+      type === "attendance"
+        ? await this.attendanceTrend(schoolId, {
+            classId: filters.classId,
+            from: filters.from ?? new Date(Date.now() - 30 * 86_400_000),
+            to: filters.to ?? new Date(),
+          })
+        : type === "performance"
+          ? await this.performanceTrend(schoolId, { classId: filters.classId })
+          : type === "fees"
+            ? await this.feeCollectionTrend(schoolId, { classId: filters.classId })
+            : await this.atRiskStudents(schoolId, { classId: filters.classId });
+
+    if (Array.isArray(data) && data.length === 0) {
+      return "There isn't enough data yet to summarize this report.";
+    }
+
+    const provider = getLlmProvider();
+    const reply = await provider.chat([
+      { role: "system", content: SUMMARY_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `${REPORT_DESCRIPTIONS[type]}\n\nData (JSON):\n${JSON.stringify(data).slice(0, 8000)}`,
+      },
+    ]);
+    return reply.trim();
   },
 };

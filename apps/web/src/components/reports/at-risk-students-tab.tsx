@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExportButtons } from "./export-buttons";
+import { AiSummaryCard } from "./ai-summary-card";
 import { useApi } from "@/lib/use-api";
 
 interface ClassOption {
@@ -46,6 +47,7 @@ export function AtRiskStudentsTab({ isTeacher, classes }: { isTeacher: boolean; 
   if (classId) params.set("classId", classId);
   const query = params.toString();
   const path = `/api/reports/at-risk-students${query ? `?${query}` : ""}`;
+  const summaryPath = `/api/reports/at-risk-students/summary${query ? `?${query}` : ""}`;
   const { data, loading } = useApi<AtRiskRow[]>(isTeacher && !classId ? null : path);
 
   return (
@@ -95,6 +97,8 @@ export function AtRiskStudentsTab({ isTeacher, classes }: { isTeacher: boolean; 
           icon={AlertTriangle}
         />
       </div>
+
+      <AiSummaryCard path={summaryPath} />
 
       {loading ? (
         <Skeleton className="h-72 rounded-xl" />
