@@ -15,6 +15,7 @@ import {
   GraduationCap,
   Wallet,
   ShieldAlert,
+  TrendingDown,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
@@ -43,6 +44,17 @@ interface NeedsAttentionItem {
   href: string;
 }
 
+interface AtRiskStudentPreview {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  className: string;
+  sectionName: string;
+  reasons: string[];
+  attendancePercentage: number | null;
+  latestExamPercentage: number | null;
+}
+
 interface AdmissionRow {
   classId: string;
   className: string;
@@ -65,6 +77,7 @@ interface StaffWidgets {
   todayAttendanceMarked: number;
   todayAttendanceBreakdown: Partial<Record<AttendanceStatus, number>>;
   needsAttention: NeedsAttentionItem[];
+  atRiskStudents: AtRiskStudentPreview[];
   admissionsThisWeek: AdmissionRow[];
   recentFeePayments: RecentFeePayment[];
   activeLoans: number;
@@ -179,6 +192,48 @@ const NEEDS_ATTENTION_ICON: Record<NeedsAttentionItem["type"], typeof CalendarCh
   library: BookMarked,
   exam: GraduationCap,
 };
+
+function AtRiskStudentsCard({ students }: { students: AtRiskStudentPreview[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <TrendingDown className="size-4 text-status-critical" />
+          At-risk students
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">Falling attendance or exam performance</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {students.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No students flagged right now.</p>
+        ) : (
+          <>
+            {students.map((s) => (
+              <Link
+                key={s.studentId}
+                href={`/dashboard/students/${s.studentId}`}
+                className="flex items-start gap-2.5 rounded-lg border border-border p-2.5 transition-colors hover:bg-muted"
+              >
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                  <TrendingDown className="size-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {s.firstName} {s.lastName} — {s.className} {s.sectionName}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{s.reasons[0]}</p>
+                </div>
+              </Link>
+            ))}
+            <Link href="/dashboard/reports" className="px-1 text-xs font-medium text-primary hover:underline">
+              View all in Reports →
+            </Link>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function BarRow({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
   const widthPercent = max > 0 ? Math.max(4, Math.round((count / max) * 100)) : 0;
@@ -334,6 +389,7 @@ function AdminOverviewPanels({ widgets }: { widgets: Partial<StaffWidgets> }) {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <AttendanceBreakdownCard breakdown={widgets.todayAttendanceBreakdown ?? {}} />
         <NeedsAttentionCard items={widgets.needsAttention ?? []} />
+        <AtRiskStudentsCard students={widgets.atRiskStudents ?? []} />
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <AdmissionsThisWeekCard rows={widgets.admissionsThisWeek ?? []} />

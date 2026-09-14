@@ -9,6 +9,14 @@ const STATUS_WEIGHT: Record<AttendanceStatus, number> = {
   LEAVE: 0,
 };
 
+// At-risk thresholds — heuristic defaults, not derived from the master doc
+// (this scenario wasn't in it). Tune here if a school's real usage shows
+// these are too noisy or too quiet.
+const ATTENDANCE_WINDOW_DAYS = 30;
+const LOW_ATTENDANCE_THRESHOLD = 75;
+const EXAM_DECLINE_THRESHOLD = 10;
+const FAILING_THRESHOLD = 40;
+
 function toDateKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -121,6 +129,128 @@ export const reportsService = {
       });
     }
     return results;
+  },
+
+  // Two independent leading indicators, not one blended score — a school
+  // would otherwise only notice either at report-card time. Reasons are
+  // additive (a student can trip both, or neither); a single averaged
+  // number would hide which lever actually needs pulling.
+  async atRiskStudents(schoolId: string, filters: { classId?: string } = {}) {
+    const since = new Date(Date.now() - ATTENDANCE_WINDOW_DAYS * 86_400_000);
+
+    const students = await prisma.student.findMany({
+      where: { schoolId, status: "ACTIVE", ...(filters.classId ? { classId: filters.classId } : {}) },
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        class: { select: { name: true } },
+        section: { select: { name: true } },
+      },
+    });
+    if (students.length === 0) return [];
+    const studentIds = students.map((s) => s.id);
+
+    const [attendanceRows, marks] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { schoolId, studentId: { in: studentIds }, date: { gte: since } },
+        select: { studentId: true, status: true },
+      }),
+      prisma.mark.findMany({
+        where: { schoolId, studentId: { in: studentIds }, isAbsent: false, marksObtained: { not: null } },
+        select: {
+          studentId: true,
+          marksObtained: true,
+          examSubject: { select: { examId: true, maxMarks: true, exam: { select: { startDate: true } } } },
+        },
+      }),
+    ]);
+
+    const attendanceByStudent = new Map<string, AttendanceStatus[]>();
+    for (const r of attendanceRows) {
+      const list = attendanceByStudent.get(r.studentId) ?? [];
+      list.push(r.status);
+      attendanceByStudent.set(r.studentId, list);
+    }
+
+    // Per student, per exam totals first, collapsed to one percentage per
+    // exam afterward — the same totalObtained/totalMax shape performanceTrend
+    // uses above, just kept separate per student instead of averaged across
+    // the class.
+    const examTotalsByStudent = new Map<string, Map<string, { obtained: number; max: number; startDate: Date }>>();
+    for (const m of marks) {
+      const examId = m.examSubject.examId;
+      const perExam = examTotalsByStudent.get(m.studentId) ?? new Map();
+      const entry = perExam.get(examId) ?? { obtained: 0, max: 0, startDate: m.examSubject.exam.startDate };
+      entry.obtained += m.marksObtained ?? 0;
+      entry.max += m.examSubject.maxMarks;
+      perExam.set(examId, entry);
+      examTotalsByStudent.set(m.studentId, perExam);
+    }
+
+    const results: {
+      studentId: string;
+      firstName: string;
+      lastName: string;
+      className: string;
+      sectionName: string;
+      reasons: string[];
+      attendancePercentage: number | null;
+      latestExamPercentage: number | null;
+    }[] = [];
+
+    for (const student of students) {
+      const reasons: string[] = [];
+
+      const statuses = attendanceByStudent.get(student.id) ?? [];
+      let attendancePercentage: number | null = null;
+      if (statuses.length > 0) {
+        const presentEquivalent = statuses.reduce((sum, s) => sum + STATUS_WEIGHT[s], 0);
+        attendancePercentage = Math.round((presentEquivalent / statuses.length) * 10000) / 100;
+        if (attendancePercentage < LOW_ATTENDANCE_THRESHOLD) {
+          reasons.push(`Attendance is ${attendancePercentage}% over the last ${ATTENDANCE_WINDOW_DAYS} days`);
+        }
+      }
+
+      const examPercentages = [...(examTotalsByStudent.get(student.id)?.values() ?? [])]
+        .filter((e) => e.max > 0)
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+        .map((e) => Math.round((e.obtained / e.max) * 10000) / 100);
+
+      let latestExamPercentage: number | null = null;
+      if (examPercentages.length > 0) {
+        latestExamPercentage = examPercentages[examPercentages.length - 1];
+        let flaggedExamDecline = false;
+        if (examPercentages.length >= 2) {
+          const previous = examPercentages[examPercentages.length - 2];
+          if (previous - latestExamPercentage >= EXAM_DECLINE_THRESHOLD) {
+            reasons.push(`Exam average dropped from ${previous}% to ${latestExamPercentage}%`);
+            flaggedExamDecline = true;
+          }
+        }
+        if (!flaggedExamDecline && latestExamPercentage < FAILING_THRESHOLD) {
+          reasons.push(`Latest exam average is ${latestExamPercentage}%`);
+        }
+      }
+
+      if (reasons.length === 0) continue;
+
+      results.push({
+        studentId: student.id,
+        firstName: student.user.firstName,
+        lastName: student.user.lastName,
+        className: student.class.name,
+        sectionName: student.section.name,
+        reasons,
+        attendancePercentage,
+        latestExamPercentage,
+      });
+    }
+
+    // Most reasons first (trouble on both fronts outranks either alone),
+    // worst attendance as the tiebreaker.
+    return results.sort((a, b) => {
+      if (b.reasons.length !== a.reasons.length) return b.reasons.length - a.reasons.length;
+      return (a.attendancePercentage ?? 100) - (b.attendancePercentage ?? 100);
+    });
   },
 
   // One point per calendar month (bucketed by invoice due date, not the

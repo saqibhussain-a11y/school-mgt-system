@@ -6,6 +6,7 @@ import { leaveRequestService } from "./leaveRequest.service";
 import { feeInvoiceService } from "./feeInvoice.service";
 import { bookLoanService } from "./bookLoan.service";
 import { examService } from "./exam.service";
+import { reportsService } from "./reports.service";
 
 interface NeedsAttentionItem {
   id: string;
@@ -152,16 +153,20 @@ export const dashboardService = {
       };
 
       if (role === Role.SCHOOL_ADMIN || role === Role.PRINCIPAL) {
-        const [needsAttention, admissionsThisWeek, recentFeePayments] = await Promise.all([
+        const [needsAttention, admissionsThisWeek, recentFeePayments, atRiskStudents] = await Promise.all([
           getNeedsAttention(schoolId),
           getAdmissionsThisWeek(schoolId),
           getRecentFeePayments(schoolId),
+          // Dashboard only ever needs a short preview — the full,
+          // filterable list lives on the Reports page's "At risk" tab.
+          reportsService.atRiskStudents(schoolId).then((rows) => rows.slice(0, 5)),
         ]);
         Object.assign(widgets, {
           todayAttendanceBreakdown: todayAttendance.breakdown,
           needsAttention,
           admissionsThisWeek,
           recentFeePayments,
+          atRiskStudents,
         });
       }
 

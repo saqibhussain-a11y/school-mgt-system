@@ -94,6 +94,35 @@ reportsRouter.get("/performance-trend", authorize(...ACADEMIC_REPORT_ROLES), asy
   }
 });
 
+reportsRouter.get("/at-risk-students", authorize(...ACADEMIC_REPORT_ROLES), async (req, res, next) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    const classId = await resolveClassIdForAcademicReport(schoolId, req.user!, req.query.classId as string | undefined);
+    const cacheKey = `reports:at-risk:${schoolId}:${classId ?? "all"}`;
+    const rows = await getOrSet(cacheKey, REPORT_CACHE_TTL_SECONDS, () =>
+      reportsService.atRiskStudents(schoolId, { classId }),
+    );
+    await respond(
+      req,
+      res,
+      schoolId,
+      "At-risk students",
+      [
+        { key: "firstName", label: "First name", width: 120 },
+        { key: "lastName", label: "Last name", width: 120 },
+        { key: "className", label: "Class", width: 90 },
+        { key: "sectionName", label: "Section", width: 80 },
+        { key: "attendancePercentage", label: "Attendance %", width: 110 },
+        { key: "latestExamPercentage", label: "Latest exam %", width: 110 },
+        { key: "reasons", label: "Reasons", width: 280 },
+      ],
+      rows.map((r) => ({ ...r, reasons: r.reasons.join("; ") })),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
 reportsRouter.get("/fee-collection-trend", authorize(...FEE_MANAGE_ROLES), async (req, res, next) => {
   try {
     const schoolId = req.user!.schoolId;

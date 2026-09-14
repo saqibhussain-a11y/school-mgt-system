@@ -2,6 +2,7 @@
 
 import { PageHeader } from "@/components/layout/page-header";
 import { AttendanceTrendChart, PerformanceTrendChart, FeeCollectionChart } from "@/components/reports/lazy-charts";
+import { AtRiskStudentsTab } from "@/components/reports/at-risk-students-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 import { useReportClasses } from "@/lib/use-report-classes";
@@ -32,6 +33,7 @@ export default function ReportsPage() {
         <TabsList>
           {canSeeAcademic && <TabsTrigger value="attendance">Attendance</TabsTrigger>}
           {canSeeAcademic && <TabsTrigger value="performance">Performance</TabsTrigger>}
+          {canSeeAcademic && <TabsTrigger value="at-risk">At risk</TabsTrigger>}
           {canSeeFees && <TabsTrigger value="fees">Fee collection</TabsTrigger>}
         </TabsList>
         {canSeeAcademic && (
@@ -42,6 +44,11 @@ export default function ReportsPage() {
         {canSeeAcademic && (
           <TabsContent value="performance">
             <PerformanceTrendChart isTeacher={isTeacher} classes={classes} />
+          </TabsContent>
+        )}
+        {canSeeAcademic && (
+          <TabsContent value="at-risk">
+            <AtRiskStudentsTab isTeacher={isTeacher} classes={classes} />
           </TabsContent>
         )}
         {canSeeFees && (
