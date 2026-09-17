@@ -30,10 +30,22 @@ export interface MeDto {
   schoolId: string;
   firstName: string;
   lastName: string;
+  avatarUrl: string | null;
   // Optional feature modules Platform Admin has turned on for this school
   // (e.g. "PAYROLL") — frontend nav/route guards check membership in this
   // list before showing a gated module.
   enabledModules: string[];
+}
+
+export interface ProfileDto {
+  id: string;
+  email: string;
+  role: UserRole;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  address: string | null;
+  avatarUrl: string | null;
 }
 
 export interface NotificationDto {
