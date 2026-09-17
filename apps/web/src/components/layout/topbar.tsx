@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { KeyRound, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,7 @@ import { NotificationBell } from "./notification-bell";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ChangePasswordDialog } from "./change-password-dialog";
 import { useAuth } from "@/lib/auth-context";
-import { formatRole, initials } from "@/lib/format";
+import { formatRole } from "@/lib/format";
 
 export function Topbar() {
   const { user, logout } = useAuth();
@@ -38,11 +38,12 @@ export function Topbar() {
             <Button variant="ghost" className="flex items-center gap-2 px-2" />
           }
         >
-          <Avatar className="size-8">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-              {initials(user.firstName || "U", user.lastName || "")}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            firstName={user.firstName}
+            lastName={user.lastName}
+            avatarUrl={user.avatarUrl}
+            className="size-8 text-xs"
+          />
           <span className="hidden text-sm font-medium sm:inline">
             {user.firstName} {user.lastName}
           </span>
