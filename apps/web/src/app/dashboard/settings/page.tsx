@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MyProfileTab } from "@/components/settings/my-profile-tab";
 import { AppearanceTab } from "@/components/settings/appearance-tab";
 import { SchoolProfileTab } from "@/components/settings/school-profile-tab";
 import { FeatureModulesTab } from "@/components/settings/feature-modules-tab";
@@ -20,11 +21,12 @@ export default function SettingsPage() {
   const isAdmin = ADMIN_ROLES.includes(user.role);
 
   const tabs: { value: string; label: string; content: ReactNode }[] = [
+    { value: "profile", label: "My Profile", content: <MyProfileTab /> },
     { value: "appearance", label: "Appearance", content: <AppearanceTab /> },
   ];
   if (isAdmin) {
     tabs.push(
-      { value: "profile", label: "School Profile", content: <SchoolProfileTab /> },
+      { value: "school-profile", label: "School Profile", content: <SchoolProfileTab /> },
       { value: "modules", label: "Feature Modules", content: <FeatureModulesTab /> },
       { value: "leave", label: "Leave Policy", content: <LeavePolicyTab /> },
       { value: "staff-attendance", label: "Staff Attendance", content: <StaffAttendanceSettingsTab /> },
@@ -38,8 +40,8 @@ export default function SettingsPage() {
         title="Settings"
         description={
           isAdmin
-            ? "Configure your school profile, appearance, and optional modules"
-            : "Personalize how the app looks for you"
+            ? "Manage your profile, school profile, appearance, and optional modules"
+            : "Manage your profile and personalize how the app looks for you"
         }
       />
 
