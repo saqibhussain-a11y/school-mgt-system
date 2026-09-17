@@ -199,16 +199,16 @@ export function AttendanceTrendChart({ isTeacher, classes }: { isTeacher: boolea
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Attendance %</TableHead>
-                  <TableHead>Students marked</TableHead>
+                  <TableHead className="text-right">Attendance %</TableHead>
+                  <TableHead className="text-right">Students marked</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.map((row) => (
                   <TableRow key={row.date}>
                     <TableCell>{formatDate(row.date)}</TableCell>
-                    <TableCell>{row.percentage}%</TableCell>
-                    <TableCell>{row.totalMarked}</TableCell>
+                    <TableCell className="text-right tabular-nums">{row.percentage}%</TableCell>
+                    <TableCell className="text-right tabular-nums">{row.totalMarked}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

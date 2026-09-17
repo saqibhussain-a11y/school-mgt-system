@@ -16,12 +16,15 @@ import {
   Wallet,
   ShieldAlert,
   TrendingDown,
+  ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { AnnouncementCard, type AnnouncementSummary } from "@/components/dashboard/announcement-card";
 import { AttendanceTrendChart, PerformanceTrendChart, FeeCollectionChart } from "@/components/reports/lazy-charts";
+import { AttendanceBreakdownChart, AdmissionsChart } from "@/components/dashboard/lazy-charts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -172,20 +175,6 @@ function ReportTabs({ role }: { role: string }) {
   );
 }
 
-const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
-  PRESENT: "Present",
-  ABSENT: "Absent",
-  HALF_DAY: "Half day",
-  LEAVE: "Leave",
-};
-
-const ATTENDANCE_STATUS_COLORS: Record<AttendanceStatus, string> = {
-  PRESENT: "var(--status-good)",
-  ABSENT: "var(--status-critical)",
-  HALF_DAY: "var(--status-warning)",
-  LEAVE: "var(--muted-foreground)",
-};
-
 const NEEDS_ATTENTION_ICON: Record<NeedsAttentionItem["type"], typeof CalendarCheck> = {
   leave: Clock,
   fee: Wallet,
@@ -235,46 +224,20 @@ function AtRiskStudentsCard({ students }: { students: AtRiskStudentPreview[] }) 
   );
 }
 
-function BarRow({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
-  const widthPercent = max > 0 ? Math.max(4, Math.round((count / max) * 100)) : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-28 shrink-0 truncate text-sm text-foreground">{label}</span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full" style={{ width: `${widthPercent}%`, backgroundColor: color }} />
-      </div>
-      <span className="w-8 shrink-0 text-right text-sm font-medium tabular-nums text-foreground">{count}</span>
-    </div>
-  );
-}
-
 function AttendanceBreakdownCard({ breakdown }: { breakdown: Partial<Record<AttendanceStatus, number>> }) {
-  const entries = (Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[]).map((status) => ({
-    status,
-    count: breakdown[status] ?? 0,
-  }));
-  const max = Math.max(...entries.map((e) => e.count), 1);
-  const totalMarked = entries.reduce((sum, e) => sum + e.count, 0);
+  const totalMarked = Object.values(breakdown).reduce((sum: number, v) => sum + (v ?? 0), 0);
 
   return (
-    <Card className="lg:col-span-2">
+    <Card>
       <CardHeader>
         <CardTitle className="text-base">Today&apos;s attendance</CardTitle>
         <p className="text-xs text-muted-foreground">School-wide, today&apos;s snapshot</p>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent>
         {totalMarked === 0 ? (
           <p className="text-sm text-muted-foreground">No attendance marked yet today.</p>
         ) : (
-          entries.map((e) => (
-            <BarRow
-              key={e.status}
-              label={ATTENDANCE_STATUS_LABELS[e.status]}
-              count={e.count}
-              max={max}
-              color={ATTENDANCE_STATUS_COLORS[e.status]}
-            />
-          ))
+          <AttendanceBreakdownChart breakdown={breakdown} />
         )}
       </CardContent>
     </Card>
@@ -322,8 +285,50 @@ function NeedsAttentionCard({ items }: { items: NeedsAttentionItem[] }) {
   );
 }
 
+const QUICK_ACTIONS = [
+  { href: "/dashboard/attendance", icon: CalendarCheck, label: "Mark attendance", subLabel: "Record today's class attendance" },
+  { href: "/dashboard/students", icon: Users, label: "Add a student", subLabel: "Admit a new student" },
+  { href: "/dashboard/fees", icon: Wallet, label: "Generate an invoice", subLabel: "Bill a class for a fee category" },
+  { href: "/dashboard/announcements", icon: Megaphone, label: "Post an announcement", subLabel: "Notify staff, students, or parents" },
+  { href: "/dashboard/staff", icon: UserCog, label: "Add staff", subLabel: "Onboard a teacher or other staff member" },
+];
+
+// A real widget, not filler for the taller At-risk students column next to
+// it — these are the 5 things an admin does most often, one tap away,
+// costing zero new backend queries since they're just links to pages the
+// sidebar already has.
+function QuickActionsCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ClipboardList className="size-4 text-primary" />
+          Quick actions
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {QUICK_ACTIONS.map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="flex items-center gap-2.5 rounded-lg border border-border p-2.5 transition-colors hover:bg-muted"
+          >
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <action.icon className="size-3.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground">{action.label}</p>
+              <p className="truncate text-xs text-muted-foreground">{action.subLabel}</p>
+            </div>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+          </Link>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function AdmissionsThisWeekCard({ rows }: { rows: AdmissionRow[] }) {
-  const max = Math.max(...rows.map((r) => r.count), 1);
   return (
     <Card>
       <CardHeader>
@@ -332,19 +337,11 @@ function AdmissionsThisWeekCard({ rows }: { rows: AdmissionRow[] }) {
           New admissions this week
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">No new admissions this week.</p>
         ) : (
-          rows.map((row, i) => (
-            <BarRow
-              key={row.classId}
-              label={row.className}
-              count={row.count}
-              max={max}
-              color={`var(--chart-${(i % 5) + 1})`}
-            />
-          ))
+          <AdmissionsChart rows={rows} />
         )}
       </CardContent>
     </Card>
@@ -386,12 +383,19 @@ function RecentFeePaymentsCard({ payments }: { payments: RecentFeePayment[] }) {
 function AdminOverviewPanels({ widgets }: { widgets: Partial<StaffWidgets> }) {
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* Columns, not a grid — At-risk students and Needs attention are both
+          variable-length lists (often very different lengths, sometimes
+          empty) and a grid row is always as tall as its tallest cell, which
+          left a dead gap under the shorter card no matter how it was
+          aligned inside that cell. CSS columns give each card its own
+          height instead of sharing a row. */}
+      <div className="columns-1 gap-4 lg:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid">
         <AttendanceBreakdownCard breakdown={widgets.todayAttendanceBreakdown ?? {}} />
         <NeedsAttentionCard items={widgets.needsAttention ?? []} />
+        <QuickActionsCard />
         <AtRiskStudentsCard students={widgets.atRiskStudents ?? []} />
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
         <AdmissionsThisWeekCard rows={widgets.admissionsThisWeek ?? []} />
         <RecentFeePaymentsCard payments={widgets.recentFeePayments ?? []} />
       </div>

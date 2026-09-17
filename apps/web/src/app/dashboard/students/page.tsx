@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -26,10 +25,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { useApi } from "@/lib/use-api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { useServerPagination } from "@/lib/use-server-pagination";
 import { useAuth } from "@/lib/auth-context";
 import type { SchoolClass } from "@/components/academics/classes-tab";
+
+const STUDENT_COLUMN_COUNT = 5;
 
 const ADMIN_ROLES = ["SCHOOL_ADMIN"];
 
@@ -73,17 +77,24 @@ export default function StudentsPage() {
     setSectionId("all");
   }, [classId]);
 
+  const { page, setPage, pageSize, setPageSize } = useServerPagination(
+    `${classId}:${sectionId}:${debouncedSearch.trim()}`,
+  );
+
   const query = new URLSearchParams();
   if (classId !== "all") query.set("classId", classId);
   if (sectionId !== "all") query.set("sectionId", sectionId);
   if (debouncedSearch.trim()) query.set("search", debouncedSearch.trim());
-  const queryString = query.toString();
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
 
   const {
-    data: students,
+    data: result,
     loading,
     refetch,
-  } = useApi<StudentSummary[]>(`/api/students${queryString ? `?${queryString}` : ""}`);
+  } = useApi<{ data: StudentSummary[]; total: number }>(`/api/students?${query.toString()}`);
+  const students = result?.data;
+  const total = result?.total ?? 0;
 
   return (
     <div>
@@ -151,9 +162,7 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      {loading ? (
-        <Skeleton className="h-64 rounded-xl" />
-      ) : !students || students.length === 0 ? (
+      {!loading && (!students || students.length === 0) ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No students found.
@@ -171,26 +180,33 @@ export default function StudentsPage() {
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {students.map((student) => (
-                <TableRow
-                  key={student.id}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/dashboard/students/${student.id}`)}
-                >
-                  <TableCell className="font-medium">{student.admissionNo}</TableCell>
-                  <TableCell>
-                    {student.user.firstName} {student.user.lastName}
-                  </TableCell>
-                  <TableCell>{student.class.name}</TableCell>
-                  <TableCell>{student.section.name}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={student.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+            {loading || !students ? (
+              <TableSkeleton columns={STUDENT_COLUMN_COUNT} />
+            ) : (
+              <TableBody>
+                {students.map((student) => (
+                  <TableRow
+                    key={student.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/dashboard/students/${student.id}`)}
+                  >
+                    <TableCell className="font-medium">{student.admissionNo}</TableCell>
+                    <TableCell>
+                      {student.user.firstName} {student.user.lastName}
+                    </TableCell>
+                    <TableCell>{student.class.name}</TableCell>
+                    <TableCell>{student.section.name}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={student.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
           </Table>
+          {!loading && (
+            <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
+          )}
         </Card>
       )}
     </div>

@@ -6,6 +6,7 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { generateTempPassword } from "../lib/tempPassword";
+import { parsePagination } from "../lib/pagination";
 import { createGuardianSchema, updateGuardianSchema } from "../validation/guardian.schema";
 
 const ADMIN_ROLES = [Role.SCHOOL_ADMIN];
@@ -17,7 +18,12 @@ guardianRouter.use(authenticate);
 
 guardianRouter.get("/", authorize(...VIEW_ROLES), async (req, res, next) => {
   try {
-    res.json(await guardianService.list(req.user!.schoolId));
+    const { search } = req.query as { search?: string };
+    const pagination = parsePagination(req.query as Record<string, unknown>);
+    const schoolId = req.user!.schoolId;
+    res.json(
+      pagination ? await guardianService.listPaginated(schoolId, { search }, pagination) : await guardianService.list(schoolId, { search }),
+    );
   } catch (err) {
     next(err);
   }

@@ -8,6 +8,7 @@ import { generateInvoicePdf } from "../lib/invoicePdf";
 import { roundMoney, ledgerFor, statusFor, creditPoolFor } from "../lib/feeLedger";
 import { getOrSet } from "../lib/cache";
 import { getStripeClient } from "../lib/stripe";
+import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
 
 // Not real pagination (the fee list page filters by class/status/overdue,
 // no consumer paginates) — a backstop against an unbounded payload on a
@@ -68,6 +69,28 @@ function withLedger<T extends { netAmount: number; payments: { amountPaid: numbe
   invoice: T,
 ) {
   return { ...invoice, ...ledgerFor(invoice) };
+}
+
+type FeeInvoiceListFilters = { classId?: string; status?: FeeInvoiceStatus; overdue?: boolean; search?: string };
+
+function feeInvoiceListWhere(schoolId: string, filters: FeeInvoiceListFilters) {
+  return {
+    schoolId,
+    ...(filters.classId ? { feeStructure: { classId: filters.classId } } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.overdue ? { dueDate: { lt: new Date() }, status: { not: FeeInvoiceStatus.PAID } } : {}),
+    ...(filters.search
+      ? {
+          student: {
+            OR: [
+              { admissionNo: { contains: filters.search, mode: "insensitive" as const } },
+              { user: { firstName: { contains: filters.search, mode: "insensitive" as const } } },
+              { user: { lastName: { contains: filters.search, mode: "insensitive" as const } } },
+            ],
+          },
+        }
+      : {}),
+  };
 }
 
 export const feeInvoiceService = {
@@ -210,19 +233,34 @@ export const feeInvoiceService = {
     return invoices.map(withLedger);
   },
 
-  async list(schoolId: string, filters: { classId?: string; status?: FeeInvoiceStatus; overdue?: boolean } = {}) {
-    const invoices = await prisma.feeInvoice.findMany({
-      where: {
-        schoolId,
-        ...(filters.classId ? { feeStructure: { classId: filters.classId } } : {}),
-        ...(filters.status ? { status: filters.status } : {}),
-        ...(filters.overdue ? { dueDate: { lt: new Date() }, status: { not: FeeInvoiceStatus.PAID } } : {}),
-      },
-      include: invoiceInclude,
-      orderBy: { dueDate: "asc" },
-      take: LIST_SAFETY_CAP,
-    });
-    return invoices.map(withLedger);
+  list(schoolId: string, filters: FeeInvoiceListFilters = {}) {
+    return prisma.feeInvoice
+      .findMany({
+        where: feeInvoiceListWhere(schoolId, filters),
+        include: invoiceInclude,
+        orderBy: { dueDate: "asc" },
+        take: LIST_SAFETY_CAP,
+      })
+      .then((invoices) => invoices.map(withLedger));
+  },
+
+  async listPaginated(schoolId: string, filters: FeeInvoiceListFilters, pagination: PaginationParams) {
+    const where = feeInvoiceListWhere(schoolId, filters);
+    const [invoices, total] = await Promise.all([
+      prisma.feeInvoice.findMany({
+        where,
+        include: invoiceInclude,
+        orderBy: { dueDate: "asc" },
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.feeInvoice.count({ where }),
+    ]);
+    return {
+      data: invoices.map(withLedger),
+      total,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    } satisfies Paginated<ReturnType<typeof withLedger>>;
   },
 
   // Unapplied credit is computed school-wide, independent of any list/period

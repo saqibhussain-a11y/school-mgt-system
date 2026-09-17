@@ -7,6 +7,7 @@ import { sectionService } from "../services/section.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { parsePagination } from "../lib/pagination";
 import {
   createStaffSchema,
   updateStaffSchema,
@@ -24,7 +25,10 @@ staffRouter.use(authenticate);
 
 staffRouter.get("/", authorize(...VIEW_ROLES), async (req, res, next) => {
   try {
-    res.json(await staffService.list(req.user!.schoolId));
+    const { search } = req.query as { search?: string };
+    const pagination = parsePagination(req.query as Record<string, unknown>);
+    const schoolId = req.user!.schoolId;
+    res.json(pagination ? await staffService.listPaginated(schoolId, { search }, pagination) : await staffService.list(schoolId, { search }));
   } catch (err) {
     next(err);
   }

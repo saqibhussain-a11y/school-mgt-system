@@ -1,5 +1,8 @@
 import { prisma, Role } from "@sms/db";
 import { hashPassword } from "../lib/password";
+import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
+
+const LIST_SAFETY_CAP = 2000;
 
 export interface CreateGuardianInput {
   email: string;
@@ -14,13 +17,45 @@ const guardianInclude = {
   user: { select: { id: true, email: true, firstName: true, lastName: true, role: true } },
 };
 
+type GuardianListFilters = { search?: string };
+
+function guardianListWhere(schoolId: string, filters: GuardianListFilters) {
+  return {
+    schoolId,
+    ...(filters.search
+      ? {
+          OR: [
+            { user: { firstName: { contains: filters.search, mode: "insensitive" as const } } },
+            { user: { lastName: { contains: filters.search, mode: "insensitive" as const } } },
+            { user: { email: { contains: filters.search, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+}
+
 export const guardianService = {
-  list(schoolId: string) {
+  list(schoolId: string, filters: GuardianListFilters = {}) {
     return prisma.guardian.findMany({
-      where: { schoolId },
+      where: guardianListWhere(schoolId, filters),
       include: guardianInclude,
       orderBy: { createdAt: "desc" },
+      take: LIST_SAFETY_CAP,
     });
+  },
+
+  async listPaginated(schoolId: string, filters: GuardianListFilters, pagination: PaginationParams) {
+    const where = guardianListWhere(schoolId, filters);
+    const [data, total] = await Promise.all([
+      prisma.guardian.findMany({
+        where,
+        include: guardianInclude,
+        orderBy: { createdAt: "desc" },
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.guardian.count({ where }),
+    ]);
+    return { data, total, page: pagination.page, pageSize: pagination.pageSize } satisfies Paginated<(typeof data)[number]>;
   },
 
   getById(schoolId: string, id: string) {

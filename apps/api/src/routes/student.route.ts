@@ -12,6 +12,7 @@ import { admissionNumberFormatService, guessFormatFromAdmissionNumbers } from ".
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { parsePagination } from "../lib/pagination";
 import {
   createStudentSchema,
   updateStudentSchema,
@@ -41,20 +42,27 @@ studentRouter.get("/", authorize(...VIEW_ROLES), async (req, res, next) => {
   try {
     const schoolId = req.user!.schoolId;
     const { classId, sectionId, search } = req.query as { classId?: string; sectionId?: string; search?: string };
+    const pagination = parsePagination(req.query as Record<string, unknown>);
 
     if (req.user!.role === Role.TEACHER) {
       const assignedSectionIds = await getAssignedSectionIdsForUser(schoolId, req.user!.sub);
       if (sectionId) {
-
         const inScope = assignedSectionIds.includes(sectionId);
-        res.json(inScope ? await studentService.list(schoolId, { classId, sectionId, search }) : []);
+        if (!inScope) {
+          res.json(pagination ? { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize } : []);
+          return;
+        }
+        const filters = { classId, sectionId, search };
+        res.json(pagination ? await studentService.listPaginated(schoolId, filters, pagination) : await studentService.list(schoolId, filters));
         return;
       }
-      res.json(await studentService.list(schoolId, { classId, sectionIdIn: assignedSectionIds, search }));
+      const filters = { classId, sectionIdIn: assignedSectionIds, search };
+      res.json(pagination ? await studentService.listPaginated(schoolId, filters, pagination) : await studentService.list(schoolId, filters));
       return;
     }
 
-    res.json(await studentService.list(schoolId, { classId, sectionId, search }));
+    const filters = { classId, sectionId, search };
+    res.json(pagination ? await studentService.listPaginated(schoolId, filters, pagination) : await studentService.list(schoolId, filters));
   } catch (err) {
     next(err);
   }

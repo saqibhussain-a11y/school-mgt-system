@@ -6,6 +6,11 @@ import { generateOtp } from "../lib/otp";
 import { planService } from "./plan.service";
 import { passwordResetService } from "./passwordReset.service";
 import { notificationService } from "./notification.service";
+import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
+
+// Same backstop as student.service.ts's LIST_SAFETY_CAP — this school's
+// own staff roster, comfortably above any real headcount.
+const LIST_SAFETY_CAP = 2000;
 
 export interface CreateStaffInput {
   email: string;
@@ -21,13 +26,46 @@ const staffInclude = {
   user: { select: { id: true, email: true, firstName: true, lastName: true, role: true } },
 };
 
+type StaffListFilters = { search?: string };
+
+function staffListWhere(schoolId: string, filters: StaffListFilters) {
+  return {
+    schoolId,
+    ...(filters.search
+      ? {
+          OR: [
+            { designation: { contains: filters.search, mode: "insensitive" as const } },
+            { user: { firstName: { contains: filters.search, mode: "insensitive" as const } } },
+            { user: { lastName: { contains: filters.search, mode: "insensitive" as const } } },
+            { user: { email: { contains: filters.search, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+}
+
 export const staffService = {
-  list(schoolId: string) {
+  list(schoolId: string, filters: StaffListFilters = {}) {
     return prisma.staff.findMany({
-      where: { schoolId },
+      where: staffListWhere(schoolId, filters),
       include: staffInclude,
       orderBy: { createdAt: "desc" },
+      take: LIST_SAFETY_CAP,
     });
+  },
+
+  async listPaginated(schoolId: string, filters: StaffListFilters, pagination: PaginationParams) {
+    const where = staffListWhere(schoolId, filters);
+    const [data, total] = await Promise.all([
+      prisma.staff.findMany({
+        where,
+        include: staffInclude,
+        orderBy: { createdAt: "desc" },
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.staff.count({ where }),
+    ]);
+    return { data, total, page: pagination.page, pageSize: pagination.pageSize } satisfies Paginated<(typeof data)[number]>;
   },
 
   getById(schoolId: string, id: string) {

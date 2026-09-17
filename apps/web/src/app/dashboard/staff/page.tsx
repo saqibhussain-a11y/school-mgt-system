@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
-import { UserMinus } from "lucide-react";
+import { Search as SearchIcon, UserMinus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -12,7 +12,7 @@ import { EditStaffDialog } from "@/components/staff/edit-staff-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -21,12 +21,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatRole } from "@/lib/format";
+import { useState } from "react";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { useServerPagination } from "@/lib/use-server-pagination";
 
 const ADMIN_ROLES = ["SCHOOL_ADMIN"];
+const STAFF_COLUMN_COUNT_MANAGE = 6;
+const STAFF_COLUMN_COUNT = 5;
 
 interface StaffSummary {
   id: string;
@@ -38,7 +45,23 @@ interface StaffSummary {
 export default function StaffPage() {
   const { user } = useAuth();
   const canManage = !!user && ADMIN_ROLES.includes(user.role);
-  const { data: staff, loading, refetch } = useApi<StaffSummary[]>("/api/staff");
+
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
+  const { page, setPage, pageSize, setPageSize } = useServerPagination(debouncedSearch.trim());
+
+  const query = new URLSearchParams();
+  if (debouncedSearch.trim()) query.set("search", debouncedSearch.trim());
+  query.set("page", String(page));
+  query.set("pageSize", String(pageSize));
+
+  const {
+    data: result,
+    loading,
+    refetch,
+  } = useApi<{ data: StaffSummary[]; total: number }>(`/api/staff?${query.toString()}`);
+  const staff = result?.data;
+  const total = result?.total ?? 0;
 
   async function handleDeactivate(id: string) {
     try {
@@ -58,9 +81,17 @@ export default function StaffPage() {
         action={canManage && <CreateStaffDialog onCreated={refetch} />}
       />
 
-      {loading ? (
-        <Skeleton className="h-64 rounded-xl" />
-      ) : !staff || staff.length === 0 ? (
+      <div className="mb-4 relative w-64">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by name, email, or designation"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-8"
+        />
+      </div>
+
+      {!loading && (!staff || staff.length === 0) ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No staff members yet.
@@ -79,6 +110,9 @@ export default function StaffPage() {
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
+            {loading || !staff ? (
+              <TableSkeleton columns={canManage ? STAFF_COLUMN_COUNT_MANAGE : STAFF_COLUMN_COUNT} />
+            ) : (
             <TableBody>
               {staff.map((member) => (
                 <TableRow key={member.id}>
@@ -125,7 +159,11 @@ export default function StaffPage() {
                 </TableRow>
               ))}
             </TableBody>
+            )}
           </Table>
+          {!loading && (
+            <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
+          )}
         </Card>
       )}
     </div>

@@ -8,6 +8,7 @@ import { creditPoolFor, roundMoney } from "../lib/feeLedger";
 import { admissionNumberFormatService } from "./admissionNumberFormat.service";
 import { passwordResetService } from "./passwordReset.service";
 import { planService } from "./plan.service";
+import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
 
 type TxClient = PrismaTransactionClient;
 
@@ -60,20 +61,27 @@ const studentListInclude = {
 // return an unbounded payload. Comfortably above any real school's size.
 const LIST_SAFETY_CAP = 2000;
 
-async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInput) {
+// No usable password at admission time — portal access is a separate,
+// explicitly-triggered action (see generateCredentialsAdminSet/Invite
+// below). A random, never-disclosed hash avoids a schema change
+// (passwordHash stays non-null) while being unguessable and unable to
+// verify against anything a real login attempt would type. Since it's
+// never disclosed or checked against anything, the same hash is safe to
+// reuse across an entire bulk-import batch — see bulkCreate below, which
+// hashes once instead of once per row to keep bcrypt's ~10-round cost out
+// of the interactive transaction (caught live: a 150-row import blew
+// Prisma's 5s default transaction timeout on bcrypt cost alone).
+function unusablePlaceholderHash() {
+  return hashPassword(randomUUID());
+}
+
+async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInput, passwordHash: string) {
   let admissionNo = input.admissionNo;
   if (admissionNo) {
     await admissionNumberFormatService.advanceIfNeeded(tx, schoolId, admissionNo);
   } else {
     admissionNo = await admissionNumberFormatService.consumeNext(tx, schoolId);
   }
-
-  // No usable password at admission time — portal access is a separate,
-  // explicitly-triggered action (see generateCredentialsAdminSet/Invite
-  // below). A random, never-disclosed hash avoids a schema change
-  // (passwordHash stays non-null) while being unguessable and unable to
-  // verify against anything a real login attempt would type.
-  const passwordHash = await hashPassword(randomUUID());
 
   const user = await tx.user.create({
     data: {
@@ -104,41 +112,64 @@ async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInp
   });
 }
 
+type StudentListFilters = { classId?: string; sectionId?: string; sectionIdIn?: string[]; search?: string };
+
+function studentListWhere(schoolId: string, filters: StudentListFilters) {
+  const { sectionIdIn, search, ...rest } = filters;
+  return {
+    schoolId,
+    ...rest,
+    ...(sectionIdIn ? { sectionId: { in: sectionIdIn } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { admissionNo: { contains: search, mode: "insensitive" as const } },
+            { user: { firstName: { contains: search, mode: "insensitive" as const } } },
+            { user: { lastName: { contains: search, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+}
+
 export const studentService = {
-  list(
-    schoolId: string,
-    filters: { classId?: string; sectionId?: string; sectionIdIn?: string[]; search?: string } = {},
-  ) {
-    const { sectionIdIn, search, ...rest } = filters;
+  list(schoolId: string, filters: StudentListFilters = {}) {
     return prisma.student.findMany({
-      where: {
-        schoolId,
-        ...rest,
-        ...(sectionIdIn ? { sectionId: { in: sectionIdIn } } : {}),
-        ...(search
-          ? {
-              OR: [
-                { admissionNo: { contains: search, mode: "insensitive" } },
-                { user: { firstName: { contains: search, mode: "insensitive" } } },
-                { user: { lastName: { contains: search, mode: "insensitive" } } },
-              ],
-            }
-          : {}),
-      },
+      where: studentListWhere(schoolId, filters),
       include: studentListInclude,
       orderBy: { admissionNo: "asc" },
       take: LIST_SAFETY_CAP,
     });
   },
 
+  // Same filters as list(), a distinct method rather than an optional 3rd
+  // param — see staff/guardian/feeInvoice.service.ts's identical split —
+  // so every existing list() call site (dropdowns, class rosters, etc.)
+  // keeps its original flat-array return type with zero change, and a
+  // table page opts into the { data, total } envelope by name.
+  async listPaginated(schoolId: string, filters: StudentListFilters, pagination: PaginationParams) {
+    const where = studentListWhere(schoolId, filters);
+    const [data, total] = await Promise.all([
+      prisma.student.findMany({
+        where,
+        include: studentListInclude,
+        orderBy: { admissionNo: "asc" },
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.student.count({ where }),
+    ]);
+    return { data, total, page: pagination.page, pageSize: pagination.pageSize } satisfies Paginated<(typeof data)[number]>;
+  },
+
   getById(schoolId: string, id: string) {
     return prisma.student.findFirst({ where: { id, schoolId }, include: studentInclude });
   },
 
-  create(schoolId: string, input: CreateStudentInput) {
+  async create(schoolId: string, input: CreateStudentInput) {
+    const passwordHash = await unusablePlaceholderHash();
     return prisma.$transaction(async (tx) => {
       await planService.assertSeatAvailable(tx, schoolId, "student", 1);
-      return createOne(tx, schoolId, input);
+      return createOne(tx, schoolId, input, passwordHash);
     });
   },
 
@@ -146,15 +177,25 @@ export const studentService = {
   // rolls back the whole batch — master doc Section 8.10. The seat check is
   // for the whole batch up front too, so a bulk import doesn't partially
   // succeed up to the plan limit then fail confusingly on one row.
+  //
+  // Hashed once, outside the transaction, and reused for every row (see
+  // unusablePlaceholderHash) — bcrypt's cost per row is what made this time
+  // out on realistically-sized imports. The explicit timeout/maxWait below
+  // is a second safety margin on top of that fix, for batches large enough
+  // that even cheap sequential row inserts add up (a few thousand rows).
   bulkCreate(schoolId: string, inputs: CreateStudentInput[]) {
-    return prisma.$transaction(async (tx) => {
-      await planService.assertSeatAvailable(tx, schoolId, "student", inputs.length);
-      const created = [];
-      for (const input of inputs) {
-        created.push(await createOne(tx, schoolId, input));
-      }
-      return created;
-    });
+    return prisma.$transaction(
+      async (tx) => {
+        const passwordHash = await unusablePlaceholderHash();
+        await planService.assertSeatAvailable(tx, schoolId, "student", inputs.length);
+        const created = [];
+        for (const input of inputs) {
+          created.push(await createOne(tx, schoolId, input, passwordHash));
+        }
+        return created;
+      },
+      { timeout: 60_000, maxWait: 10_000 },
+    );
   },
 
   async update(

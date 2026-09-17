@@ -132,18 +132,18 @@ export function FeeCollectionChart({ classes }: { classes: ClassOption[] }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Month</TableHead>
-                  <TableHead>Invoiced</TableHead>
-                  <TableHead>Collected</TableHead>
-                  <TableHead>Outstanding</TableHead>
+                  <TableHead className="text-right">Invoiced</TableHead>
+                  <TableHead className="text-right">Collected</TableHead>
+                  <TableHead className="text-right">Outstanding</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.map((row) => (
                   <TableRow key={row.month}>
                     <TableCell className="font-medium">{row.month}</TableCell>
-                    <TableCell>{formatCurrency(row.totalInvoiced)}</TableCell>
-                    <TableCell>{formatCurrency(row.totalCollected)}</TableCell>
-                    <TableCell>{formatCurrency(row.totalOutstanding)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(row.totalInvoiced)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(row.totalCollected)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(row.totalOutstanding)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

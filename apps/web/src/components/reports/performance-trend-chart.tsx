@@ -148,9 +148,9 @@ export function PerformanceTrendChart({ isTeacher, classes }: { isTeacher: boole
                 <TableRow>
                   <TableHead>Exam</TableHead>
                   <TableHead>Start date</TableHead>
-                  <TableHead>Average %</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Students</TableHead>
+                  <TableHead className="text-right">Average %</TableHead>
+                  <TableHead className="text-center">Grade</TableHead>
+                  <TableHead className="text-right">Students</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -158,9 +158,9 @@ export function PerformanceTrendChart({ isTeacher, classes }: { isTeacher: boole
                   <TableRow key={row.examId}>
                     <TableCell className="font-medium">{row.examName}</TableCell>
                     <TableCell>{formatDate(row.startDate)}</TableCell>
-                    <TableCell>{row.averagePercentage}%</TableCell>
-                    <TableCell>{row.averageGrade}</TableCell>
-                    <TableCell>{row.studentCount}</TableCell>
+                    <TableCell className="text-right tabular-nums">{row.averagePercentage}%</TableCell>
+                    <TableCell className="text-center">{row.averageGrade}</TableCell>
+                    <TableCell className="text-right tabular-nums">{row.studentCount}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

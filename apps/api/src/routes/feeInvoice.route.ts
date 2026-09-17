@@ -6,6 +6,7 @@ import { studentGuardianService } from "../services/studentGuardian.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { parsePagination } from "../lib/pagination";
 import { FEE_MANAGE_ROLES } from "./feeStructure.route";
 import {
   generateInvoicesSchema,
@@ -32,8 +33,18 @@ feeInvoiceRouter.use(authenticate);
 
 feeInvoiceRouter.get("/", authorize(...FEE_MANAGE_ROLES), async (req, res, next) => {
   try {
-    const { classId, status, overdue } = req.query as { classId?: string; status?: FeeInvoiceStatus; overdue?: string };
-    res.json(await feeInvoiceService.list(req.user!.schoolId, { classId, status, overdue: overdue === "true" }));
+    const { classId, status, overdue, search } = req.query as {
+      classId?: string;
+      status?: FeeInvoiceStatus;
+      overdue?: string;
+      search?: string;
+    };
+    const filters = { classId, status, overdue: overdue === "true", search };
+    const pagination = parsePagination(req.query as Record<string, unknown>);
+    const schoolId = req.user!.schoolId;
+    res.json(
+      pagination ? await feeInvoiceService.listPaginated(schoolId, filters, pagination) : await feeInvoiceService.list(schoolId, filters),
+    );
   } catch (err) {
     next(err);
   }
