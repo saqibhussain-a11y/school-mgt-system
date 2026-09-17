@@ -129,6 +129,14 @@ model User {
   // set (admin-issued or self-service OTP claim).
   isActivated  Boolean  @default(true)
   lastLoginAt  DateTime?
+  // Self-service profile fields, editable by the user themselves via
+  // /me/profile. For the PARENT role, Guardian.phone/address are the
+  // existing source of truth instead (already used elsewhere) — the
+  // profile service reads/writes those for guardians and these columns
+  // for every other role, so there's one non-branching field per role.
+  phone        String?
+  address      String?
+  avatarKey    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
