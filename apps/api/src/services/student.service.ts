@@ -9,6 +9,7 @@ import { admissionNumberFormatService } from "./admissionNumberFormat.service";
 import { passwordResetService } from "./passwordReset.service";
 import { planService } from "./plan.service";
 import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
+import { bulkImportRowSchema } from "../validation/student.schema";
 
 type TxClient = PrismaTransactionClient;
 
@@ -112,6 +113,35 @@ async function createOne(tx: TxClient, schoolId: string, input: CreateStudentInp
   });
 }
 
+export type BulkImportRowError = { row: number; message: string };
+
+export interface BulkImportResolution {
+  inputs: CreateStudentInput[];
+  errors: BulkImportRowError[];
+}
+
+type ClassSectionCache = Map<string, { classId: string; sectionId: string } | null>;
+
+// Resolves a human-typed class/section name pair (bulk-import CSVs can't be
+// expected to know our internal cuids) to real IDs, case-insensitively.
+// Cached per-import batch (see resolveBulkImportRows) since the same
+// class/section pair typically repeats across many rows in one file.
+async function resolveClassSection(schoolId: string, cache: ClassSectionCache, className: string, sectionName: string) {
+  const key = `${className.toLowerCase()}::${sectionName.toLowerCase()}`;
+  if (cache.has(key)) return cache.get(key)!;
+  const cls = await prisma.class.findFirst({
+    where: { schoolId, name: { equals: className, mode: "insensitive" } },
+  });
+  const section = cls
+    ? await prisma.section.findFirst({
+        where: { schoolId, classId: cls.id, name: { equals: sectionName, mode: "insensitive" } },
+      })
+    : null;
+  const resolved = cls && section ? { classId: cls.id, sectionId: section.id } : null;
+  cache.set(key, resolved);
+  return resolved;
+}
+
 type StudentListFilters = { classId?: string; sectionId?: string; sectionIdIn?: string[]; search?: string };
 
 function studentListWhere(schoolId: string, filters: StudentListFilters) {
@@ -196,6 +226,68 @@ export const studentService = {
       },
       { timeout: 60_000, maxWait: 10_000 },
     );
+  },
+
+  // Maps raw CSV rows (as columns:true parsing yields them) through the
+  // admin-chosen header->field mapping, validates each row against
+  // bulkImportRowSchema, and resolves className/sectionName to real IDs.
+  // Row-level failures are collected rather than thrown so the route can
+  // report every bad row in one response instead of failing on the first.
+  async resolveBulkImportRows(
+    schoolId: string,
+    rows: Record<string, string>[],
+    mapping: Record<string, string | null>,
+  ): Promise<BulkImportResolution> {
+    const errors: BulkImportRowError[] = [];
+    const inputs: CreateStudentInput[] = [];
+    const classSectionCache: ClassSectionCache = new Map();
+
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const rowNumber = index + 2; // +1 for header, +1 for 1-based row numbers
+      const mapped: Record<string, string> = {};
+      const extraInfo: Record<string, string> = {};
+      for (const [header, value] of Object.entries(row)) {
+        const target = mapping[header];
+        if (target) mapped[target] = value;
+        else if (value) extraInfo[header] = value;
+      }
+      if (mapped.admissionNo !== undefined) {
+        const trimmed = mapped.admissionNo.trim();
+        if (trimmed) mapped.admissionNo = trimmed;
+        else delete mapped.admissionNo;
+      }
+
+      const result = bulkImportRowSchema.safeParse(mapped);
+      if (!result.success) {
+        errors.push({ row: rowNumber, message: result.error.issues.map((i) => i.message).join(", ") });
+        continue;
+      }
+
+      const resolved = await resolveClassSection(schoolId, classSectionCache, result.data.className, result.data.sectionName);
+      if (!resolved) {
+        errors.push({
+          row: rowNumber,
+          message: `Class "${result.data.className}" / section "${result.data.sectionName}" not found`,
+        });
+        continue;
+      }
+
+      inputs.push({
+        email: result.data.email,
+        firstName: result.data.firstName,
+        lastName: result.data.lastName,
+        admissionNo: result.data.admissionNo,
+        classId: resolved.classId,
+        sectionId: resolved.sectionId,
+        dob: result.data.dob,
+        previousSchool: result.data.previousSchool,
+        medicalInfo: result.data.medicalInfo,
+        extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
+      });
+    }
+
+    return { inputs, errors };
   },
 
   async update(

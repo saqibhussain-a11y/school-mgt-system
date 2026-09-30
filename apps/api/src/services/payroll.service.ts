@@ -3,6 +3,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { inAppNotificationService } from "./inAppNotification.service";
 import { generatePayslipPdf } from "../lib/payslipPdf";
 import { inclusiveDayCount } from "./leaveRequest.service";
+import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
 
 type TxClient = PrismaTransactionClient;
 
@@ -27,6 +28,17 @@ function periodBounds(period: string) {
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(Date.UTC(year, month, 0));
   return { start, end };
+}
+
+// Same backstop as student.service.ts's LIST_SAFETY_CAP — a school with a
+// pathologically large payslip history (staff count x months) can't return
+// an unbounded payload on an unfiltered load.
+const LIST_SAFETY_CAP = 2000;
+
+type PayslipListFilters = { period?: string };
+
+function payslipListWhere(schoolId: string, filters: PayslipListFilters) {
+  return { schoolId, ...(filters.period ? { period: filters.period } : {}) };
 }
 
 async function recomputeNetPay(tx: TxClient, payslipId: string) {
@@ -66,12 +78,32 @@ export const payrollService = {
     return prisma.staff.update({ where: { id: staffId }, data: { baseSalary } });
   },
 
-  list(schoolId: string, filters: { period?: string } = {}) {
+  list(schoolId: string, filters: PayslipListFilters = {}) {
     return prisma.payslip.findMany({
-      where: { schoolId, ...(filters.period ? { period: filters.period } : {}) },
+      where: payslipListWhere(schoolId, filters),
       include: payslipInclude,
       orderBy: [{ period: "desc" }, { createdAt: "desc" }],
+      take: LIST_SAFETY_CAP,
     });
+  },
+
+  // Same filters as list(), a distinct method rather than an optional 3rd
+  // param — see student/staff/guardian/feeInvoice.service.ts's identical
+  // split — so the existing list() call site keeps its flat-array return
+  // type with zero change, and the Payslips tab opts into the
+  // { data, total } envelope by name.
+  async listPaginated(schoolId: string, filters: PayslipListFilters, pagination: PaginationParams) {
+    const where = payslipListWhere(schoolId, filters);
+    const [data, total] = await Promise.all([
+      prisma.payslip.findMany({
+        where,
+        include: payslipInclude,
+        orderBy: [{ period: "desc" }, { createdAt: "desc" }],
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.payslip.count({ where }),
+    ]);
+    return { data, total, page: pagination.page, pageSize: pagination.pageSize } satisfies Paginated<(typeof data)[number]>;
   },
 
   getById(schoolId: string, id: string) {

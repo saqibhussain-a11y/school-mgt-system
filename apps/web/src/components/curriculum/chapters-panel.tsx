@@ -125,9 +125,11 @@ export function ChaptersPanel({
                 </div>
               ) : (
                 <>
-                  <button
+                  <Button
                     type="button"
-                    className="flex-1 text-left"
+                    size="sm"
+                    variant="ghost"
+                    className="flex-1 justify-start px-2 text-left font-normal"
                     onClick={() => onSelect(chapter.id)}
                   >
                     {chapter.order}. {chapter.title}
@@ -135,7 +137,7 @@ export function ChaptersPanel({
                       {chapter.scheduleEntries.length} schedule{" "}
                       {chapter.scheduleEntries.length === 1 ? "entry" : "entries"}
                     </span>
-                  </button>
+                  </Button>
                   {canManage && (
                     <div className="flex items-center gap-1">
                       <Button size="sm" variant="ghost" onClick={() => startEdit(chapter)} title="Edit">

@@ -63,8 +63,10 @@ export function ResetPasswordButton({ userId }: { userId: string }) {
               <span className="text-muted-foreground">Temporary password</span>
               <span className="flex items-center gap-2 font-mono">
                 {temporaryPassword}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => {
                     navigator.clipboard.writeText(temporaryPassword);
                     toast.success("Copied to clipboard");
@@ -72,7 +74,7 @@ export function ResetPasswordButton({ userId }: { userId: string }) {
                   aria-label="Copy password"
                 >
                   <Copy className="size-3.5" />
-                </button>
+                </Button>
               </span>
             </div>
             <DialogFooter>

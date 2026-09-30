@@ -11,6 +11,7 @@ import http from "node:http";
 import compression from "compression";
 import cors from "cors";
 import express from "express";
+import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { prisma } from "@sms/db";
 import { env } from "./config/env";
@@ -53,6 +54,13 @@ app.use(
   }),
 );
 
+// crossOriginResourcePolicy defaults to "same-origin", which blocks the
+// frontend (a different origin — separate host in production, separate
+// port in dev) from loading anything this API serves as a binary resource:
+// avatars, result-card template images, assignment attachments. This API
+// is deliberately consumed cross-origin by design, so that policy is
+// relaxed; CORS (below) is still the real access-control boundary.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(metricsMiddleware);
 app.use(compression());
 app.use(cors({ origin: env.corsOrigin }));

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
+import path from "node:path";
 import { parse } from "csv-parse/sync";
-import { prisma, Role } from "@sms/db";
+import { Role } from "@sms/db";
 import { studentService } from "../services/student.service";
 import { guardianService } from "../services/guardian.service";
 import { studentGuardianService } from "../services/studentGuardian.service";
@@ -18,7 +19,6 @@ import {
   updateStudentSchema,
   linkGuardianSchema,
   generateCredentialsSchema,
-  bulkImportRowSchema,
 } from "../validation/student.schema";
 
 
@@ -32,7 +32,19 @@ const VIEW_ROLES = [
   Role.ACCOUNTANT,
 ];
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
+const ALLOWED_IMPORT_EXTENSIONS = new Set([".csv"]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_IMPORT_EXTENSIONS.has(path.extname(file.originalname).toLowerCase())) {
+      cb(new HttpError(400, "This file type isn't allowed for student bulk import"));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 export const studentRouter = Router();
 
@@ -303,70 +315,7 @@ studentRouter.post(
       const rows = parseCsv(req.file.buffer);
       const schoolId = req.user!.schoolId;
 
-      const errors: { row: number; message: string }[] = [];
-      const classSectionCache = new Map<string, { classId: string; sectionId: string } | null>();
-
-      async function resolveClassSection(className: string, sectionName: string) {
-        const key = `${className.toLowerCase()}::${sectionName.toLowerCase()}`;
-        if (classSectionCache.has(key)) return classSectionCache.get(key)!;
-        const cls = await prisma.class.findFirst({
-          where: { schoolId, name: { equals: className, mode: "insensitive" } },
-        });
-        const section = cls
-          ? await prisma.section.findFirst({
-              where: { schoolId, classId: cls.id, name: { equals: sectionName, mode: "insensitive" } },
-            })
-          : null;
-        const resolved = cls && section ? { classId: cls.id, sectionId: section.id } : null;
-        classSectionCache.set(key, resolved);
-        return resolved;
-      }
-
-      const inputs: Parameters<typeof studentService.bulkCreate>[1] = [];
-      for (let index = 0; index < rows.length; index++) {
-        const row = rows[index];
-        const rowNumber = index + 2; // +1 for header, +1 for 1-based row numbers
-        const mapped: Record<string, string> = {};
-        const extraInfo: Record<string, string> = {};
-        for (const [header, value] of Object.entries(row)) {
-          const target = mapping[header];
-          if (target) mapped[target] = value;
-          else if (value) extraInfo[header] = value;
-        }
-        if (mapped.admissionNo !== undefined) {
-          const trimmed = mapped.admissionNo.trim();
-          if (trimmed) mapped.admissionNo = trimmed;
-          else delete mapped.admissionNo;
-        }
-
-        const result = bulkImportRowSchema.safeParse(mapped);
-        if (!result.success) {
-          errors.push({ row: rowNumber, message: result.error.issues.map((i) => i.message).join(", ") });
-          continue;
-        }
-
-        const resolved = await resolveClassSection(result.data.className, result.data.sectionName);
-        if (!resolved) {
-          errors.push({
-            row: rowNumber,
-            message: `Class "${result.data.className}" / section "${result.data.sectionName}" not found`,
-          });
-          continue;
-        }
-
-        inputs.push({
-          email: result.data.email,
-          firstName: result.data.firstName,
-          lastName: result.data.lastName,
-          admissionNo: result.data.admissionNo,
-          classId: resolved.classId,
-          sectionId: resolved.sectionId,
-          dob: result.data.dob,
-          previousSchool: result.data.previousSchool,
-          medicalInfo: result.data.medicalInfo,
-          extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
-        });
-      }
+      const { inputs, errors } = await studentService.resolveBulkImportRows(schoolId, rows, mapping);
 
       if (errors.length > 0) {
         throw new HttpError(400, `Invalid rows: ${JSON.stringify(errors)}`);

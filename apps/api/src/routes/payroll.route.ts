@@ -6,6 +6,7 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { requireModule } from "../lib/modules";
 import { HttpError } from "../middleware/errorHandler";
+import { parsePagination } from "../lib/pagination";
 import {
   setSalarySchema,
   generatePayslipsSchema,
@@ -62,7 +63,13 @@ payrollRouter.get("/staff", authorize(...PAYROLL_MANAGE_ROLES), async (req, res,
 payrollRouter.get("/", authorize(...PAYROLL_MANAGE_ROLES), async (req, res, next) => {
   try {
     const { period } = req.query as { period?: string };
-    res.json(await payrollService.list(req.user!.schoolId, { period }));
+    const filters = { period };
+    const pagination = parsePagination(req.query as Record<string, unknown>);
+    res.json(
+      pagination
+        ? await payrollService.listPaginated(req.user!.schoolId, filters, pagination)
+        : await payrollService.list(req.user!.schoolId, filters),
+    );
   } catch (err) {
     next(err);
   }

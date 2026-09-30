@@ -155,14 +155,15 @@ function PaletteCard({
   onHover: (hovering: boolean) => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={onSelect}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
       aria-pressed={isSelected}
       className={cn(
-        "group relative flex flex-col gap-2.5 rounded-lg border bg-card p-3.5 text-left transition-all cursor-pointer",
+        "group relative flex h-auto w-full flex-col items-stretch justify-start gap-2.5 whitespace-normal rounded-lg border bg-card p-3.5 text-left text-sm font-normal transition-all hover:bg-card cursor-pointer",
         isSelected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/40 hover:shadow-sm",
       )}
     >
@@ -180,7 +181,7 @@ function PaletteCard({
           <Swatch key={s.label} color={s.color} label={s.label} />
         ))}
       </div>
-    </button>
+    </Button>
   );
 }
 

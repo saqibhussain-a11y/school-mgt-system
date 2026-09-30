@@ -85,8 +85,10 @@ export function CreateGuardianDialog({ onCreated }: { onCreated: () => void }) {
                 <span className="text-muted-foreground">Temporary password</span>
                 <span className="flex items-center gap-2 font-mono">
                   {credentials.password}
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => {
                       navigator.clipboard.writeText(credentials.password);
                       toast.success("Copied to clipboard");
@@ -94,7 +96,7 @@ export function CreateGuardianDialog({ onCreated }: { onCreated: () => void }) {
                     aria-label="Copy password"
                   >
                     <Copy className="size-3.5" />
-                  </button>
+                  </Button>
                 </span>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { leaveRequestService } from "../services/leaveRequest.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { parsePagination } from "../lib/pagination";
 import { createLeaveRequestSchema, reviewLeaveRequestSchema } from "../validation/leaveRequest.schema";
 
 const APPLICANT_ROLES: Role[] = [
@@ -23,7 +24,12 @@ leaveRequestRouter.use(authenticate);
 
 leaveRequestRouter.get("/me", async (req, res, next) => {
   try {
-    res.json(await leaveRequestService.listForUser(req.user!.schoolId, req.user!.sub));
+    const pagination = parsePagination(req.query as Record<string, unknown>);
+    res.json(
+      pagination
+        ? await leaveRequestService.listForUserPaginated(req.user!.schoolId, req.user!.sub, pagination)
+        : await leaveRequestService.listForUser(req.user!.schoolId, req.user!.sub),
+    );
   } catch (err) {
     next(err);
   }
@@ -41,7 +47,13 @@ leaveRequestRouter.get("/balance", async (req, res, next) => {
 leaveRequestRouter.get("/", authorize(...VIEW_ALL_ROLES), async (req, res, next) => {
   try {
     const { status, role } = req.query as { status?: LeaveStatus; role?: Role };
-    res.json(await leaveRequestService.listForSchool(req.user!.schoolId, { status, role }));
+    const filters = { status, role };
+    const pagination = parsePagination(req.query as Record<string, unknown>);
+    res.json(
+      pagination
+        ? await leaveRequestService.listForSchoolPaginated(req.user!.schoolId, filters, pagination)
+        : await leaveRequestService.listForSchool(req.user!.schoolId, filters),
+    );
   } catch (err) {
     next(err);
   }

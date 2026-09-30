@@ -237,14 +237,16 @@ export function ManageTeacherAssignmentsDialog({ staffId }: { staffId: string })
                     <span className="font-medium">
                       {a.class.name} - {a.section.name}
                     </span>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => handleRemove(a.sectionId)}
                       aria-label="Remove assignment"
                       className="text-muted-foreground hover:text-destructive"
                     >
                       <X className="size-4" />
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -311,14 +313,16 @@ export function ManageTeacherAssignmentsDialog({ staffId }: { staffId: string })
                     <span className="font-medium">
                       {a.subject.name} — {a.subject.class.name}
                     </span>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => handleRemoveSubject(a.subjectId)}
                       aria-label="Remove subject"
                       className="text-muted-foreground hover:text-destructive"
                     >
                       <X className="size-4" />
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>

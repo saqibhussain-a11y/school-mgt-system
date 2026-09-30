@@ -4,23 +4,38 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { PayslipStatusBadge } from "./payslip-status-badge";
 import { GeneratePayslipsDialog } from "./generate-payslips-dialog";
 import { useApi } from "@/lib/use-api";
+import { useServerPagination } from "@/lib/use-server-pagination";
 import { formatCurrency } from "@/lib/format";
 import type { Payslip } from "./types";
+
+const PAYSLIP_COLUMN_COUNT = 6;
 
 export function PayslipsTab() {
   const router = useRouter();
   const [period, setPeriod] = useState("");
 
-  const { data: payslips, loading, refetch } = useApi<Payslip[]>(
-    `/api/payroll${period ? `?period=${period}` : ""}`,
-  );
+  const { page, setPage, pageSize, setPageSize } = useServerPagination(period);
+
+  const params = new URLSearchParams();
+  if (period) params.set("period", period);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+
+  const {
+    data: result,
+    loading,
+    refetch,
+  } = useApi<{ data: Payslip[]; total: number }>(`/api/payroll?${params.toString()}`);
+  const payslips = result?.data;
+  const total = result?.total ?? 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -37,9 +52,7 @@ export function PayslipsTab() {
         />
       </div>
 
-      {loading ? (
-        <Skeleton className="h-64 rounded-xl" />
-      ) : !payslips || payslips.length === 0 ? (
+      {!loading && (!payslips || payslips.length === 0) ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No payslips {period ? "for this month" : "yet"}.
@@ -58,23 +71,30 @@ export function PayslipsTab() {
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {payslips.map((p) => (
-                <TableRow key={p.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/payroll/${p.id}`)}>
-                  <TableCell className="font-medium">
-                    {p.staff.user.firstName} {p.staff.user.lastName}
-                  </TableCell>
-                  <TableCell>{p.staff.designation}</TableCell>
-                  <TableCell>{p.period}</TableCell>
-                  <TableCell>{formatCurrency(p.baseSalary)}</TableCell>
-                  <TableCell>{formatCurrency(p.netPay)}</TableCell>
-                  <TableCell>
-                    <PayslipStatusBadge status={p.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+            {loading || !payslips ? (
+              <TableSkeleton columns={PAYSLIP_COLUMN_COUNT} />
+            ) : (
+              <TableBody>
+                {payslips.map((p) => (
+                  <TableRow key={p.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/payroll/${p.id}`)}>
+                    <TableCell className="font-medium">
+                      {p.staff.user.firstName} {p.staff.user.lastName}
+                    </TableCell>
+                    <TableCell>{p.staff.designation}</TableCell>
+                    <TableCell>{p.period}</TableCell>
+                    <TableCell>{formatCurrency(p.baseSalary)}</TableCell>
+                    <TableCell>{formatCurrency(p.netPay)}</TableCell>
+                    <TableCell>
+                      <PayslipStatusBadge status={p.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
           </Table>
+          {!loading && (
+            <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
+          )}
         </Card>
       )}
     </div>

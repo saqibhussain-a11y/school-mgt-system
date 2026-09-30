@@ -4,6 +4,7 @@ import { inAppNotificationService } from "./inAppNotification.service";
 import { studentGuardianService } from "./studentGuardian.service";
 import { bookReservationService } from "./bookReservation.service";
 import { LOAN_PERIOD_DAYS, FINE_PER_DAY, MAX_ACTIVE_LOANS_PER_STUDENT } from "../lib/libraryConstants";
+import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
 
 const loanInclude = {
   book: { select: { id: true, title: true, author: true, isbn: true } },
@@ -18,22 +19,52 @@ function daysLate(dueDate: Date, returnDate: Date) {
   return Math.max(0, Math.ceil((returnDate.getTime() - dueDate.getTime()) / MS_PER_DAY));
 }
 
+// Same backstop as student.service.ts's LIST_SAFETY_CAP — a school with a
+// pathologically large loan history (students x books x checkouts over
+// time) can't return an unbounded payload on an unfiltered load.
+const LIST_SAFETY_CAP = 2000;
+
+type BookLoanListFilters = { studentId?: string; bookId?: string; status?: string; overdue?: boolean };
+
+function bookLoanListWhere(schoolId: string, filters: BookLoanListFilters) {
+  return {
+    schoolId,
+    ...(filters.studentId ? { studentId: filters.studentId } : {}),
+    ...(filters.bookId ? { bookId: filters.bookId } : {}),
+    ...(filters.status ? { status: filters.status as any } : {}),
+    ...(filters.overdue ? { status: "ACTIVE", dueDate: { lt: new Date() } } : {}),
+  };
+}
+
 export const bookLoanService = {
-  list(
-    schoolId: string,
-    filters: { studentId?: string; bookId?: string; status?: string; overdue?: boolean } = {},
-  ) {
+  list(schoolId: string, filters: BookLoanListFilters = {}) {
     return prisma.bookLoan.findMany({
-      where: {
-        schoolId,
-        ...(filters.studentId ? { studentId: filters.studentId } : {}),
-        ...(filters.bookId ? { bookId: filters.bookId } : {}),
-        ...(filters.status ? { status: filters.status as any } : {}),
-        ...(filters.overdue ? { status: "ACTIVE", dueDate: { lt: new Date() } } : {}),
-      },
+      where: bookLoanListWhere(schoolId, filters),
       include: loanInclude,
       orderBy: { issueDate: "desc" },
+      take: LIST_SAFETY_CAP,
     });
+  },
+
+  // Same filters as list(), a distinct method rather than an optional 3rd
+  // param — see student/staff/guardian/feeInvoice.service.ts's identical
+  // split — so every existing list() call site (the "/me" and
+  // "/student/:studentId" routes, which are naturally bounded to one
+  // student's own loans) keeps its flat-array return type with zero
+  // change, and the school-wide Loans tab opts into the
+  // { data, total } envelope by name.
+  async listPaginated(schoolId: string, filters: BookLoanListFilters, pagination: PaginationParams) {
+    const where = bookLoanListWhere(schoolId, filters);
+    const [data, total] = await Promise.all([
+      prisma.bookLoan.findMany({
+        where,
+        include: loanInclude,
+        orderBy: { issueDate: "desc" },
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.bookLoan.count({ where }),
+    ]);
+    return { data, total, page: pagination.page, pageSize: pagination.pageSize } satisfies Paginated<(typeof data)[number]>;
   },
 
   getById(schoolId: string, id: string) {

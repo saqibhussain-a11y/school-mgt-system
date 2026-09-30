@@ -18,7 +18,7 @@ async function main() {
 
   console.log(`Seeded school "${school.name}" (id: ${school.id})`);
 
-  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
 
   const admin = await prisma.platformAdmin.upsert({
     where: { email: ADMIN_EMAIL },

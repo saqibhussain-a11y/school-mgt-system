@@ -157,9 +157,14 @@ export function EditExamDialog({
                   academicSessionId={exam.academicSessionId}
                   onChanged={refetchExamTerms}
                   trigger={
-                    <button type="button" className="text-xs text-muted-foreground underline">
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs text-muted-foreground"
+                    >
                       Manage terms
-                    </button>
+                    </Button>
                   }
                 />
               </div>

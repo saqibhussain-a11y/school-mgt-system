@@ -191,21 +191,22 @@ export function ResultCardTemplateTab() {
                 draggable={false}
               />
               {markers.map((m) => (
-                <button
+                <Button
                   key={m.id}
                   type="button"
+                  variant="default"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setDraggingId(m.id);
                   }}
                   className={cn(
-                    "absolute flex -translate-x-1/2 -translate-y-1/2 cursor-move items-center rounded-full border-2 border-primary bg-primary/90 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap text-primary-foreground shadow",
+                    "absolute h-auto -translate-x-1/2 -translate-y-1/2 cursor-move items-center whitespace-nowrap rounded-full border-2 border-primary bg-primary/90 px-2 py-0.5 text-[10px] font-medium shadow hover:bg-primary/90",
                     draggingId === m.id && "z-10 ring-2 ring-ring",
                   )}
                   style={{ left: `${m.xRatio * 100}%`, top: `${m.yRatio * 100}%` }}
                 >
                   {labelForFieldKey(m.fieldKey)}
-                </button>
+                </Button>
               ))}
             </div>
           )}

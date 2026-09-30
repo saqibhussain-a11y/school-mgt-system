@@ -62,8 +62,10 @@ export function CredentialResultPanel({ result, onDone }: { result: CredentialRe
             <span className="text-muted-foreground">Temporary password</span>
             <span className="flex items-center gap-2 font-mono">
               {result.temporaryPassword}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => {
                   navigator.clipboard.writeText(result.temporaryPassword);
                   toast.success("Copied to clipboard");
@@ -71,7 +73,7 @@ export function CredentialResultPanel({ result, onDone }: { result: CredentialRe
                 aria-label="Copy password"
               >
                 <Copy className="size-3.5" />
-              </button>
+              </Button>
             </span>
           </div>
         </div>

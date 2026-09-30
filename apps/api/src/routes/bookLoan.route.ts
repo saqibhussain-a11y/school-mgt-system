@@ -6,6 +6,7 @@ import { studentGuardianService } from "../services/studentGuardian.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { parsePagination } from "../lib/pagination";
 import { LIBRARY_MANAGE_ROLES } from "./libraryBook.route";
 import { issueBookSchema, returnBookSchema } from "../validation/library.schema";
 
@@ -24,7 +25,13 @@ bookLoanRouter.use(authenticate);
 bookLoanRouter.get("/", authorize(...LIBRARY_MANAGE_ROLES), async (req, res, next) => {
   try {
     const { bookId, status, overdue } = req.query as { bookId?: string; status?: string; overdue?: string };
-    res.json(await bookLoanService.list(req.user!.schoolId, { bookId, status, overdue: overdue === "true" }));
+    const filters = { bookId, status, overdue: overdue === "true" };
+    const pagination = parsePagination(req.query as Record<string, unknown>);
+    res.json(
+      pagination
+        ? await bookLoanService.listPaginated(req.user!.schoolId, filters, pagination)
+        : await bookLoanService.list(req.user!.schoolId, filters),
+    );
   } catch (err) {
     next(err);
   }

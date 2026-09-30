@@ -20,7 +20,12 @@ export type TimetableGenerationJobResult = Awaited<ReturnType<typeof timetableGe
 // performance pass looked at synchronously (exam-datesheet generation,
 // report CSV/PDF export) turned out to be a bounded queue-shift/row-count
 // operation on inspection — fast enough that a job queue would be pure
-// overhead, so only this one moved.
+// overhead, so only this one moved. This was re-verified for
+// resultCardPdf.ts specifically (a later review flagged its per-student
+// PDFKit page rendering as a possible blocking risk): benchmarked against
+// the largest seeded class (249 students, FULL mode with image
+// compositing) at ~110ms total — still comfortably in the "sync is fine"
+// category, not moved to a queue.
 export const timetableGenerationQueue = new Queue<TimetableGenerationJobData, TimetableGenerationJobResult>(
   "timetable-generation",
   {

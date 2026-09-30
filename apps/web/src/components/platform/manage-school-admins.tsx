@@ -182,8 +182,10 @@ function ResetPasswordButton({ schoolId, adminId }: { schoolId: string; adminId:
             </p>
             <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted p-3 text-sm">
               <span className="font-mono">{password}</span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => {
                   navigator.clipboard.writeText(password);
                   toast.success("Copied to clipboard");
@@ -191,7 +193,7 @@ function ResetPasswordButton({ schoolId, adminId }: { schoolId: string; adminId:
                 aria-label="Copy password"
               >
                 <Copy className="size-3.5" />
-              </button>
+              </Button>
             </div>
           </div>
         )}

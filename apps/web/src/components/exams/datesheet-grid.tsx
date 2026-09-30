@@ -77,15 +77,17 @@ function SubjectCard({
     >
       <Card className="gap-2 p-3">
         <div className="flex items-start gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             aria-label={`Drag ${subject.subject.name} to reschedule`}
             className="mt-0.5 shrink-0 touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >
             <GripVertical className="size-4" />
-          </button>
+          </Button>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">{subject.subject.name}</div>
             <div className="text-xs text-muted-foreground">{subject.maxMarks} marks</div>

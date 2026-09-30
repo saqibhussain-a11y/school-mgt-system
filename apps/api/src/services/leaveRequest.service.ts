@@ -4,6 +4,7 @@ import { staffService } from "./staff.service";
 import { inAppNotificationService } from "./inAppNotification.service";
 import { leavePolicyService } from "./leavePolicy.service";
 import { ENTITLEMENT_LEAVE_TYPES } from "../validation/leaveRequest.schema";
+import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
 
 type TxClient = PrismaTransactionClient;
 
@@ -23,6 +24,13 @@ const leaveRequestInclude = {
   user: { select: { id: true, firstName: true, lastName: true, role: true, email: true } },
   reviewedBy: { select: { id: true, firstName: true, lastName: true } },
 };
+
+// Same backstop as student.service.ts's LIST_SAFETY_CAP — a school's full
+// leave-request history (all staff/students, all time) can't return an
+// unbounded payload on an unfiltered load.
+const LIST_SAFETY_CAP = 2000;
+
+type LeaveRequestSchoolFilters = { status?: LeaveStatus; role?: Role };
 
 // Exported for payroll.service.ts's unpaid-leave-deduction calculation —
 // same inclusive day-span math, no reason to duplicate it.
@@ -85,15 +93,49 @@ export const leaveRequestService = {
       where: { schoolId, userId },
       include: leaveRequestInclude,
       orderBy: { createdAt: "desc" },
+      take: LIST_SAFETY_CAP,
     });
   },
 
-  listForSchool(schoolId: string, filters: { status?: LeaveStatus; role?: Role } = {}) {
+  // Same filters as listForUser(), a distinct method rather than an
+  // optional 3rd param — see student/staff/guardian/feeInvoice.service.ts's
+  // identical split — so the existing listForUser() call site keeps its
+  // flat-array return type with zero change.
+  async listForUserPaginated(schoolId: string, userId: string, pagination: PaginationParams) {
+    const where = { schoolId, userId };
+    const [data, total] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where,
+        include: leaveRequestInclude,
+        orderBy: { createdAt: "desc" },
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.leaveRequest.count({ where }),
+    ]);
+    return { data, total, page: pagination.page, pageSize: pagination.pageSize } satisfies Paginated<(typeof data)[number]>;
+  },
+
+  listForSchool(schoolId: string, filters: LeaveRequestSchoolFilters = {}) {
     return prisma.leaveRequest.findMany({
       where: { schoolId, ...filters },
       include: leaveRequestInclude,
       orderBy: { createdAt: "desc" },
+      take: LIST_SAFETY_CAP,
     });
+  },
+
+  async listForSchoolPaginated(schoolId: string, filters: LeaveRequestSchoolFilters, pagination: PaginationParams) {
+    const where = { schoolId, ...filters };
+    const [data, total] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where,
+        include: leaveRequestInclude,
+        orderBy: { createdAt: "desc" },
+        ...skipTake(pagination, LIST_SAFETY_CAP),
+      }),
+      prisma.leaveRequest.count({ where }),
+    ]);
+    return { data, total, page: pagination.page, pageSize: pagination.pageSize } satisfies Paginated<(typeof data)[number]>;
   },
 
   getById(schoolId: string, id: string) {

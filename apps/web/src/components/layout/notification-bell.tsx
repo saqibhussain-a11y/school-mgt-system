@@ -39,12 +39,15 @@ export function NotificationBell() {
         <div className="flex items-center justify-between px-1.5 py-1">
           <span className="text-xs font-medium text-muted-foreground">Notifications</span>
           {unreadCount > 0 && (
-            <button
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
               onClick={() => markAllRead()}
-              className="text-xs font-medium text-primary hover:underline"
+              className="h-auto p-0 text-xs font-medium"
             >
               Mark all read
-            </button>
+            </Button>
           )}
         </div>
         <DropdownMenuSeparator />
