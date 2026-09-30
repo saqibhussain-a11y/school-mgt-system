@@ -6,5 +6,6 @@ export const updatePlanSchema = z
     maxStudents: z.number().int().positive().optional(),
     maxStaff: z.number().int().positive().optional(),
     priceMonthly: z.number().int().nonnegative().optional(),
+    canCustomizeModuleRoles: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field must be provided");

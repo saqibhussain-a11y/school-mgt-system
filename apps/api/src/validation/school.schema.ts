@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Role } from "@sms/db";
 import { PLAN_KEYS } from "../config/plans";
 import { MODULE_KEYS } from "../config/modules";
 
@@ -33,6 +34,15 @@ export const createSchoolAdminSchema = z.object({
 
 export const updateSchoolModulesSchema = z.object({
   enabledModules: z.array(z.enum(MODULE_KEYS)),
+});
+
+// School-Admin-facing (narrower than updateSchoolModulesSchema above, which
+// is Platform-Admin-only on/off) — the ceiling/SCHOOL_ADMIN-floor checks
+// happen server-side in schoolService.updateModuleRoleAccess, not here;
+// this only validates shape.
+export const updateModuleRoleAccessSchema = z.object({
+  module: z.enum(MODULE_KEYS),
+  roles: z.array(z.nativeEnum(Role)).min(1),
 });
 
 export const updateSchoolProfileSchema = z.object({

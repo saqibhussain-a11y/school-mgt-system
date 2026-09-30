@@ -6,6 +6,7 @@ import { studentGuardianService } from "../services/studentGuardian.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { requireModule, requireModuleRoleAccess } from "../lib/modules";
 import { LIBRARY_MANAGE_ROLES } from "./libraryBook.route";
 import { createReservationSchema } from "../validation/library.schema";
 
@@ -19,7 +20,7 @@ async function assertCanActForStudent(schoolId: string, user: { sub: string; rol
 }
 
 export const bookReservationRouter = Router();
-bookReservationRouter.use(authenticate);
+bookReservationRouter.use(authenticate, requireModule("LIBRARY"), requireModuleRoleAccess("LIBRARY"));
 
 bookReservationRouter.get("/", authorize(...LIBRARY_MANAGE_ROLES), async (req, res, next) => {
   try {

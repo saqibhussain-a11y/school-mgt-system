@@ -7,6 +7,7 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { parsePagination } from "../lib/pagination";
+import { requireModule, requireModuleRoleAccess } from "../lib/modules";
 import { LIBRARY_MANAGE_ROLES } from "./libraryBook.route";
 import { issueBookSchema, returnBookSchema } from "../validation/library.schema";
 
@@ -20,7 +21,7 @@ async function assertCanViewStudentLibrary(schoolId: string, user: { sub: string
 }
 
 export const bookLoanRouter = Router();
-bookLoanRouter.use(authenticate);
+bookLoanRouter.use(authenticate, requireModule("LIBRARY"), requireModuleRoleAccess("LIBRARY"));
 
 bookLoanRouter.get("/", authorize(...LIBRARY_MANAGE_ROLES), async (req, res, next) => {
   try {

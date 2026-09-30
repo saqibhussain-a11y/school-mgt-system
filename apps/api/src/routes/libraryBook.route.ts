@@ -4,12 +4,13 @@ import { libraryBookService } from "../services/libraryBook.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { requireModule, requireModuleRoleAccess } from "../lib/modules";
 import { createBookSchema, updateBookSchema } from "../validation/library.schema";
 
 export const LIBRARY_MANAGE_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL, Role.LIBRARIAN];
 
 export const libraryBookRouter = Router();
-libraryBookRouter.use(authenticate);
+libraryBookRouter.use(authenticate, requireModule("LIBRARY"), requireModuleRoleAccess("LIBRARY"));
 
 libraryBookRouter.get("/", async (req, res, next) => {
   try {

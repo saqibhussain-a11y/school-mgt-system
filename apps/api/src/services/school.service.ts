@@ -11,6 +11,8 @@ import { platformAuditLogService } from "./platformAuditLog.service";
 import { passwordResetService } from "./passwordReset.service";
 import { getOrSet, invalidate } from "../lib/cache";
 import type { PlanKey } from "../config/plans";
+import { MODULE_CEILING_ROLES, type ModuleKey } from "../config/modules";
+import { planService } from "./plan.service";
 
 type CredentialMode = "ADMIN_SET" | "SELF_SERVICE";
 
@@ -38,6 +40,82 @@ export const schoolService = {
       });
       return school?.enabledModules ?? [];
     });
+  },
+
+  // Read by requireModuleRoleAccess() on every gated request for a module
+  // that has one — a module missing from the stored JSON (including a null
+  // column) falls back to its fixed ceiling, so this never returns more
+  // than MODULE_CEILING_ROLES[moduleKey] allows, only ever a subset of it.
+  getEffectiveModuleRoles(schoolId: string, moduleKey: ModuleKey) {
+    return getOrSet(`school:module-role-access:${schoolId}:${moduleKey}`, 30, async () => {
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { moduleRoleOverrides: true },
+      });
+      const overrides = (school?.moduleRoleOverrides ?? null) as Partial<Record<ModuleKey, Role[]>> | null;
+      return overrides?.[moduleKey] ?? MODULE_CEILING_ROLES[moduleKey];
+    });
+  },
+
+  // Enabled AND this role isn't excluded by an override — what /api/me
+  // exposes so the frontend nav (visibleNavItems in nav-config.ts) can
+  // filter module-gated items with a single membership check instead of
+  // re-deriving enablement + role-access itself.
+  async getAccessibleModules(schoolId: string, role: Role) {
+    const enabledModules = (await this.getEnabledModules(schoolId)) as ModuleKey[];
+    const checks = await Promise.all(
+      enabledModules.map(async (key) => ({ key, allowed: (await this.getEffectiveModuleRoles(schoolId, key)).includes(role) })),
+    );
+    return checks.filter((c) => c.allowed).map((c) => c.key);
+  },
+
+  // The full picture for the school's own Settings -> Feature Modules editor
+  // — ceiling + current effective roles + whether their plan even allows
+  // editing it, per module.
+  async getModuleAccessSummary(schoolId: string) {
+    const [school, canCustomize] = await Promise.all([
+      prisma.school.findUnique({ where: { id: schoolId }, select: { enabledModules: true, moduleRoleOverrides: true } }),
+      planService.canCustomizeModuleRoles(schoolId),
+    ]);
+    const enabledModules = school?.enabledModules ?? [];
+    const overrides = (school?.moduleRoleOverrides ?? null) as Partial<Record<ModuleKey, Role[]>> | null;
+
+    return {
+      canCustomize,
+      modules: (Object.keys(MODULE_CEILING_ROLES) as ModuleKey[]).map((key) => ({
+        key,
+        enabled: enabledModules.includes(key),
+        ceilingRoles: MODULE_CEILING_ROLES[key],
+        effectiveRoles: overrides?.[key] ?? MODULE_CEILING_ROLES[key],
+      })),
+    };
+  },
+
+  // School-Admin-facing write, gated on their plan's canCustomizeModuleRoles
+  // — narrower than updateModules() below (Platform-Admin-only, turns a
+  // module on/off entirely), this only reshuffles which roles see a module
+  // that's already on. Server-side-enforced ceiling + SCHOOL_ADMIN floor, so
+  // this can never be used to lock every admin out or grant a role
+  // something MODULE_CEILING_ROLES doesn't already allow.
+  async updateModuleRoleAccess(schoolId: string, moduleKey: ModuleKey, roles: Role[]) {
+    if (!(await planService.canCustomizeModuleRoles(schoolId))) {
+      throw new HttpError(403, "Your plan doesn't include custom module permissions.");
+    }
+    const ceiling = MODULE_CEILING_ROLES[moduleKey];
+    if (roles.some((r) => !ceiling.includes(r))) {
+      throw new HttpError(400, "One or more roles aren't allowed to access this module.");
+    }
+    if (!roles.includes(Role.SCHOOL_ADMIN)) {
+      throw new HttpError(400, "School Admin can't be removed from a module's access list.");
+    }
+
+    const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { moduleRoleOverrides: true } });
+    const overrides = ((school?.moduleRoleOverrides ?? {}) as Partial<Record<ModuleKey, Role[]>>) ?? {};
+    const nextOverrides = { ...overrides, [moduleKey]: roles };
+
+    await prisma.school.update({ where: { id: schoolId }, data: { moduleRoleOverrides: nextOverrides } });
+    await invalidate(`school:module-role-access:${schoolId}:${moduleKey}`);
+    return { key: moduleKey, effectiveRoles: roles };
   },
 
   listForLogin() {

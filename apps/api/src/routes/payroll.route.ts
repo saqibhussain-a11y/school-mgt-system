@@ -4,7 +4,7 @@ import { payrollService } from "../services/payroll.service";
 import { staffService } from "../services/staff.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
-import { requireModule } from "../lib/modules";
+import { requireModule, requireModuleRoleAccess } from "../lib/modules";
 import { HttpError } from "../middleware/errorHandler";
 import { parsePagination } from "../lib/pagination";
 import {
@@ -26,7 +26,7 @@ async function requireStaff(schoolId: string, userId: string) {
 }
 
 export const payrollRouter = Router();
-payrollRouter.use(authenticate, requireModule("PAYROLL"));
+payrollRouter.use(authenticate, requireModule("PAYROLL"), requireModuleRoleAccess("PAYROLL"));
 
 payrollRouter.get("/me", async (req, res, next) => {
   try {

@@ -132,12 +132,14 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/library",
     icon: Library,
     roles: ["SCHOOL_ADMIN", "PRINCIPAL", "LIBRARIAN", "STUDENT", "PARENT"],
+    module: "LIBRARY",
   },
   {
     label: "Transport",
     href: "/dashboard/transport",
     icon: Bus,
     roles: ["SCHOOL_ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER", "STUDENT", "PARENT"],
+    module: "TRANSPORT",
   },
   {
     label: "Reports",
@@ -147,9 +149,9 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export function visibleNavItems(role: UserRole, enabledModules: string[] = []): NavItem[] {
+export function visibleNavItems(role: UserRole, accessibleModules: string[] = []): NavItem[] {
   function passes(item: NavItem) {
-    return (!item.roles || item.roles.includes(role)) && (!item.module || enabledModules.includes(item.module));
+    return (!item.roles || item.roles.includes(role)) && (!item.module || accessibleModules.includes(item.module));
   }
   return NAV_ITEMS.filter(passes).map((item) => {
     if (!item.children) return item;

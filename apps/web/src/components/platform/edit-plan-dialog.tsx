@@ -3,6 +3,7 @@
 import { useState, type FormEvent, type ReactElement } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,6 +32,7 @@ export function EditPlanDialog({
   const [priceMonthly, setPriceMonthly] = useState(String(plan.priceMonthly));
   const [maxStudents, setMaxStudents] = useState(String(plan.maxStudents));
   const [maxStaff, setMaxStaff] = useState(String(plan.maxStaff));
+  const [canCustomizeModuleRoles, setCanCustomizeModuleRoles] = useState(plan.canCustomizeModuleRoles);
   const [submitting, setSubmitting] = useState(false);
 
   function resetToPlan() {
@@ -38,6 +40,7 @@ export function EditPlanDialog({
     setPriceMonthly(String(plan.priceMonthly));
     setMaxStudents(String(plan.maxStudents));
     setMaxStaff(String(plan.maxStaff));
+    setCanCustomizeModuleRoles(plan.canCustomizeModuleRoles);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -51,6 +54,7 @@ export function EditPlanDialog({
           priceMonthly: Number(priceMonthly),
           maxStudents: Number(maxStudents),
           maxStaff: Number(maxStaff),
+          canCustomizeModuleRoles,
         }),
       });
       toast.success(`${label} plan updated`);
@@ -123,6 +127,13 @@ export function EditPlanDialog({
               />
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={canCustomizeModuleRoles}
+              onCheckedChange={(v) => setCanCustomizeModuleRoles(v === true)}
+            />
+            Schools on this plan can customize which roles see each enabled module
+          </label>
           <DialogFooter>
             <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Save plan"}

@@ -32,9 +32,14 @@ export interface MeDto {
   lastName: string;
   avatarUrl: string | null;
   // Optional feature modules Platform Admin has turned on for this school
-  // (e.g. "PAYROLL") — frontend nav/route guards check membership in this
-  // list before showing a gated module.
+  // (e.g. "PAYROLL") — used only to render the Feature Modules settings
+  // list (enabled vs not), not for nav filtering (see accessibleModules).
   enabledModules: string[];
+  // enabledModules further narrowed to just the ones this user's role is
+  // allowed to see (school-configurable per module, see the Feature
+  // Modules settings tab) — this is what nav-config.ts's visibleNavItems()
+  // actually filters on for module-gated nav items.
+  accessibleModules: string[];
 }
 
 export interface ProfileDto {

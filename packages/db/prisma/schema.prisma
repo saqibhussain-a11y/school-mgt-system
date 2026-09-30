@@ -30,6 +30,18 @@ model School {
   // list and apps/api/src/lib/modules.ts's requireModule() for server-side
   // enforcement. Empty by default: modules are opt-in, not opt-out.
   enabledModules              String[]  @default([])
+  // Per-module role restriction, narrower than each module's fixed role
+  // ceiling (apps/api/src/config/modules.ts's MODULE_CEILING_ROLES) — e.g.
+  // a school without a dedicated librarian can restrict "LIBRARY" down to
+  // just SCHOOL_ADMIN/PRINCIPAL. Shape: Partial<Record<ModuleKey, Role[]>>.
+  // A module missing from this JSON (including when the whole column is
+  // null) falls back to its ceiling — additive-restriction only, so an
+  // empty/absent value never grants more than the ceiling already allows.
+  // Editable by the school's own admin only when their Plan's
+  // canCustomizeModuleRoles is true (see school.service.ts's
+  // updateModuleRoleAccess); enforcement itself applies regardless of plan,
+  // so a later downgrade doesn't silently widen access back out.
+  moduleRoleOverrides         Json?
   createdAt                   DateTime  @default(now())
   updatedAt                   DateTime  @updatedAt
 
@@ -48,6 +60,12 @@ model Plan {
   maxStudents  Int
   maxStaff     Int
   priceMonthly Int
+  // Gates whether a school on this plan can edit its own
+  // School.moduleRoleOverrides (Settings -> Feature Modules) — off by
+  // default, so per-role module customization is a plan-tier upsell rather
+  // than a free-for-all. Doesn't affect enforcement of an override already
+  // saved; see the note on School.moduleRoleOverrides.
+  canCustomizeModuleRoles Boolean @default(false)
   updatedAt    DateTime @updatedAt
 }
 

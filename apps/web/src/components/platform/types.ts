@@ -13,16 +13,21 @@ export interface Plan {
   maxStudents: number;
   maxStaff: number;
   priceMonthly: number;
+  // Gates whether a school on this plan can customize per-module role
+  // access from its own Settings -> Feature Modules tab.
+  canCustomizeModuleRoles: boolean;
   updatedAt: string;
 }
 
 // Mirrors apps/api/src/config/modules.ts's MODULE_KEYS — fixed set, adding
 // one needs code changes; whether a given school HAS a key is DB-editable
 // (School.enabledModules) via the Platform Admin school detail page.
-export const MODULE_KEYS = ["PAYROLL"] as const;
+export const MODULE_KEYS = ["PAYROLL", "LIBRARY", "TRANSPORT"] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 export const MODULE_LABELS: Record<ModuleKey, string> = {
   PAYROLL: "Payroll",
+  LIBRARY: "Library",
+  TRANSPORT: "Transport",
 };
 
 export interface PlatformSchool {

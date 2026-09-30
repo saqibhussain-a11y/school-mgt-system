@@ -37,8 +37,9 @@ meRouter.get("/", authenticate, async (req, res, next) => {
     if (!user) {
       throw new HttpError(404, "User not found");
     }
-    const [enabledModules, avatarUrl] = await Promise.all([
+    const [enabledModules, accessibleModules, avatarUrl] = await Promise.all([
       schoolService.getEnabledModules(user.schoolId),
+      schoolService.getAccessibleModules(user.schoolId, user.role),
       userService.avatarUrl(user),
     ]);
     res.json({
@@ -48,6 +49,7 @@ meRouter.get("/", authenticate, async (req, res, next) => {
       schoolId: user.schoolId,
       firstName: user.firstName,
       lastName: user.lastName,
+      accessibleModules,
       avatarUrl,
       enabledModules,
     });

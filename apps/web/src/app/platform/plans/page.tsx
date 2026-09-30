@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditPlanDialog } from "@/components/platform/edit-plan-dialog";
@@ -36,6 +37,7 @@ export default function PlatformPlansPage() {
                 <TableHead>Price / month</TableHead>
                 <TableHead>Max students</TableHead>
                 <TableHead>Max staff</TableHead>
+                <TableHead>Module role customization</TableHead>
                 <TableHead>Last updated</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -47,6 +49,11 @@ export default function PlatformPlansPage() {
                   <TableCell>{formatCurrency(plan.priceMonthly)}</TableCell>
                   <TableCell>{plan.maxStudents.toLocaleString()}</TableCell>
                   <TableCell>{plan.maxStaff.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Badge variant={plan.canCustomizeModuleRoles ? "default" : "outline"}>
+                      {plan.canCustomizeModuleRoles ? "Included" : "Not included"}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{formatRelativeTime(plan.updatedAt)}</TableCell>
                   <TableCell>
                     <EditPlanDialog

@@ -13,10 +13,24 @@ export const planService = {
     return runAsPlatform(() => prisma.plan.findMany({ orderBy: { priceMonthly: "asc" } }));
   },
 
+  // Read by schoolService.updateModuleRoleAccess() to gate the write side of
+  // per-module role customization — a school's plan, not the school itself,
+  // decides whether that editor is available at all.
+  async canCustomizeModuleRoles(schoolId: string) {
+    const plan = await getSchoolPlan(prisma, schoolId);
+    return plan?.canCustomizeModuleRoles ?? false;
+  },
+
   async update(
     platformAdminId: string,
     key: string,
-    data: Partial<{ label: string; maxStudents: number; maxStaff: number; priceMonthly: number }>,
+    data: Partial<{
+      label: string;
+      maxStudents: number;
+      maxStaff: number;
+      priceMonthly: number;
+      canCustomizeModuleRoles: boolean;
+    }>,
   ) {
     return runAsPlatform(async () => {
       const existing = await prisma.plan.findUnique({ where: { key } });

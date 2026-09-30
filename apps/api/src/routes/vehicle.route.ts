@@ -4,6 +4,7 @@ import { vehicleService } from "../services/vehicle.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { requireModule, requireModuleRoleAccess } from "../lib/modules";
 import { createVehicleSchema, updateVehicleSchema } from "../validation/transport.schema";
 
 export const TRANSPORT_MANAGE_ROLES: Role[] = [
@@ -13,7 +14,12 @@ export const TRANSPORT_MANAGE_ROLES: Role[] = [
 ];
 
 export const vehicleRouter = Router();
-vehicleRouter.use(authenticate, authorize(...TRANSPORT_MANAGE_ROLES));
+vehicleRouter.use(
+  authenticate,
+  requireModule("TRANSPORT"),
+  requireModuleRoleAccess("TRANSPORT"),
+  authorize(...TRANSPORT_MANAGE_ROLES),
+);
 
 vehicleRouter.get("/", async (req, res, next) => {
   try {

@@ -3,11 +3,17 @@ import { routeService } from "../services/route.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
+import { requireModule, requireModuleRoleAccess } from "../lib/modules";
 import { TRANSPORT_MANAGE_ROLES } from "./vehicle.route";
 import { createRouteSchema, updateRouteSchema } from "../validation/transport.schema";
 
 export const transportRouteRouter = Router();
-transportRouteRouter.use(authenticate, authorize(...TRANSPORT_MANAGE_ROLES));
+transportRouteRouter.use(
+  authenticate,
+  requireModule("TRANSPORT"),
+  requireModuleRoleAccess("TRANSPORT"),
+  authorize(...TRANSPORT_MANAGE_ROLES),
+);
 
 transportRouteRouter.get("/", async (req, res, next) => {
   try {

@@ -3,7 +3,7 @@ import { Role } from "@sms/db";
 import { schoolService } from "../services/school.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
-import { updateSchoolProfileSchema } from "../validation/school.schema";
+import { updateSchoolProfileSchema, updateModuleRoleAccessSchema } from "../validation/school.schema";
 
 const PROFILE_ADMIN_ROLES = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
 
@@ -39,6 +39,33 @@ schoolRouter.patch(
   async (req, res, next) => {
     try {
       res.json(await schoolService.updateProfile(req.user!.schoolId, req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Settings -> Feature Modules: read-only for every role (so the page can
+// show "not enabled"/"enabled, here's who sees it" to anyone), edit
+// restricted to admins the same way the profile endpoints above are.
+schoolRouter.get("/me/module-access", authenticate, async (req, res, next) => {
+  try {
+    res.json(await schoolService.getModuleAccessSummary(req.user!.schoolId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+schoolRouter.patch(
+  "/me/module-access",
+  authenticate,
+  authorize(...PROFILE_ADMIN_ROLES),
+  validateBody(updateModuleRoleAccessSchema),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await schoolService.updateModuleRoleAccess(req.user!.schoolId, req.body.module, req.body.roles),
+      );
     } catch (err) {
       next(err);
     }
