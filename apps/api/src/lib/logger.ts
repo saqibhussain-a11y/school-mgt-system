@@ -7,8 +7,18 @@ import { env } from "../config/env";
 // console.log/error string with no level, timestamp, or request context).
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? (env.nodeEnv === "production" ? "info" : "debug"),
+  redact: ["req.headers.authorization", "req.headers.cookie", "*.password", "*.refreshToken"],
   transport:
     env.nodeEnv === "production"
       ? undefined
-      : { target: "pino-pretty", options: { colorize: true, translateTime: "HH:MM:ss", ignore: "pid,hostname" } },
+      : {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "HH:MM:ss",
+            // The request message already says method/url/status/time.
+            ignore: "pid,hostname,req,res,responseTime",
+            singleLine: true,
+          },
+        },
 });

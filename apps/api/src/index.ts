@@ -39,8 +39,17 @@ if (env.nodeEnv === "production") {
 // completes), so every request line carries who made it and which
 // school/tenant it belongs to, not just method+path+status.
 app.use(
-  pinoHttp({
+  pinoHttp<express.Request, express.Response>({
     logger,
+    // Default serializers dump every header, including the Bearer token.
+    serializers: {
+      req: (req) => ({ method: req.method, url: req.url }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
+    autoLogging: { ignore: (req) => req.method === "OPTIONS" },
+    customSuccessMessage: (req, res, responseTime) =>
+      `${req.method} ${req.originalUrl} ${res.statusCode} (${Math.round(responseTime)}ms)`,
+    customErrorMessage: (req, res, err) => `${req.method} ${req.originalUrl} ${res.statusCode} — ${err.message}`,
     customProps: (req) => ({
       schoolId: req.user?.schoolId,
       userId: req.user?.sub,
