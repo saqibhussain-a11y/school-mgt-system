@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PayslipsTab } from "@/components/payroll/payslips-tab";
 import { SalariesTab } from "@/components/payroll/salaries-tab";
 import { MyPayslipsView } from "@/components/payroll/my-payslips-view";
+import { ModuleUnavailable } from "@/components/shared/module-unavailable";
 import { useAuth } from "@/lib/auth-context";
 
 const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
@@ -12,6 +13,7 @@ const ADMIN_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "ACCOUNTANT"];
 export default function PayrollPage() {
   const { user } = useAuth();
   if (!user) return null;
+  if (!user.accessibleModules.includes("PAYROLL")) return <ModuleUnavailable title="Payroll" />;
 
   const isAdmin = ADMIN_ROLES.includes(user.role);
 

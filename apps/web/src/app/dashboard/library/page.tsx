@@ -6,6 +6,7 @@ import { LoansTab } from "@/components/library/loans-tab";
 import { ReservationsTab } from "@/components/library/reservations-tab";
 import { MyLibraryView } from "@/components/library/my-library-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ModuleUnavailable } from "@/components/shared/module-unavailable";
 import { useAuth } from "@/lib/auth-context";
 
 const LIBRARY_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "LIBRARIAN"];
@@ -13,6 +14,7 @@ const LIBRARY_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "LIBRARIAN"];
 export default function LibraryPage() {
   const { user } = useAuth();
   if (!user) return null;
+  if (!user.accessibleModules.includes("LIBRARY")) return <ModuleUnavailable title="Library" />;
 
   if (LIBRARY_MANAGE_ROLES.includes(user.role)) {
     return (

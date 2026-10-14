@@ -5,6 +5,7 @@ import { VehiclesTab } from "@/components/transport/vehicles-tab";
 import { RoutesTab } from "@/components/transport/routes-tab";
 import { MyTransportView } from "@/components/transport/my-transport-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ModuleUnavailable } from "@/components/shared/module-unavailable";
 import { useAuth } from "@/lib/auth-context";
 
 const TRANSPORT_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"];
@@ -12,6 +13,7 @@ const TRANSPORT_MANAGE_ROLES = ["SCHOOL_ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"
 export default function TransportPage() {
   const { user } = useAuth();
   if (!user) return null;
+  if (!user.accessibleModules.includes("TRANSPORT")) return <ModuleUnavailable title="Transport" />;
 
   if (TRANSPORT_MANAGE_ROLES.includes(user.role)) {
     return (

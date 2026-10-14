@@ -38,11 +38,12 @@ function isFresh(path: string) {
 function fetchDeduped<T>(path: string): Promise<T> {
   const existing = inFlight.get(path) as Promise<T> | undefined;
   if (existing) return existing;
-  const promise = apiFetch<T>(path).then((data) => {
-    cache.set(path, { data, timestamp: Date.now() });
-    return data;
-  });
-  promise.finally(() => inFlight.delete(path));
+  const promise = apiFetch<T>(path)
+    .then((data) => {
+      cache.set(path, { data, timestamp: Date.now() });
+      return data;
+    })
+    .finally(() => inFlight.delete(path));
   inFlight.set(path, promise);
   return promise;
 }
