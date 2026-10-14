@@ -55,18 +55,18 @@ model School {
 // key, never creating/deleting a row) — only label/limits/price are
 // DB-editable.
 model Plan {
-  key          String   @id
-  label        String
-  maxStudents  Int
-  maxStaff     Int
-  priceMonthly Int
+  key                     String   @id
+  label                   String
+  maxStudents             Int
+  maxStaff                Int
+  priceMonthly            Int
   // Gates whether a school on this plan can edit its own
   // School.moduleRoleOverrides (Settings -> Feature Modules) — off by
   // default, so per-role module customization is a plan-tier upsell rather
   // than a free-for-all. Doesn't affect enforcement of an override already
   // saved; see the note on School.moduleRoleOverrides.
-  canCustomizeModuleRoles Boolean @default(false)
-  updatedAt    DateTime @updatedAt
+  canCustomizeModuleRoles Boolean  @default(false)
+  updatedAt               DateTime @updatedAt
 }
 
 enum Role {
@@ -99,12 +99,12 @@ model PlatformAdmin {
 }
 
 model PlatformRefreshToken {
-  id        String    @id @default(cuid())
+  id              String    @id @default(cuid())
   platformAdminId String
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  tokenHash       String    @unique
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
 
   platformAdmin PlatformAdmin @relation(fields: [platformAdminId], references: [id])
 
@@ -132,20 +132,20 @@ model PlatformAuditLog {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   schoolId     String
   email        String
   passwordHash String
   role         Role
-  firstName    String   @default("")
-  lastName     String   @default("")
+  firstName    String    @default("")
+  lastName     String    @default("")
   // Defaults true for every existing flow (staff, guardians, admin-created
   // accounts) — only student admission sets this false at creation, with an
   // unusable placeholder passwordHash, so login is rejected until an admin
   // explicitly issues credentials (see student.service.ts's
   // generateCredentials). Flipped true whenever a real password is actually
   // set (admin-issued or self-service OTP claim).
-  isActivated  Boolean  @default(true)
+  isActivated  Boolean   @default(true)
   lastLoginAt  DateTime?
   // Self-service profile fields, editable by the user themselves via
   // /me/profile. For the PARENT role, Guardian.phone/address are the
@@ -155,30 +155,32 @@ model User {
   phone        String?
   address      String?
   avatarKey    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  school              School             @relation(fields: [schoolId], references: [id])
-  refreshTokens       RefreshToken[]
-  passwordResetOtps   PasswordResetOtp[]
-  student             Student?
-  staff               Staff?
-  guardian            Guardian?
-  attendanceMarked    Attendance[]       @relation("AttendanceMarkedBy")
-  announcements       Announcement[]     @relation("AnnouncementCreatedBy")
-  leaveRequests       LeaveRequest[]     @relation("LeaveRequestApplicant")
-  leaveReviews        LeaveRequest[]     @relation("LeaveRequestReviewer")
-  marksEntered        Mark[]
-  assignmentsCreated  Assignment[]       @relation("AssignmentCreatedBy")
-  submissionsGraded   Submission[]       @relation("SubmissionGradedBy")
-  notifications       Notification[]
-  feeInvoicesCreated  FeeInvoice[]       @relation("FeeInvoiceCreatedBy")
-  feePaymentsRecorded FeePayment[]       @relation("FeePaymentRecordedBy")
-  feeRefundsRecorded  FeeRefund[]        @relation("FeeRefundRecordedBy")
-  scholarshipsCreated Scholarship[]      @relation("ScholarshipCreatedBy")
-  documentsIssued     IssuedDocument[]   @relation("DocumentIssuedBy")
-  bookLoansIssued     BookLoan[]         @relation("BookLoanIssuedBy")
-  chatMessages        ChatMessage[]
+  school               School                @relation(fields: [schoolId], references: [id])
+  refreshTokens        RefreshToken[]
+  passwordResetOtps    PasswordResetOtp[]
+  student              Student?
+  staff                Staff?
+  guardian             Guardian?
+  attendanceMarked     Attendance[]          @relation("AttendanceMarkedBy")
+  announcements        Announcement[]        @relation("AnnouncementCreatedBy")
+  leaveRequests        LeaveRequest[]        @relation("LeaveRequestApplicant")
+  leaveReviews         LeaveRequest[]        @relation("LeaveRequestReviewer")
+  marksEntered         Mark[]
+  assignmentsCreated   Assignment[]          @relation("AssignmentCreatedBy")
+  submissionsGraded    Submission[]          @relation("SubmissionGradedBy")
+  diaryEntriesCreated  DiaryEntry[]          @relation("DiaryEntryCreatedBy")
+  diaryAcknowledgments DiaryAcknowledgment[]
+  notifications        Notification[]
+  feeInvoicesCreated   FeeInvoice[]          @relation("FeeInvoiceCreatedBy")
+  feePaymentsRecorded  FeePayment[]          @relation("FeePaymentRecordedBy")
+  feeRefundsRecorded   FeeRefund[]           @relation("FeeRefundRecordedBy")
+  scholarshipsCreated  Scholarship[]         @relation("ScholarshipCreatedBy")
+  documentsIssued      IssuedDocument[]      @relation("DocumentIssuedBy")
+  bookLoansIssued      BookLoan[]            @relation("BookLoanIssuedBy")
+  chatMessages         ChatMessage[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -298,6 +300,7 @@ model Section {
   attendances        Attendance[]
   teacherAssignments TeacherAssignment[]
   timetableSlots     TimetableSlot[]
+  diaryEntries       DiaryEntry[]
 
   @@unique([classId, name])
   @@index([schoolId])
@@ -496,6 +499,47 @@ model Assignment {
 
   @@index([schoolId])
   @@index([classId])
+}
+
+// A teacher's daily note to a section. studentId null = visible to the whole
+// section and its parents; set = a private remark visible only to that
+// student and their guardians.
+model DiaryEntry {
+  id              String   @id @default(cuid())
+  schoolId        String
+  sectionId       String
+  studentId       String?
+  date            DateTime @db.Date
+  content         String
+  photoKey        String?
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  section         Section               @relation(fields: [sectionId], references: [id])
+  student         Student?              @relation(fields: [studentId], references: [id])
+  createdBy       User                  @relation("DiaryEntryCreatedBy", fields: [createdByUserId], references: [id])
+  acknowledgments DiaryAcknowledgment[]
+
+  @@index([schoolId])
+  @@index([sectionId, date])
+  @@index([studentId])
+}
+
+// "Seen" receipt from a parent — one per parent account per entry, no
+// enforcement, just visibility for the teacher/admin.
+model DiaryAcknowledgment {
+  id             String   @id @default(cuid())
+  schoolId       String
+  diaryEntryId   String
+  userId         String
+  acknowledgedAt DateTime @default(now())
+
+  diaryEntry DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([diaryEntryId, userId])
+  @@index([schoolId])
 }
 
 // One submission per student per assignment — resubmission before grading
@@ -852,6 +896,7 @@ model Student {
   bookReservations    BookReservation[]
   routeAssignment     StudentRoute?
   examSeatAllocations ExamSeatAllocation[]
+  diaryEntries        DiaryEntry[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])

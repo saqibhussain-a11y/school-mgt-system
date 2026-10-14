@@ -10,6 +10,7 @@ import {
   CalendarRange,
   GraduationCap,
   NotebookPen,
+  NotebookText,
   ListTree,
   Camera,
   Wallet,
@@ -113,6 +114,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Assignments",
     href: "/dashboard/assignments",
     icon: NotebookPen,
+    roles: ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "STUDENT", "PARENT"],
+  },
+  {
+    label: "Diary",
+    href: "/dashboard/diary",
+    icon: NotebookText,
     roles: ["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "STUDENT", "PARENT"],
   },
   {
