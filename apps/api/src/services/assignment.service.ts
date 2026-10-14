@@ -1,10 +1,11 @@
-import { prisma } from "@sms/db";
+import { prisma, Role } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { gradeFor } from "../lib/grading";
 import { putObject, getDownloadUrl, deleteObject } from "../lib/storage";
 import { studentService } from "./student.service";
 import { studentGuardianService } from "./studentGuardian.service";
 import { inAppNotificationService } from "./inAppNotification.service";
+import { getAssignedClassIdsForUser } from "./teacherAssignment.service";
 
 export interface CreateAssignmentInput {
   classId: string;
@@ -32,10 +33,34 @@ function scoreFor(marksObtained: number | null, maxMarks: number) {
   return { percentage, grade: gradeFor(percentage) };
 }
 
+// null = every class in the school (admins only).
+async function viewableClassIds(schoolId: string, viewer: { sub: string; role: string }): Promise<string[] | null> {
+  switch (viewer.role) {
+    case Role.SCHOOL_ADMIN:
+    case Role.PRINCIPAL:
+      return null;
+    case Role.TEACHER:
+      return getAssignedClassIdsForUser(schoolId, viewer.sub);
+    case Role.STUDENT: {
+      const student = await studentService.getByUserId(schoolId, viewer.sub);
+      return student ? [student.classId] : [];
+    }
+    case Role.PARENT:
+      return studentGuardianService.getLinkedClassIds(schoolId, viewer.sub);
+    default:
+      throw new HttpError(403, "You do not have permission to view assignments");
+  }
+}
+
 export const assignmentService = {
-  list(schoolId: string, classId?: string) {
+  async listForViewer(schoolId: string, viewer: { sub: string; role: string }, classId?: string) {
+    const allowed = await viewableClassIds(schoolId, viewer);
+    if (classId && allowed && !allowed.includes(classId)) {
+      throw new HttpError(403, "You do not have permission to view assignments for this class");
+    }
+    const classFilter = classId ? { classId } : allowed ? { classId: { in: allowed } } : {};
     return prisma.assignment.findMany({
-      where: { schoolId, ...(classId ? { classId } : {}) },
+      where: { schoolId, ...classFilter },
       include: assignmentInclude,
       orderBy: { dueDate: "desc" },
     });

@@ -103,7 +103,7 @@ async function assertCanViewSubmission(
 assignmentRouter.get("/", async (req, res, next) => {
   try {
     const classId = req.query.classId as string | undefined;
-    res.json(await assignmentService.list(req.user!.schoolId, classId));
+    res.json(await assignmentService.listForViewer(req.user!.schoolId, req.user!, classId));
   } catch (err) {
     next(err);
   }
