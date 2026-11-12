@@ -5,6 +5,7 @@ import { studentGuardianService } from "./studentGuardian.service";
 import { bookReservationService } from "./bookReservation.service";
 import { LOAN_PERIOD_DAYS, FINE_PER_DAY, MAX_ACTIVE_LOANS_PER_STUDENT } from "../lib/libraryConstants";
 import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
+import { addDays, schoolToday, wholeDaysBetween } from "../lib/schoolTime";
 
 const loanInclude = {
   book: { select: { id: true, title: true, author: true, isbn: true } },
@@ -13,10 +14,11 @@ const loanInclude = {
   },
 };
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-function daysLate(dueDate: Date, returnDate: Date) {
-  return Math.max(0, Math.ceil((returnDate.getTime() - dueDate.getTime()) / MS_PER_DAY));
+// Calendar days past the due date in Pakistan — returning a book any time on
+// its due date is not late.
+function daysLate(dueDate: Date, returnedAt: Date) {
+  return Math.max(0, wholeDaysBetween(dueDate, schoolToday(returnedAt)));
 }
 
 // Same backstop as student.service.ts's LIST_SAFETY_CAP — a school with a
@@ -32,7 +34,7 @@ function bookLoanListWhere(schoolId: string, filters: BookLoanListFilters) {
     ...(filters.studentId ? { studentId: filters.studentId } : {}),
     ...(filters.bookId ? { bookId: filters.bookId } : {}),
     ...(filters.status ? { status: filters.status as any } : {}),
-    ...(filters.overdue ? { status: "ACTIVE", dueDate: { lt: new Date() } } : {}),
+    ...(filters.overdue ? { status: "ACTIVE", dueDate: { lt: schoolToday() } } : {}),
   };
 }
 
@@ -80,7 +82,7 @@ export const bookLoanService = {
     if (!student) throw new HttpError(404, "Student not found");
     if (student.status !== "ACTIVE") throw new HttpError(400, "Cannot issue a book to a withdrawn student");
 
-    const dueDate = new Date(Date.now() + LOAN_PERIOD_DAYS * MS_PER_DAY);
+    const dueDate = addDays(schoolToday(), LOAN_PERIOD_DAYS);
 
     let loan;
     try {
@@ -169,7 +171,7 @@ export const bookLoanService = {
   async remind(schoolId: string, id: string) {
     const loan = await prisma.bookLoan.findFirst({ where: { id, schoolId }, include: loanInclude });
     if (!loan) throw new HttpError(404, "Loan not found");
-    if (loan.status !== "ACTIVE" || loan.dueDate >= new Date()) {
+    if (loan.status !== "ACTIVE" || loan.dueDate >= schoolToday()) {
       throw new HttpError(400, "This loan is not overdue");
     }
 

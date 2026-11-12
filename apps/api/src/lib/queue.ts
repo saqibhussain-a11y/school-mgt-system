@@ -1,5 +1,6 @@
 import { Queue } from "bullmq";
 import { redis } from "./redis";
+import { env } from "../config/env";
 import type { timetableGeneratorService } from "../services/timetableGenerator.service";
 
 export interface TimetableGenerationJobData {
@@ -37,6 +38,34 @@ export const timetableGenerationQueue = new Queue<TimetableGenerationJobData, Ti
   },
 );
 
+export interface EmailJobData {
+  to: string;
+  subject: string;
+  html: string;
+}
+
+export const emailQueue = new Queue<EmailJobData>("email", {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: "exponential", delay: 30_000 },
+    removeOnComplete: { age: 3600 },
+    removeOnFail: { age: 7 * 86_400 },
+  },
+});
+
+export async function queueEmails(emails: EmailJobData[]) {
+  // Tests run without the worker, so queued jobs would pile up and later be
+  // sent by a dev server to throwaway test addresses.
+  if (env.nodeEnv === "test" || emails.length === 0) return;
+  await emailQueue.addBulk(emails.map((data) => ({ name: "send", data })));
+}
+
+export const scheduledTasksQueue = new Queue("scheduled-tasks", {
+  connection: redis,
+  defaultJobOptions: { removeOnComplete: { count: 50 }, removeOnFail: { count: 50 } },
+});
+
 export async function closeQueues() {
-  await timetableGenerationQueue.close();
+  await Promise.all([timetableGenerationQueue.close(), emailQueue.close(), scheduledTasksQueue.close()]);
 }

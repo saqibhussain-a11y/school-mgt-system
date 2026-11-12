@@ -21,6 +21,59 @@ export function toDateInputValue(value: string | Date) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+// Every school on the platform is in Pakistan — "today" and clock times
+// follow Pakistan Standard Time whatever the viewer's device is set to.
+export const SCHOOL_TIME_ZONE = "Asia/Karachi";
+
+const schoolDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: SCHOOL_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+// "YYYY-MM-DD" for <input type="date">
+export function schoolTodayInputValue() {
+  return schoolDateFormatter.format(new Date());
+}
+
+// "YYYY-MM" for <input type="month">
+export function schoolMonthInputValue() {
+  return schoolTodayInputValue().slice(0, 7);
+}
+
+export function formatSchoolTime(value: string | Date | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleTimeString("en-PK", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: SCHOOL_TIME_ZONE,
+  });
+}
+
+// Date-only values are stored at UTC midnight; format them in UTC so the
+// calendar day never shifts.
+export function formatCalendarDate(value: string | Date) {
+  return new Date(value).toLocaleDateString("en-PK", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+// "13:30" → "1:30 PM"
+export function formatClockTime(hhmm: string | null) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(":").map(Number);
+  return new Date(Date.UTC(2000, 0, 1, h, m)).toLocaleTimeString("en-PK", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
 // Fixed to PKR/en-PK regardless of the viewer's own browser locale — this
 // is the business's one operating currency, not something that should
 // change per visitor.

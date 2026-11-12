@@ -1,6 +1,7 @@
 import { prisma, type PrismaTransactionClient } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { gradeFor } from "../lib/grading";
+import { schoolToday } from "../lib/schoolTime";
 
 type TxClient = PrismaTransactionClient;
 
@@ -202,8 +203,7 @@ export const examService = {
   // (leave/fee/library). Deliberately informational only: a passed
   // deadline never blocks marks entry, it just surfaces here.
   async listOverdueMarksEntry(schoolId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = schoolToday();
     const exams = await prisma.exam.findMany({
       where: { schoolId, marksDeadline: { lt: today } },
       include: { class: { select: { name: true } }, examSubjects: true },

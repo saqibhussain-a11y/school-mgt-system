@@ -9,17 +9,17 @@ datasource db {
 // One row today ("School #1"), but every tenant-scoped table below already
 // carries schoolId — see the SaaS conversion plan in the master doc (Section 5/8.7).
 model School {
-  id                          String    @id @default(cuid())
+  id                          String      @id @default(cuid())
   name                        String
-  subdomain                   String    @unique
+  subdomain                   String      @unique
   // Editable by the school's own SCHOOL_ADMIN/PRINCIPAL via the Settings ->
   // School Profile tab (school.route.ts's GET/PATCH /me) — unlike
   // subdomain/subscriptionPlan/subscriptionStatus, which stay Platform-Admin-only.
   address                     String?
   contactEmail                String?
   contactPhone                String?
-  subscriptionPlan            String    @default("STARTER")
-  subscriptionStatus          String    @default("active")
+  subscriptionPlan            String      @default("STARTER")
+  subscriptionStatus          String      @default("active")
   // Set whenever subscriptionStatus actually changes (not on every update
   // call) — powers the "past-due for N days" Needs Attention alert, which
   // otherwise has no way to know how long a school has been in that state.
@@ -29,7 +29,7 @@ model School {
   // (e.g. "PAYROLL") — see apps/api/src/config/modules.ts for the fixed key
   // list and apps/api/src/lib/modules.ts's requireModule() for server-side
   // enforcement. Empty by default: modules are opt-in, not opt-out.
-  enabledModules              String[]  @default([])
+  enabledModules              String[]    @default([])
   // Per-module role restriction, narrower than each module's fixed role
   // ceiling (apps/api/src/config/modules.ts's MODULE_CEILING_ROLES) — e.g.
   // a school without a dedicated librarian can restrict "LIBRARY" down to
@@ -42,8 +42,12 @@ model School {
   // updateModuleRoleAccess); enforcement itself applies regardless of plan,
   // so a later downgrade doesn't silently widen access back out.
   moduleRoleOverrides         Json?
-  createdAt                   DateTime  @default(now())
-  updatedAt                   DateTime  @updatedAt
+  // Days the school is open. Sunday is always off (DayOfWeek has no SUNDAY).
+  // Student attendance can't be marked on other days, and staff aren't
+  // counted absent on them.
+  workingDays                 DayOfWeek[] @default([MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY])
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
 
   users User[]
 }
@@ -1053,6 +1057,8 @@ model StaffAttendanceSettings {
   officeLat           Float?
   officeLng           Float?
   radiusMeters        Int      @default(200)
+  // false = out-of-radius check-ins are saved but flagged; true = refused.
+  blockOutsideRadius  Boolean  @default(false)
   checkInWindowStart  String?
   checkInWindowEnd    String?
   checkOutWindowStart String?
@@ -1071,22 +1077,24 @@ model StaffAttendanceSettings {
 // per the confirmed design (GPS drifts 50-100m+ indoors; a hard block risks
 // locking out a legitimately-present teacher).
 model StaffAttendance {
-  id               String    @id @default(cuid())
-  schoolId         String
-  staffId          String
-  date             DateTime  @db.Date
-  checkInAt        DateTime?
-  checkInLat       Float?
-  checkInLng       Float?
-  checkInPhotoKey  String?
-  checkInFlagged   Boolean   @default(false)
-  checkOutAt       DateTime?
-  checkOutLat      Float?
-  checkOutLng      Float?
-  checkOutPhotoKey String?
-  checkOutFlagged  Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                     String    @id @default(cuid())
+  schoolId               String
+  staffId                String
+  date                   DateTime  @db.Date
+  checkInAt              DateTime?
+  checkInLat             Float?
+  checkInLng             Float?
+  checkInPhotoKey        String?
+  checkInFlagged         Boolean   @default(false)
+  checkOutAt             DateTime?
+  checkOutLat            Float?
+  checkOutLng            Float?
+  checkOutPhotoKey       String?
+  checkOutFlagged        Boolean   @default(false)
+  // Set when the "you haven't checked out" reminder goes out, so it's sent once.
+  checkOutReminderSentAt DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   staff Staff @relation(fields: [staffId], references: [id])
 

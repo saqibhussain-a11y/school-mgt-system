@@ -1,4 +1,5 @@
 import { Role, LeaveStatus, prisma } from "@sms/db";
+import { addDays, schoolToday } from "../lib/schoolTime";
 import { announcementService, buildAnnouncementViewer } from "./announcement.service";
 import { attendanceService } from "./attendance.service";
 import { studentGuardianService } from "./studentGuardian.service";
@@ -117,16 +118,8 @@ const STAFF_ROLES: Role[] = [
   Role.TRANSPORT_MANAGER,
 ];
 
-function startOfDay(date: Date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 function daysAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return startOfDay(d);
+  return addDays(schoolToday(), -n);
 }
 
 export const dashboardService = {
@@ -141,7 +134,7 @@ export const dashboardService = {
         prisma.student.count({ where: { schoolId, status: "ACTIVE" } }),
         prisma.staff.count({ where: { schoolId, status: "ACTIVE" } }),
         prisma.class.count({ where: { schoolId } }),
-        attendanceService.getSchoolSummary(schoolId, startOfDay(new Date()), startOfDay(new Date())),
+        attendanceService.getSchoolSummary(schoolId, schoolToday(), schoolToday()),
       ]);
 
       const widgets: Record<string, unknown> = {
@@ -174,7 +167,7 @@ export const dashboardService = {
         const [activeLoans, overdueLoans, pendingReservations] = await Promise.all([
           prisma.bookLoan.count({ where: { schoolId, status: "ACTIVE" } }),
           prisma.bookLoan.count({
-            where: { schoolId, status: "ACTIVE", dueDate: { lt: startOfDay(new Date()) } },
+            where: { schoolId, status: "ACTIVE", dueDate: { lt: schoolToday() } },
           }),
           prisma.bookReservation.count({ where: { schoolId, status: "PENDING" } }),
         ]);
@@ -199,7 +192,7 @@ export const dashboardService = {
         include: { class: { select: { name: true } }, section: { select: { name: true } } },
       });
       const summary = student
-        ? await attendanceService.getSummaryForStudent(schoolId, student.id, daysAgo(30), startOfDay(new Date()))
+        ? await attendanceService.getSummaryForStudent(schoolId, student.id, daysAgo(30), schoolToday())
         : { totalDays: 0, percentage: 0, breakdown: {} };
 
       return {
@@ -224,7 +217,7 @@ export const dashboardService = {
             schoolId,
             child.id,
             daysAgo(30),
-            startOfDay(new Date()),
+            schoolToday(),
           );
           return {
             studentId: child.id,

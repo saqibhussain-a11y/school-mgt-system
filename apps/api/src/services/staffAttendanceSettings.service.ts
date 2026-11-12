@@ -4,6 +4,7 @@ export interface StaffAttendanceSettingsUpdate {
   officeLat?: number | null;
   officeLng?: number | null;
   radiusMeters?: number;
+  blockOutsideRadius?: boolean;
   checkInWindowStart?: string | null;
   checkInWindowEnd?: string | null;
   checkOutWindowStart?: string | null;

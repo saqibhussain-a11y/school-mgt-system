@@ -6,7 +6,8 @@ const timeField = z.string().regex(TIME_RE, "Expected HH:mm").nullable().optiona
 export const updateStaffAttendanceSettingsSchema = z.object({
   officeLat: z.coerce.number().min(-90).max(90).nullable().optional(),
   officeLng: z.coerce.number().min(-180).max(180).nullable().optional(),
-  radiusMeters: z.coerce.number().int().positive().max(50_000).optional(),
+  radiusMeters: z.coerce.number().int().min(20, "Radius must be at least 20 m").max(50_000).optional(),
+  blockOutsideRadius: z.boolean().optional(),
   checkInWindowStart: timeField,
   checkInWindowEnd: timeField,
   checkOutWindowStart: timeField,

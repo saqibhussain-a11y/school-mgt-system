@@ -25,6 +25,7 @@ import {
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { schoolTodayInputValue } from "@/lib/format";
 import type { SchoolClass } from "@/components/academics/classes-tab";
 import type { StudentSummary } from "@/components/students/types";
 
@@ -48,10 +49,6 @@ interface AttendanceRecord {
 
 const STATUSES = ["PRESENT", "ABSENT", "HALF_DAY", "LEAVE"];
 const STATUS_ITEMS = STATUSES.map((s) => ({ value: s, label: s.replace("_", " ") }));
-
-function todayInputValue() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 // Split out and memoized so editing one student's status/remarks doesn't
 // re-render every other row in the section — the parent's `drafts` state is
@@ -120,7 +117,7 @@ export function MarkAttendanceTab() {
 
   const [classId, setClassId] = useState("");
   const [sectionId, setSectionId] = useState("");
-  const [date, setDate] = useState(todayInputValue());
+  const [date, setDate] = useState(schoolTodayInputValue);
 
   useEffect(() => {
     if (!classId && classes.length > 0) setClassId(classes[0].id);
@@ -177,11 +174,15 @@ export function MarkAttendanceTab() {
         status: d.status,
         remarks: d.remarks || undefined,
       }));
-      await apiFetch("/api/attendance", {
+      const result = await apiFetch<{ parentsNotified: number }>("/api/attendance", {
         method: "POST",
         body: JSON.stringify({ classId, sectionId, date, records }),
       });
-      toast.success("Attendance saved");
+      toast.success(
+        result.parentsNotified > 0
+          ? `Attendance saved · ${result.parentsNotified} parent${result.parentsNotified === 1 ? "" : "s"} notified`
+          : "Attendance saved",
+      );
       refetchExisting();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to save attendance");
@@ -237,7 +238,13 @@ export function MarkAttendanceTab() {
         </div>
         <div className="w-48">
           <Label className="mb-2 block text-xs text-muted-foreground">Date</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input
+            type="date"
+            aria-label="Date"
+            max={schoolTodayInputValue()}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
       </div>
 

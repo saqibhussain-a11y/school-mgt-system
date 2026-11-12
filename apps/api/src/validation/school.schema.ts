@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Role } from "@sms/db";
+import { DayOfWeek, Role } from "@sms/db";
 import { PLAN_KEYS } from "../config/plans";
 import { MODULE_KEYS } from "../config/modules";
 
@@ -50,4 +50,5 @@ export const updateSchoolProfileSchema = z.object({
   address: z.string().max(500).nullable().optional(),
   contactEmail: z.union([z.string().email(), z.literal("")]).nullable().optional(),
   contactPhone: z.string().max(30).nullable().optional(),
+  workingDays: z.array(z.nativeEnum(DayOfWeek)).min(1, "Pick at least one school day").optional(),
 });

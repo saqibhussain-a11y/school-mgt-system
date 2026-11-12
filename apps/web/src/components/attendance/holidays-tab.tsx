@@ -28,6 +28,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
+import { SchoolDaysCard } from "./school-days-card";
 
 interface Holiday {
   id: string;
@@ -71,6 +72,7 @@ export function HolidaysTab({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <SchoolDaysCard canManage={canManage} />
       {canManage && (
         <div className="flex justify-end">
           <Dialog open={open} onOpenChange={setOpen}>

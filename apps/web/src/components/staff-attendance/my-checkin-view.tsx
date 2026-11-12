@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApi } from "@/lib/use-api";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { formatDate } from "@/lib/format";
+import { formatCalendarDate, formatClockTime, formatSchoolTime } from "@/lib/format";
 import { CameraCapture } from "./camera-capture";
 
 interface TodayRow {
@@ -28,24 +29,46 @@ interface HistoryRow {
   checkOutFlagged: boolean;
 }
 
-function formatTime(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+interface Settings {
+  officeLat: number | null;
+  radiusMeters: number;
+  blockOutsideRadius: boolean;
+  checkInWindowStart: string | null;
+  checkInWindowEnd: string | null;
+  checkOutWindowStart: string | null;
+  checkOutWindowEnd: string | null;
+}
+
+function windowLabel(start: string | null, end: string | null) {
+  return start && end ? `${formatClockTime(start)} – ${formatClockTime(end)}` : "Any time";
+}
+
+function OutsideRange() {
+  return (
+    <Badge variant="secondary" className="ml-2 gap-1">
+      <AlertTriangle className="size-3 text-status-warning" aria-hidden />
+      Outside range
+    </Badge>
+  );
 }
 
 export function MyCheckInView() {
   const {
     data: today,
     loading,
+    error,
     refetch: refetchToday,
   } = useApi<TodayRow | null>("/api/staff-attendance/me/today");
-  const { data: history, refetch: refetchHistory } = useApi<HistoryRow[]>("/api/staff-attendance/me/history");
+  const { data: history, refetch: refetchHistory } = useApi<HistoryRow[]>(
+    error ? null : "/api/staff-attendance/me/history",
+  );
+  const { data: settings } = useApi<Settings>("/api/staff-attendance-settings");
   const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<"IN" | "OUT" | null>(null);
 
   async function handleCapture(
     action: "check-in" | "check-out",
-    data: { blob: Blob; lat: number; lng: number },
+    data: { blob: Blob; lat: number; lng: number; accuracy: number },
   ) {
     setSubmitting(true);
     try {
@@ -53,6 +76,7 @@ export function MyCheckInView() {
       formData.append("photo", data.blob, "photo.jpg");
       formData.append("lat", String(data.lat));
       formData.append("lng", String(data.lng));
+      formData.append("accuracy", String(Math.round(data.accuracy)));
       await apiFetch(`/api/staff-attendance/${action}`, { method: "POST", body: formData });
       toast.success(action === "check-in" ? "Checked in" : "Checked out");
       setMode(null);
@@ -67,6 +91,18 @@ export function MyCheckInView() {
 
   if (loading) return <Skeleton className="h-64 rounded-xl" />;
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          {error.includes("staff profile")
+            ? "Your account isn't linked to a staff profile, so there's nothing to check in to. Ask your school admin to add you as staff."
+            : error}
+        </CardContent>
+      </Card>
+    );
+  }
+
   const canCheckIn = !today?.checkInAt;
   const canCheckOut = !!today?.checkInAt && !today?.checkOutAt;
 
@@ -75,39 +111,44 @@ export function MyCheckInView() {
       <Card>
         <CardHeader>
           <CardTitle>Today</CardTitle>
+          {settings && (
+            <CardDescription>
+              Check-in: {windowLabel(settings.checkInWindowStart, settings.checkInWindowEnd)} · Check-out:{" "}
+              {windowLabel(settings.checkOutWindowStart, settings.checkOutWindowEnd)}
+              {settings.officeLat !== null &&
+                ` · ${settings.blockOutsideRadius ? "Must be" : "Should be"} within ${settings.radiusMeters} m of school`}
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-8 text-sm">
             <div>
               <p className="text-muted-foreground">Check-in</p>
               <p className="font-medium">
-                {formatTime(today?.checkInAt ?? null)}
-                {today?.checkInFlagged && (
-                  <Badge variant="secondary" className="ml-2 text-status-warning">
-                    Outside range
-                  </Badge>
-                )}
+                {formatSchoolTime(today?.checkInAt ?? null)}
+                {today?.checkInFlagged && <OutsideRange />}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground">Check-out</p>
               <p className="font-medium">
-                {formatTime(today?.checkOutAt ?? null)}
-                {today?.checkOutFlagged && (
-                  <Badge variant="secondary" className="ml-2 text-status-warning">
-                    Outside range
-                  </Badge>
-                )}
+                {formatSchoolTime(today?.checkOutAt ?? null)}
+                {today?.checkOutFlagged && <OutsideRange />}
               </p>
             </div>
           </div>
 
           {mode ? (
-            <CameraCapture
-              actionLabel={mode === "IN" ? "Check in" : "Check out"}
-              submitting={submitting}
-              onCapture={(data) => handleCapture(mode === "IN" ? "check-in" : "check-out", data)}
-            />
+            <div className="flex flex-col items-center gap-2">
+              <CameraCapture
+                actionLabel={mode === "IN" ? "Check in" : "Check out"}
+                submitting={submitting}
+                onCapture={(data) => handleCapture(mode === "IN" ? "check-in" : "check-out", data)}
+              />
+              <Button variant="ghost" size="sm" onClick={() => setMode(null)} disabled={submitting}>
+                Cancel
+              </Button>
+            </div>
           ) : (
             <div className="flex gap-2">
               {canCheckIn && (
@@ -147,22 +188,18 @@ export function MyCheckInView() {
               <TableBody>
                 {history.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>{formatDate(row.date)}</TableCell>
-                    <TableCell>
-                      {formatTime(row.checkInAt)}
-                      {row.checkInFlagged && (
-                        <span className="ml-1 text-xs text-status-warning" title="Outside office range">
-                          ⚠
-                        </span>
-                      )}
+                    <TableCell>{formatCalendarDate(row.date)}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatSchoolTime(row.checkInAt)}
+                      {row.checkInFlagged && <OutsideRange />}
                     </TableCell>
-                    <TableCell>
-                      {formatTime(row.checkOutAt)}
-                      {row.checkOutFlagged && (
-                        <span className="ml-1 text-xs text-status-warning" title="Outside office range">
-                          ⚠
-                        </span>
+                    <TableCell className="tabular-nums">
+                      {row.checkInAt && !row.checkOutAt ? (
+                        <span className="text-muted-foreground">Not checked out</span>
+                      ) : (
+                        formatSchoolTime(row.checkOutAt)
                       )}
+                      {row.checkOutFlagged && <OutsideRange />}
                     </TableCell>
                   </TableRow>
                 ))}

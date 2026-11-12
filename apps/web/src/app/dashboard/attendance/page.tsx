@@ -26,7 +26,7 @@ export default function AttendancePage() {
           <TabsList>
             <TabsTrigger value="mark">Mark &amp; view</TabsTrigger>
             <TabsTrigger value="summary">Class summary</TabsTrigger>
-            <TabsTrigger value="holidays">Holidays</TabsTrigger>
+            <TabsTrigger value="holidays">School calendar</TabsTrigger>
           </TabsList>
           <TabsContent value="mark" className="mt-4">
             <MarkAttendanceTab />

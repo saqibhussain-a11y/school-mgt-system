@@ -53,3 +53,54 @@ export function passwordChangedEmail(reason: "admin_reset" | "otp_reset") {
     ),
   };
 }
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function attendanceAlertEmail(input: {
+  parentFirstName: string;
+  studentName: string;
+  statusLabel: string;
+  isCorrection: boolean;
+  dateLabel: string;
+  sectionLabel: string;
+  remarks?: string | null;
+  schoolName: string;
+  link: string;
+}) {
+  const student = escapeHtml(input.studentName);
+  const headline = input.isCorrection
+    ? `${student}'s attendance for ${input.dateLabel} has been corrected to <strong>${input.statusLabel}</strong>.`
+    : `${student} was marked <strong>${input.statusLabel}</strong> on ${input.dateLabel}.`;
+  return {
+    subject: input.isCorrection
+      ? `Attendance corrected: ${input.studentName} – ${input.statusLabel}`
+      : `${input.studentName} was marked ${input.statusLabel.toLowerCase()} today`,
+    html: wrapper(
+      `<p>Assalam-o-Alaikum ${escapeHtml(input.parentFirstName)},</p>
+       <p>${headline}</p>
+       <p>Class: ${escapeHtml(input.sectionLabel)}</p>
+       ${input.remarks ? `<p>Teacher's note: ${escapeHtml(input.remarks)}</p>` : ""}
+       <p>If you think this is a mistake, please contact the school.</p>
+       <p><a href="${input.link}">View attendance</a></p>
+       <p style="color:#666">${escapeHtml(input.schoolName)}</p>`,
+    ),
+  };
+}
+
+export function checkOutReminderEmail(firstName: string, closesAt: string | null, link: string) {
+  return {
+    subject: "Reminder: you haven't checked out today",
+    html: wrapper(
+      `<p>Hi ${escapeHtml(firstName)},</p>
+       <p>You checked in today but haven't checked out yet.${closesAt ? ` Check-out closes at <strong>${closesAt}</strong>.` : ""}</p>
+       <p><a href="${link}">Check out now</a></p>`,
+    ),
+  };
+}

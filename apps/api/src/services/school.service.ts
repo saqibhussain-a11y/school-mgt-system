@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { prisma, Role, runAsPlatform } from "@sms/db";
+import { prisma, Role, runAsPlatform, type DayOfWeek } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { hashPassword } from "../lib/password";
 import { generateTempPassword } from "../lib/tempPassword";
@@ -15,6 +15,15 @@ import { MODULE_CEILING_ROLES, type ModuleKey } from "../config/modules";
 import { planService } from "./plan.service";
 
 type CredentialMode = "ADMIN_SET" | "SELF_SERVICE";
+
+const PROFILE_SELECT = {
+  id: true,
+  name: true,
+  address: true,
+  contactEmail: true,
+  contactPhone: true,
+  workingDays: true,
+} as const;
 
 export const schoolService = {
   // Read on every authenticated request (see auth.middleware.ts) to block a
@@ -257,18 +266,28 @@ export const schoolService = {
   getProfile(schoolId: string) {
     return prisma.school.findUniqueOrThrow({
       where: { id: schoolId },
-      select: { id: true, name: true, address: true, contactEmail: true, contactPhone: true },
+      select: PROFILE_SELECT,
     });
   },
 
   updateProfile(
     schoolId: string,
-    data: { name?: string; address?: string | null; contactEmail?: string | null; contactPhone?: string | null },
+    data: {
+      name?: string;
+      address?: string | null;
+      contactEmail?: string | null;
+      contactPhone?: string | null;
+      workingDays?: DayOfWeek[];
+    },
   ) {
     return prisma.school.update({
       where: { id: schoolId },
-      data: { ...data, contactEmail: data.contactEmail === "" ? null : data.contactEmail },
-      select: { id: true, name: true, address: true, contactEmail: true, contactPhone: true },
+      data: {
+        ...data,
+        contactEmail: data.contactEmail === "" ? null : data.contactEmail,
+        workingDays: data.workingDays ? [...new Set(data.workingDays)] : undefined,
+      },
+      select: PROFILE_SELECT,
     });
   },
 

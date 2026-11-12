@@ -1,6 +1,8 @@
 import { prisma, AttendanceStatus } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { holidayService } from "./holiday.service";
+import { attendanceAlertService } from "./attendanceAlert.service";
+import { formatSchoolDate, isSchoolDay, schoolToday } from "../lib/schoolTime";
 
 export interface MarkAttendanceRecord {
   studentId: string;
@@ -26,6 +28,16 @@ export const attendanceService = {
       records: MarkAttendanceRecord[];
     },
   ) {
+    if (input.date > schoolToday()) {
+      throw new HttpError(400, "Attendance can't be marked for a future date");
+    }
+    const school = await prisma.school.findUniqueOrThrow({ where: { id: schoolId }, select: { workingDays: true } });
+    if (!isSchoolDay(input.date, school.workingDays)) {
+      throw new HttpError(
+        400,
+        `${formatSchoolDate(input.date)} isn't a school day. An admin can change the school days under Attendance → School calendar.`,
+      );
+    }
     const holiday = await holidayService.isHoliday(schoolId, input.date);
     if (holiday) {
       throw new HttpError(400, `Cannot mark attendance on a holiday (${holiday.name})`);
@@ -33,6 +45,7 @@ export const attendanceService = {
 
     const section = await prisma.section.findFirst({
       where: { id: input.sectionId, schoolId, classId: input.classId },
+      include: { class: { select: { name: true } } },
     });
     if (!section) {
       throw new HttpError(400, "Section not found for this class");
@@ -49,7 +62,13 @@ export const attendanceService = {
       throw new HttpError(400, `These students are not in this class/section: ${invalid.join(", ")}`);
     }
 
-    return prisma.$transaction(
+    const previous = await prisma.attendance.findMany({
+      where: { schoolId, date: input.date, studentId: { in: studentIds } },
+      select: { studentId: true, status: true },
+    });
+    const previousStatus = new Map(previous.map((p) => [p.studentId, p.status]));
+
+    const records = await prisma.$transaction(
       input.records.map((record) =>
         prisma.attendance.upsert({
           where: { studentId_date: { studentId: record.studentId, date: input.date } },
@@ -71,6 +90,19 @@ export const attendanceService = {
         }),
       ),
     );
+
+    const parentsNotified = await attendanceAlertService.notifyParents(schoolId, {
+      date: input.date,
+      sectionLabel: `${section.class.name} – ${section.name}`,
+      changes: input.records.map((r) => ({
+        studentId: r.studentId,
+        previous: previousStatus.get(r.studentId) ?? null,
+        current: r.status,
+        remarks: r.remarks,
+      })),
+    });
+
+    return { records, parentsNotified };
   },
 
   getByClassSectionDate(schoolId: string, classId: string, sectionId: string, date: Date) {

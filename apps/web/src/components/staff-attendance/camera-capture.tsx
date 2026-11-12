@@ -11,7 +11,7 @@ export function CameraCapture({
 }: {
   actionLabel: string;
   submitting: boolean;
-  onCapture: (data: { blob: Blob; lat: number; lng: number }) => void;
+  onCapture: (data: { blob: Blob; lat: number; lng: number; accuracy: number }) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,6 +20,7 @@ export function CameraCapture({
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,16 +69,26 @@ export function CameraCapture({
       return;
     }
     setLocating(true);
+    setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocating(false);
-        onCapture({ blob: photoBlob, lat: pos.coords.latitude, lng: pos.coords.longitude });
+        onCapture({
+          blob: photoBlob,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
       },
-      () => {
+      (err) => {
         setLocating(false);
-        setError("Location access is required to check in/out — please allow location permission.");
+        setLocationError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission is off. Allow location for this site in your browser settings, then try again."
+            : "Couldn't get your location. Turn on GPS, move near a window or outside, and try again.",
+        );
       },
-      { enableHighAccuracy: true, timeout: 10_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }
 
@@ -97,6 +108,7 @@ export function CameraCapture({
         )}
       </div>
       <canvas ref={canvasRef} className="hidden" />
+      {locationError && <p className="max-w-xs text-center text-sm text-destructive">{locationError}</p>}
       {photoDataUrl ? (
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={retake} disabled={submitting || locating}>

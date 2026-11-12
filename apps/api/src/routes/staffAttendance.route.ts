@@ -2,22 +2,21 @@ import { Router } from "express";
 import multer from "multer";
 import path from "node:path";
 import { Role } from "@sms/db";
-import { staffAttendanceService } from "../services/staffAttendance.service";
+import { staffAttendanceService, STAFF_PHOTO_TYPES } from "../services/staffAttendance.service";
 import { staffService } from "../services/staff.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { HttpError } from "../middleware/errorHandler";
 import { checkInOutSchema } from "../validation/staffAttendance.schema";
+import { parseDateKey, schoolToday } from "../lib/schoolTime";
 
 const ADMIN_ROLES: Role[] = [Role.SCHOOL_ADMIN, Role.PRINCIPAL];
-
-const ALLOWED_PHOTO_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (!ALLOWED_PHOTO_EXTENSIONS.has(path.extname(file.originalname).toLowerCase())) {
+    if (!Object.hasOwn(STAFF_PHOTO_TYPES, path.extname(file.originalname).toLowerCase())) {
       cb(new HttpError(400, "Upload a JPG, PNG, or WEBP photo"));
       return;
     }
@@ -46,7 +45,8 @@ staffAttendanceRouter.post(
       const row = await staffAttendanceService.checkIn(schoolId, staff.id, {
         lat: req.body.lat,
         lng: req.body.lng,
-        photo: { buffer: req.file.buffer, filename: req.file.originalname, contentType: req.file.mimetype },
+        accuracy: req.body.accuracy,
+        photo: { buffer: req.file.buffer, ext: path.extname(req.file.originalname).toLowerCase() },
       });
       res.status(201).json(row);
     } catch (err) {
@@ -67,7 +67,8 @@ staffAttendanceRouter.post(
       const row = await staffAttendanceService.checkOut(schoolId, staff.id, {
         lat: req.body.lat,
         lng: req.body.lng,
-        photo: { buffer: req.file.buffer, filename: req.file.originalname, contentType: req.file.mimetype },
+        accuracy: req.body.accuracy,
+        photo: { buffer: req.file.buffer, ext: path.extname(req.file.originalname).toLowerCase() },
       });
       res.json(row);
     } catch (err) {
@@ -99,9 +100,20 @@ staffAttendanceRouter.get("/me/history", async (req, res, next) => {
 staffAttendanceRouter.get("/roster", authorize(...ADMIN_ROLES), async (req, res, next) => {
   try {
     const dateParam = req.query.date as string | undefined;
-    const date = dateParam ? new Date(`${dateParam}T00:00:00.000Z`) : new Date();
-    const normalized = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-    res.json(await staffAttendanceService.getRosterForDate(req.user!.schoolId, normalized));
+    const date = dateParam ? parseDateKey(dateParam) : schoolToday();
+    if (!date) throw new HttpError(400, "date must be YYYY-MM-DD");
+    res.json(await staffAttendanceService.getRosterForDate(req.user!.schoolId, date));
+  } catch (err) {
+    next(err);
+  }
+});
+
+staffAttendanceRouter.get("/report", authorize(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    const match = /^(\d{4})-(\d{2})$/.exec((req.query.month as string | undefined) ?? "");
+    const month = match ? Number(match[2]) : 0;
+    if (!match || month < 1 || month > 12) throw new HttpError(400, "month must be YYYY-MM");
+    res.json(await staffAttendanceService.getMonthlyReport(req.user!.schoolId, Number(match[1]), month));
   } catch (err) {
     next(err);
   }

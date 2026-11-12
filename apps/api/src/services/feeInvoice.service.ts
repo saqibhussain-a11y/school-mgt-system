@@ -8,6 +8,7 @@ import { generateInvoicePdf } from "../lib/invoicePdf";
 import { roundMoney, ledgerFor, statusFor, creditPoolFor } from "../lib/feeLedger";
 import { getOrSet } from "../lib/cache";
 import { getStripeClient } from "../lib/stripe";
+import { schoolToday } from "../lib/schoolTime";
 import { skipTake, type PaginationParams, type Paginated } from "../lib/pagination";
 
 // Not real pagination (the fee list page filters by class/status/overdue,
@@ -78,7 +79,7 @@ function feeInvoiceListWhere(schoolId: string, filters: FeeInvoiceListFilters) {
     schoolId,
     ...(filters.classId ? { feeStructure: { classId: filters.classId } } : {}),
     ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.overdue ? { dueDate: { lt: new Date() }, status: { not: FeeInvoiceStatus.PAID } } : {}),
+    ...(filters.overdue ? { dueDate: { lt: schoolToday() }, status: { not: FeeInvoiceStatus.PAID } } : {}),
     ...(filters.search
       ? {
           student: {

@@ -15,6 +15,7 @@ interface Settings {
   officeLat: number | null;
   officeLng: number | null;
   radiusMeters: number;
+  blockOutsideRadius: boolean;
   checkInWindowStart: string | null;
   checkInWindowEnd: string | null;
   checkOutWindowStart: string | null;
@@ -76,10 +77,8 @@ export function StaffAttendanceSettingsTab() {
       <CardHeader>
         <CardTitle>Check-in/out settings</CardTitle>
         <CardDescription>
-          A check-in or check-out outside this radius is still recorded, just flagged for review — GPS
-          drifts indoors, so this never blocks a legitimately-present staff member. Leave the office
-          location blank to disable geofencing entirely; leave a window blank to allow that action any
-          time.
+          All times are Pakistan Standard Time. Leave the office location blank to turn off location checks,
+          and leave a window blank to allow that action at any time.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -122,7 +121,7 @@ export function StaffAttendanceSettingsTab() {
                 <Input
                   id="sa-radius"
                   type="number"
-                  min={1}
+                  min={20}
                   value={values.radiusMeters}
                   onChange={(e) => setValues({ ...values, radiusMeters: Number(e.target.value) })}
                 />
@@ -130,16 +129,56 @@ export function StaffAttendanceSettingsTab() {
             </div>
           </div>
 
+          <fieldset className="flex flex-col gap-3" disabled={values.officeLat === null || values.officeLng === null}>
+            <legend className="mb-3 text-sm font-medium">Outside the radius</legend>
+            {[
+              {
+                block: false,
+                title: "Allow and flag for review",
+                detail:
+                  "The check-in is saved with an \u201cOutside range\u201d flag and you get a notification. Safer when GPS is weak indoors.",
+              },
+              {
+                block: true,
+                title: "Block the check-in",
+                detail:
+                  "Staff can only check in or out within the radius. They see how far away they are. Use a radius of at least 100\u2013200 m, since phone GPS can drift.",
+              },
+            ].map((option) => (
+              <label
+                key={String(option.block)}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 has-[:checked]:border-primary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+              >
+                <input
+                  type="radio"
+                  name="outside-radius"
+                  className="mt-1 accent-primary"
+                  checked={values.blockOutsideRadius === option.block}
+                  onChange={() => setValues({ ...values, blockOutsideRadius: option.block })}
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">{option.title}</span>
+                  <span className="text-xs text-muted-foreground">{option.detail}</span>
+                </span>
+              </label>
+            ))}
+            {(values.officeLat === null || values.officeLng === null) && (
+              <p className="text-xs text-muted-foreground">Set the office location first.</p>
+            )}
+          </fieldset>
+
           <div className="flex flex-col gap-3">
             <Label>Check-in window</Label>
             <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
               <Input
                 type="time"
+                aria-label="Check-in opens"
                 value={values.checkInWindowStart ?? ""}
                 onChange={(e) => setValues({ ...values, checkInWindowStart: e.target.value || null })}
               />
               <Input
                 type="time"
+                aria-label="Check-in closes"
                 value={values.checkInWindowEnd ?? ""}
                 onChange={(e) => setValues({ ...values, checkInWindowEnd: e.target.value || null })}
               />
@@ -151,15 +190,21 @@ export function StaffAttendanceSettingsTab() {
             <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
               <Input
                 type="time"
+                aria-label="Check-out opens"
                 value={values.checkOutWindowStart ?? ""}
                 onChange={(e) => setValues({ ...values, checkOutWindowStart: e.target.value || null })}
               />
               <Input
                 type="time"
+                aria-label="Check-out closes"
                 value={values.checkOutWindowEnd ?? ""}
                 onChange={(e) => setValues({ ...values, checkOutWindowEnd: e.target.value || null })}
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              Staff who checked in but haven&apos;t checked out get a reminder 30 minutes before the check-out window
+              closes, or at 4:00 PM if there&apos;s no window.
+            </p>
           </div>
 
           <div>
