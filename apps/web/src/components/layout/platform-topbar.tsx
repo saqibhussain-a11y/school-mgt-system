@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { KeyRound, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -16,9 +17,12 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { PlatformMobileSidebar } from "./platform-mobile-sidebar";
 import { usePlatformAuth } from "@/lib/platform-auth-context";
 import { initials } from "@/lib/format";
+import { platformApiFetch } from "@/lib/platform-api-client";
+import { ChangePasswordDialog } from "./change-password-dialog";
 
 export function PlatformTopbar() {
   const { admin, logout } = usePlatformAuth();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   if (!admin) return null;
 
   return (
@@ -47,12 +51,27 @@ export function PlatformTopbar() {
             </DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+            <KeyRound className="size-4" />
+            Change password
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => logout()}>
             <LogOut className="size-4" />
             Log out
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+        logout={logout}
+        submit={(newPassword) =>
+          platformApiFetch("/api/auth/platform-change-password", {
+            method: "POST",
+            body: JSON.stringify({ newPassword }),
+          })
+        }
+      />
     </header>
   );
 }

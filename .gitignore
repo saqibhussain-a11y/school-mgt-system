@@ -42,3 +42,6 @@ desktop.ini
 
 # Uploaded/local files
 uploads/
+
+# Local seed holds real Super Admin credentials; seed.example.ts is the committed template
+packages/db/prisma/seed.ts

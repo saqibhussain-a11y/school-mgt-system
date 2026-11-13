@@ -85,7 +85,7 @@ function PlatformLoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@school.test"
-                className="h-auto rounded-none border-0 border-b border-input bg-transparent px-0 py-2 text-sm focus-visible:border-b-primary focus-visible:ring-0"
+                className="h-auto rounded-none border-0 border-b border-input bg-transparent px-3 py-2 text-sm focus-visible:border-b-primary focus-visible:ring-0"
               />
             </div>
 
@@ -101,12 +101,12 @@ function PlatformLoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-auto rounded-none border-0 border-b border-input bg-transparent px-0 py-2 pr-8 text-sm focus-visible:border-b-primary focus-visible:ring-0"
+                  className="h-auto rounded-none border-0 border-b border-input bg-transparent px-3 py-2 pr-10 text-sm focus-visible:border-b-primary focus-visible:ring-0"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute top-1/2 right-0 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}

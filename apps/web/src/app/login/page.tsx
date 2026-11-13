@@ -17,6 +17,9 @@ import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { SchoolDto } from "@sms/shared-types";
 
+const NO_SCHOOLS_MESSAGE = "No school has been added to the platform yet.";
+const API_DOWN_MESSAGE = "Could not reach the API. Is it running on npm run dev:api?";
+
 export default function LoginPage() {
   const { login } = useAuth();
   const [schools, setSchools] = useState<SchoolDto[] | null>(null);
@@ -33,19 +36,52 @@ export default function LoginPage() {
   const [resolvingSchools, setResolvingSchools] = useState(true);
 
   useEffect(() => {
-    apiFetch<SchoolDto[]>("/api/schools")
-      .then((result) => {
-        setSchools(result);
-        if (result.length === 0) {
-          setError("No school has been added to the platform yet.");
-        } else if (result.length === 1) {
-          // Only one school exists — pick it silently, same UX as before
-          // multi-school support existed. With 2+, the user must choose.
-          setSchoolId(result[0].id);
-        }
-      })
-      .catch(() => setError("Could not reach the API. Is it running on npm run dev:api?"))
-      .finally(() => setResolvingSchools(false));
+    let cancelled = false;
+    const loadSchools = (isFirstLoad: boolean) =>
+      apiFetch<SchoolDto[]>("/api/schools", { cache: "no-store" })
+        .then((result) => {
+          if (cancelled) return;
+          setSchools(result);
+          if (result.length === 0) {
+            setError(NO_SCHOOLS_MESSAGE);
+            return;
+          }
+          // A school can be added while this page sits open in another tab;
+          // drop the "no school yet" / "API down" message once schools load.
+          setError((prev) => (prev === NO_SCHOOLS_MESSAGE || prev === API_DOWN_MESSAGE ? null : prev));
+          // Keep the user's pick if it still exists. With exactly one school,
+          // pick it silently, same UX as before multi-school support.
+          setSchoolId((prev) =>
+            result.some((school) => school.id === prev) ? prev : result.length === 1 ? result[0].id : "",
+          );
+        })
+        .catch(() => {
+          if (!cancelled && isFirstLoad) setError(API_DOWN_MESSAGE);
+        })
+        .finally(() => {
+          if (!cancelled && isFirstLoad) setResolvingSchools(false);
+        });
+
+    void loadSchools(true);
+    // The list used to load only once, so a school added by the Super Admin
+    // didn't appear until a full reload. Re-check whenever the page comes
+    // back into view: tab switch, window focus, or browser back/forward.
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadSchools(false);
+    };
+    // pageshow also fires on the first load; only act on a back/forward restore.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) refresh();
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -140,7 +176,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@school.test"
-                className="h-auto rounded-none border-0 border-b border-input bg-transparent px-0 py-2 text-sm focus-visible:border-b-primary focus-visible:ring-0"
+                className="h-auto rounded-none border-0 border-b border-input bg-transparent px-3 py-2 text-sm focus-visible:border-b-primary focus-visible:ring-0"
               />
             </div>
 
@@ -156,12 +192,12 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-auto rounded-none border-0 border-b border-input bg-transparent px-0 py-2 pr-8 text-sm focus-visible:border-b-primary focus-visible:ring-0"
+                  className="h-auto rounded-none border-0 border-b border-input bg-transparent px-3 py-2 pr-10 text-sm focus-visible:border-b-primary focus-visible:ring-0"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute top-1/2 right-0 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}

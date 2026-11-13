@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authService } from "../services/auth.service";
-import { authenticate } from "../middleware/auth.middleware";
+import { authenticate, authenticatePlatform } from "../middleware/auth.middleware";
 import { validateBody } from "../middleware/validate";
 import { loginLimiter, passwordResetRequestLimiter, otpVerifyLimiter } from "../middleware/rateLimit";
 import {
@@ -56,6 +56,20 @@ authRouter.post("/logout", validateBody(refreshSchema), async (req, res, next) =
     next(err);
   }
 });
+
+authRouter.post(
+  "/platform-change-password",
+  authenticatePlatform,
+  validateBody(changePasswordSchema),
+  async (req, res, next) => {
+    try {
+      await authService.platformChangePassword(req.platformAdmin!.sub, req.body.newPassword);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 authRouter.post("/platform-refresh", validateBody(refreshSchema), async (req, res, next) => {
   try {

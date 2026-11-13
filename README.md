@@ -227,20 +227,16 @@ npm install
 npm run docker:up
 
 # 4. Apply the database schema, then seed a starter school + the one
-#    Platform Admin login
+#    Platform Admin login. The seed file is git-ignored so credentials
+#    never reach the repo: copy the template and choose your own login.
 npm run db:migrate
-npm run db:seed
+cp packages/db/prisma/seed.example.ts packages/db/prisma/seed.ts
+SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD='a-strong-password' npm run db:seed
 ```
 
-`db:seed` prints something like:
-
-```
-Seeded school "Default School" (id: ...)
-Seeded platform admin: admin@school.test / ChangeMe123!
-```
-
-override the login via `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` env vars
-before seeding if you don't want the default.
+`db:seed` prints the school id and the Platform Admin email (never the
+password). The Super Admin can change the password later from the
+profile menu → **Change password**.
 
 ### Getting your first school-admin login
 

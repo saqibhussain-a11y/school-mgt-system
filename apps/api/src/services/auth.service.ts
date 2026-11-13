@@ -1,4 +1,4 @@
-import { prisma, Role } from "@sms/db";
+import { prisma, Role, runAsPlatform } from "@sms/db";
 import { HttpError } from "../middleware/errorHandler";
 import { hashPassword, verifyPassword } from "../lib/password";
 import {
@@ -17,6 +17,7 @@ import { platformAdminService } from "./platformAdmin.service";
 import { platformAuthTokenService } from "./platformAuthToken.service";
 import { passwordResetService } from "./passwordReset.service";
 import { notificationService } from "./notification.service";
+import { platformAuditLogService } from "./platformAuditLog.service";
 
 async function issueTokenPair(user: { id: string; schoolId: string; role: Role }) {
   const accessToken = signAccessToken({ sub: user.id, schoolId: user.schoolId, role: user.role });
@@ -58,6 +59,29 @@ export const authService = {
       throw new HttpError(401, "Invalid email or password");
     }
     return issuePlatformTokenPair(admin);
+  },
+
+  // Same rule as school users: no current password asked. Every Super Admin
+  // session is signed out and the change lands in the platform audit log.
+  async platformChangePassword(platformAdminId: string, newPassword: string) {
+    const admin = await platformAdminService.getById(platformAdminId);
+    if (!admin) {
+      throw new HttpError(404, "Platform admin not found");
+    }
+    const passwordHash = await hashPassword(newPassword);
+    await runAsPlatform(() =>
+      prisma.$transaction(async (tx) => {
+        await tx.platformAdmin.update({ where: { id: admin.id }, data: { passwordHash } });
+        await platformAuditLogService.record(tx, {
+          platformAdminId: admin.id,
+          action: "platform_admin.change_password",
+          targetType: "PlatformAdmin",
+          targetId: admin.id,
+        });
+      }),
+    );
+    await platformAuthTokenService.revokeAllForAdmin(admin.id);
+    await notificationService.notifyPasswordChanged(admin.email, "self_change");
   },
 
   async platformRefresh(rawToken: string) {

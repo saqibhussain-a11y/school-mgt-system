@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -13,19 +13,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { apiFetch, ApiError } from "@/lib/api-client";
-import { useAuth } from "@/lib/auth-context";
+import { ApiError } from "@/lib/api-client";
 
 const EMPTY_FORM = { newPassword: "", confirmPassword: "" };
 
+// Shared by the school topbar and the platform (Super Admin) topbar: each
+// passes its own API call and logout, since they use separate token stores.
 export function ChangePasswordDialog({
   open,
   onOpenChange,
+  submit,
+  logout,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  submit: (newPassword: string) => Promise<unknown>;
+  logout: () => Promise<void>;
 }) {
-  const { logout } = useAuth();
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,10 +45,7 @@ export function ChangePasswordDialog({
     }
     setSubmitting(true);
     try {
-      await apiFetch("/api/auth/change-password", {
-        method: "POST",
-        body: JSON.stringify({ newPassword: form.newPassword }),
-      });
+      await submit(form.newPassword);
       toast.success("Password changed — please log in again");
       onOpenChange(false);
       reset();
@@ -75,9 +76,8 @@ export function ChangePasswordDialog({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="cp-new">New password</Label>
-            <Input
+            <PasswordInput
               id="cp-new"
-              type="password"
               autoComplete="new-password"
               required
               minLength={8}
@@ -87,9 +87,8 @@ export function ChangePasswordDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="cp-confirm">Confirm new password</Label>
-            <Input
+            <PasswordInput
               id="cp-confirm"
-              type="password"
               autoComplete="new-password"
               required
               minLength={8}

@@ -19,6 +19,7 @@ import { NotificationBell } from "./notification-bell";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ChangePasswordDialog } from "./change-password-dialog";
 import { useAuth } from "@/lib/auth-context";
+import { apiFetch } from "@/lib/api-client";
 import { formatRole } from "@/lib/format";
 
 export function Topbar() {
@@ -75,7 +76,14 @@ export function Topbar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+        logout={logout}
+        submit={(newPassword) =>
+          apiFetch("/api/auth/change-password", { method: "POST", body: JSON.stringify({ newPassword }) })
+        }
+      />
     </header>
   );
 }
