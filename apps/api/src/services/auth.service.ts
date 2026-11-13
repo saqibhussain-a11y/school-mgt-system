@@ -144,13 +144,18 @@ export const authService = {
     await notificationService.notifyPasswordChanged(email, "otp_reset");
   },
 
-  async changePassword(schoolId: string, userId: string, currentPassword: string, newPassword: string) {
+  // No current password asked: a signed-in user who has forgotten it should
+  // still be able to set a new one. The safeguards are that every session is
+  // signed out and the account's email gets a "password changed" notice, so
+  // someone using an unattended device can't change it silently.
+  async changePassword(schoolId: string, userId: string, newPassword: string) {
     const user = await userService.getById(schoolId, userId);
-    if (!user || !(await verifyPassword(currentPassword, user.passwordHash))) {
-      throw new HttpError(401, "Current password is incorrect");
+    if (!user) {
+      throw new HttpError(404, "User not found");
     }
     const passwordHash = await hashPassword(newPassword);
     await userService.updatePassword(schoolId, user.id, passwordHash);
     await authTokenService.revokeAllForUser(schoolId, user.id);
+    await notificationService.notifyPasswordChanged(user.email, "self_change");
   },
 };

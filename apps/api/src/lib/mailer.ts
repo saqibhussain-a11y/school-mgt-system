@@ -1,7 +1,26 @@
+import { lookup } from "node:dns/promises";
 import nodemailer, { type Transporter } from "nodemailer";
 import { logger } from "./logger";
 
 let transporterPromise: Promise<Transporter> | null = null;
+let transporterCreatedAt = 0;
+// Re-resolve the SMTP host now and then so a long-running server follows the
+// provider's DNS changes instead of pinning one IP forever.
+const TRANSPORTER_TTL_MS = 10 * 60_000;
+
+// Many home/office networks in Pakistan have no working IPv6 route, but
+// smtp.gmail.com publishes IPv6 addresses and nodemailer picks one at random
+// (EHOSTUNREACH 2a00:…:587). Connect to an IPv4 address and keep the real
+// hostname for TLS certificate checks. Falls back to the hostname if the
+// lookup fails.
+async function resolveSmtpHost(host: string) {
+  try {
+    const { address } = await lookup(host, { family: 4 });
+    return { host: address, tls: { servername: host } };
+  } catch {
+    return { host };
+  }
+}
 
 // No SMTP_HOST configured (local dev) — auto-provision a disposable Ethereal
 // inbox instead of a real one, so email sending is exercised for real end to
@@ -14,7 +33,7 @@ const TRANSPORT_TIMEOUTS = { connectionTimeout: 10_000, greetingTimeout: 10_000,
 async function createTransporter(): Promise<Transporter> {
   if (process.env.SMTP_HOST) {
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      ...(await resolveSmtpHost(process.env.SMTP_HOST)),
       port: Number(process.env.SMTP_PORT ?? 587),
       secure: process.env.SMTP_SECURE === "true",
       auth: process.env.SMTP_USER
@@ -35,8 +54,13 @@ async function createTransporter(): Promise<Transporter> {
 }
 
 function getTransporter() {
-  if (!transporterPromise) {
+  if (!transporterPromise || Date.now() - transporterCreatedAt > TRANSPORTER_TTL_MS) {
     transporterPromise = createTransporter();
+    transporterCreatedAt = Date.now();
+    // Don't cache a failed creation (e.g. Ethereal unreachable) forever.
+    transporterPromise.catch(() => {
+      transporterPromise = null;
+    });
   }
   return transporterPromise;
 }

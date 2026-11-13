@@ -16,7 +16,7 @@ import {
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 
-const EMPTY_FORM = { currentPassword: "", newPassword: "", confirmPassword: "" };
+const EMPTY_FORM = { newPassword: "", confirmPassword: "" };
 
 export function ChangePasswordDialog({
   open,
@@ -43,10 +43,7 @@ export function ChangePasswordDialog({
     try {
       await apiFetch("/api/auth/change-password", {
         method: "POST",
-        body: JSON.stringify({
-          currentPassword: form.currentPassword,
-          newPassword: form.newPassword,
-        }),
+        body: JSON.stringify({ newPassword: form.newPassword }),
       });
       toast.success("Password changed — please log in again");
       onOpenChange(false);
@@ -71,21 +68,11 @@ export function ChangePasswordDialog({
         <DialogHeader>
           <DialogTitle>Change password</DialogTitle>
           <DialogDescription>
-            You&apos;ll be signed out on all devices after this and need to log in again.
+            You&apos;ll be signed out on all devices and need to log in again. We&apos;ll email you
+            to confirm the change.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="cp-current">Current password</Label>
-            <Input
-              id="cp-current"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={form.currentPassword}
-              onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
-            />
-          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="cp-new">New password</Label>
             <Input

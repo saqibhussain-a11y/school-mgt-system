@@ -106,8 +106,7 @@ authRouter.post(
   validateBody(changePasswordSchema),
   async (req, res, next) => {
     try {
-      const { currentPassword, newPassword } = req.body;
-      await authService.changePassword(req.user!.schoolId, req.user!.sub, currentPassword, newPassword);
+      await authService.changePassword(req.user!.schoolId, req.user!.sub, req.body.newPassword);
       res.status(204).send();
     } catch (err) {
       next(err);

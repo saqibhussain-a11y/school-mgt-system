@@ -40,11 +40,13 @@ export function accountInviteEmail(firstName: string, otp: string, claimUrl: str
   };
 }
 
-export function passwordChangedEmail(reason: "admin_reset" | "otp_reset") {
+export function passwordChangedEmail(reason: "admin_reset" | "otp_reset" | "self_change") {
   const explanation =
     reason === "admin_reset"
       ? "An administrator reset your password."
-      : "Your password was reset using the forgot-password code sent to this email.";
+      : reason === "self_change"
+        ? "Your password was changed from inside your account."
+        : "Your password was reset using the forgot-password code sent to this email.";
   return {
     subject: "Your password was changed",
     html: wrapper(
